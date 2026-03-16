@@ -1690,8 +1690,10 @@ async function confirmarPagamentoAdmin() {
       
       mostrarToast("✅ Pagamento parcial (itens) registrado!");
       
-      // Passa as informações corretas para o cupom de itens não adivinhar
-      imprimirCupomParcialItens(pedidoParaFecharAdmin, selecionados, total, cobrarTaxa);
+      // PERGUNTA SE DESEJA IMPRIMIR
+      if (await mostrarConfirmacao("Deseja imprimir o comprovante desta parcial?", "Impressão", "Sim, Imprimir", "Não")) {
+        imprimirCupomParcialItens(pedidoParaFecharAdmin, selecionados, total, cobrarTaxa);
+      }
     } else {
       // 4. FECHAMENTO TOTAL DA MESA
       // Se for dividido, perguntar as formas de cada pessoa antes de enviar
@@ -1724,22 +1726,26 @@ async function confirmarPagamentoAdmin() {
       
       mostrarToast("✅ Conta Total Finalizada!");
       const novosPagamentosCount = (formasPagamentoPessoas && formasPagamentoPessoas.length) ? formasPagamentoPessoas.length : 1;
-      const pedidoFinal = { 
-        ...pedidoParaFecharAdmin, 
-        num_pessoas: num_pessoas, 
-        valor_por_pessoa: valor_por_pessoa, 
-        total: total, 
-        cobrar_taxa: cobrarTaxa, 
-        acrescimo: acrescimo, 
-        desconto: desconto, 
-        pago_parcial: pagoParcial, 
-        forma_pagamento: forma_pagamento,
-        valor_recebido: valor_recebido,
-        troco: troco,
-        isFechamentoFinal: true,
-        novosPagamentosCount: novosPagamentosCount
-      };
-      imprimirCupom(pedidoFinal, itensFechamentoAdmin);
+      
+      // PERGUNTA SE DESEJA IMPRIMIR O FINAL
+      if (await mostrarConfirmacao("Venda concluída! Deseja imprimir o comprovante final?", "Impressão Final", "Sim, Imprimir", "Não")) {
+        const pedidoFinal = { 
+          ...pedidoParaFecharAdmin, 
+          num_pessoas: num_pessoas, 
+          valor_por_pessoa: valor_por_pessoa, 
+          total: total, 
+          cobrar_taxa: cobrarTaxa, 
+          acrescimo: acrescimo, 
+          desconto: desconto, 
+          pago_parcial: pagoParcial, 
+          forma_pagamento: forma_pagamento,
+          valor_recebido: valor_recebido,
+          troco: troco,
+          isFechamentoFinal: true,
+          novosPagamentosCount: novosPagamentosCount
+        };
+        imprimirCupom(pedidoFinal, itensFechamentoAdmin);
+      }
     }
     
     fecharModalFechamentoAdmin();
