@@ -712,26 +712,36 @@ app.post('/api/pedidos/:id/pagamento-parcial', async (req, res) => {
 
 app.put('/api/pedidos/:id/status', async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, pagamentos_detalhados } = req.body;
   try {
     if (status === 'entregue') {
       const cx = (await query("SELECT id FROM fluxo_caixa WHERE status = 'aberto'")).rows[0];
       if (!cx) return res.status(400).json({ error: 'CAIXA FECHADO' });
-      
+
       const p = (await query("SELECT total, forma_pagamento, pago_parcial FROM pedidos WHERE id = ?", [id])).rows[0];
       if (p) {
-        const col = p.forma_pagamento === 'Cartão' ? 'total_cartao' : (p.forma_pagamento === 'Pix' ? 'total_pix' : 'total_dinheiro');
-        const valorFinal = p.total; // O total do pedido é o saldo restante a pagar
-        
-        await query(`UPDATE fluxo_caixa SET ${col} = ${col} + ?, total_vendas = total_vendas + ? WHERE id = ?`, [valorFinal, valorFinal, cx.id]);
-        
         // Registra o pagamento final na tabela de pagamentos
-        const sqlCreate = isPostgres 
+        const sqlCreate = isPostgres
           ? `CREATE TABLE IF NOT EXISTS pagamentos (id SERIAL PRIMARY KEY, pedido_id INTEGER, valor REAL, forma_pagamento TEXT, data TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
           : `CREATE TABLE IF NOT EXISTS pagamentos (id INTEGER PRIMARY KEY AUTOINCREMENT, pedido_id INTEGER, valor REAL, forma_pagamento TEXT, data TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`;
         await query(sqlCreate);
-        await query("INSERT INTO pagamentos (pedido_id, valor, forma_pagamento) VALUES (?, ?, ?)", [id, valorFinal, p.forma_pagamento]);
-        
+
+        if (Array.isArray(pagamentos_detalhados) && pagamentos_detalhados.length > 0) {
+          // Cenário Multi-Pagamento (Dividido por Pessoas)
+          const valorPorPessoa = p.total / pagamentos_detalhados.length;
+          for (const forma of pagamentos_detalhados) {
+            const col = forma === 'Cartão' ? 'total_cartao' : (forma === 'Pix' ? 'total_pix' : 'total_dinheiro');
+            await query(`UPDATE fluxo_caixa SET ${col} = ${col} + ?, total_vendas = total_vendas + ? WHERE id = ?`, [valorPorPessoa, valorPorPessoa, cx.id]);
+            await query("INSERT INTO pagamentos (pedido_id, valor, forma_pagamento) VALUES (?, ?, ?)", [id, valorPorPessoa, forma]);
+          }
+        } else {
+          // Cenário Normal (Um único pagamento para o saldo restante)
+          const col = p.forma_pagamento === 'Cartão' ? 'total_cartao' : (p.forma_pagamento === 'Pix' ? 'total_pix' : 'total_dinheiro');
+          const valorFinal = p.total;
+          await query(`UPDATE fluxo_caixa SET ${col} = ${col} + ?, total_vendas = total_vendas + ? WHERE id = ?`, [valorFinal, valorFinal, cx.id]);
+          await query("INSERT INTO pagamentos (pedido_id, valor, forma_pagamento) VALUES (?, ?, ?)", [id, valorFinal, p.forma_pagamento]);
+        }
+
         // Atualiza o pedido: limpa o saldo e soma ao pago_parcial para consolidar o histórico
         await query("UPDATE pedidos SET pago_parcial = pago_parcial + total, total = 0 WHERE id = ?", [id]);
       }
@@ -744,7 +754,6 @@ app.put('/api/pedidos/:id/status', async (req, res) => {
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.get('/api/menu', ensureDbInitialized, async (req, res) => {
   try {
     res.json((await query('SELECT * FROM menu ORDER BY validade ASC')).rows);

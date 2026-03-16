@@ -836,7 +836,7 @@ async function exibirHistorico() {
           <small style="display:block; margin-top:4px;">📅 ${formatarData(pedido.created_at)}</small>
           <small style="display:block; font-weight:bold; color: #2c3e50;">👤 Garçom: ${pedido.garcom_nome || pedido.garcom_id || 'Administrador'}</small>
           ${pedido.observacao ? `<small style="display:block; color:#e67e22; font-weight:bold; margin-top:2px;">📝 ${pedido.observacao}</small>` : ''}
-          ${pagamentos.length > 1 ? `<small style="display:block; color:#2980b9; font-weight:bold; margin-top:2px;">👥 DIVIDIDO POR: ${pagamentos.length} PESSOAS</small>` : ''}
+          ${(pagamentos.length > 1 || pedido.num_pessoas > 1) ? `<small style="display:block; color:#2980b9; font-weight:bold; margin-top:2px;">👥 DIVIDIDO POR: ${Math.max(pagamentos.length, pedido.num_pessoas || 1)} PESSOAS</small>` : ''}
         </div>
         <div style="text-align: right;">
           <div class="pedido-valor">R$ ${valorConsolidado.toFixed(2)}</div>
@@ -1640,48 +1640,37 @@ async function confirmarPagamentoAdmin() {
       // Passa as informações corretas para o cupom de itens não adivinhar
       imprimirCupomParcialItens(pedidoParaFecharAdmin, selecionados, total, cobrarTaxa);
     } else {
-      // PAGAMENTO TOTAL DA MESA
+      // 4. FECHAMENTO TOTAL DA MESA
+      // Se for dividido, perguntar as formas de cada pessoa antes de enviar
+      let formasPagamentoPessoas = null;
+      if (num_pessoas > 1) {
+          formasPagamentoPessoas = await mostrarModalMultiPagamento(num_pessoas, valor_por_pessoa);
+          if (!formasPagamentoPessoas) return; // Cancelou
+      }
+
       const resFechamento = await fetch(`/api/pedidos/${idPedido}/solicitar-fechamento`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           mesa_id: idMesa, 
-          forma_pagamento, 
-          acrescimo, 
-          desconto, 
-          valor_recebido, 
-          troco, 
-          total,
-          num_pessoas,
-          valor_por_pessoa,
-          cobrar_taxa: cobrarTaxa
+          forma_pagamento: forma_pagamento, 
+          desconto, acrescimo, valor_recebido, troco, total,
+          num_pessoas, valor_por_pessoa, cobrar_taxa: cobrarTaxa
         })
       });
-
       if (!resFechamento.ok) throw new Error("Erro ao atualizar dados de fechamento");
 
       const resStatus = await fetch(`/api/pedidos/${idPedido}/status`, { 
         method: 'PUT', 
         headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ status: 'entregue' }) 
+        body: JSON.stringify({ status: 'entregue', pagamentos_detalhados: formasPagamentoPessoas }) 
       });
 
       if (!resStatus.ok) throw new Error("Erro ao finalizar pedido");
       if (idMesa) await fetch(`/api/mesas/${idMesa}/liberar`, { method: 'PUT' });
       
       mostrarToast("✅ Conta Total Finalizada!");
-      
-      const pedidoFinal = {
-        ...pedidoParaFecharAdmin,
-        num_pessoas: num_pessoas,
-        valor_por_pessoa: valor_por_pessoa,
-        total: total,
-        cobrar_taxa: cobrarTaxa,
-        acrescimo: acrescimo,
-        desconto: desconto,
-        pago_parcial: pagoParcial,
-        isFechamentoFinal: true // Flag para o cupom mostrar o saldo pago
-      };
+      const pedidoFinal = { ...pedidoParaFecharAdmin, num_pessoas: num_pessoas, valor_por_pessoa: valor_por_pessoa, total: total, cobrar_taxa: cobrarTaxa, acrescimo: acrescimo, desconto: desconto, pago_parcial: pagoParcial, isFechamentoFinal: true };
       imprimirCupom(pedidoFinal, itensFechamentoAdmin);
     }
     
@@ -1810,6 +1799,39 @@ function imprimirCupomParcialItens(pedido, itensPagos, totalPago, cobrarTaxa) {
 }
 
 function fecharModalFechamentoAdmin() { document.getElementById('modal-fechamento-admin').style.display = 'none'; }
+
+function fecharModalMultiPagamento() { document.getElementById('modal-multi-pagamento').style.display = 'none'; }
+
+function mostrarModalMultiPagamento(numPessoas, valorPorPessoa) {
+  return new Promise(resolve => {
+    document.getElementById('multi-pag-valor-pessoa').innerText = valorPorPessoa.toFixed(2);
+    const container = document.getElementById('multi-pag-lista-pessoas');
+    if (!container) return resolve(null);
+
+    container.innerHTML = '';
+    for (let i = 1; i <= numPessoas; i++) {
+      container.innerHTML += `
+        <div style="display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;">
+          <strong style="color: #2c3e50;">Pessoa ${i}:</strong>
+          <select class="multi-pag-forma-select" style="padding: 8px; border-radius: 5px; border: 1px solid #ced4da; font-size: 0.95rem;">
+            <option value="Dinheiro">💵 Dinheiro</option>
+            <option value="Pix">📱 Pix</option>
+            <option value="Cartão">💳 Cartão</option>
+          </select>
+        </div>`;
+    }
+
+    const modal = document.getElementById('modal-multi-pagamento');
+    modal.style.display = 'flex';
+
+    document.getElementById('btn-confirmar-multi-pagamento').onclick = () => {
+      const selects = container.querySelectorAll('.multi-pag-forma-select');
+      const formas = Array.from(selects).map(s => s.value);
+      modal.style.display = 'none';
+      resolve(formas);
+    };
+  });
+}
 
 async function carregarCardapio() {
   const res = await fetch('/api/menu');
@@ -2114,7 +2136,7 @@ async function imprimirCupom(pedido, itens) {
         for (let i = 1; i <= numPessoasNoPedido; i++) {
             linhasDivisao += `
               <div style="display:flex; justify-content:space-between; margin-bottom: 2px; font-weight: bold;">
-                <span>PARTE ${i} (PAGO):</span>
+                <span>PARTE ${i} (A PAGAR):</span>
                 <span>R$ ${valorParte.toFixed(2)}</span>
               </div>
             `;
