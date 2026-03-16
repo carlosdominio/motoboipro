@@ -1570,7 +1570,15 @@ async function confirmarPagamentoAdmin() {
   try {
     // CENÁRIO: Pagamento de APENAS UMA PARTE DA DIVISÃO
     if (num_pessoas > 1 && todosItensSelecionados) {
-      const pagarFracao = await mostrarConfirmacao(`Esta conta está dividida para ${num_pessoas} pessoas.\n\nDeseja pagar apenas 1 PARTE (R$ ${valor_por_pessoa.toFixed(2)}) e manter a mesa aberta para as outras ${num_pessoas - 1} pessoas?`, "Pagamento de Fração", "Sim", "Não");
+      // Busca o histórico real para saber qual é o número desta parte
+      let historicoAtual = [];
+      try {
+        const resH = await fetch(`/api/pedidos/${idPedido}/pagamentos`);
+        if (resH.ok) historicoAtual = await resH.json();
+      } catch(e) {}
+      
+      const proximaParte = historicoAtual.length + 1;
+      const pagarFracao = await mostrarConfirmacao(`Esta conta está dividida para ${num_pessoas} pessoas.\n\nDeseja pagar apenas a PARTE ${proximaParte} (R$ ${valor_por_pessoa.toFixed(2)}) e manter a mesa aberta para as outras ${num_pessoas - 1} pessoas?`, "Pagamento de Fração", "Sim", "Não");
       
       if (pagarFracao) {
         const resFracao = await fetch(`/api/pedidos/${idPedido}/pagamento-fracao`, {
