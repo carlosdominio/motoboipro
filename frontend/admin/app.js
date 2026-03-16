@@ -1670,7 +1670,19 @@ async function confirmarPagamentoAdmin() {
       if (idMesa) await fetch(`/api/mesas/${idMesa}/liberar`, { method: 'PUT' });
       
       mostrarToast("✅ Conta Total Finalizada!");
-      const pedidoFinal = { ...pedidoParaFecharAdmin, num_pessoas: num_pessoas, valor_por_pessoa: valor_por_pessoa, total: total, cobrar_taxa: cobrarTaxa, acrescimo: acrescimo, desconto: desconto, pago_parcial: pagoParcial, isFechamentoFinal: true };
+      const novosPagamentosCount = (formasPagamentoPessoas && formasPagamentoPessoas.length) ? formasPagamentoPessoas.length : 1;
+      const pedidoFinal = { 
+        ...pedidoParaFecharAdmin, 
+        num_pessoas: num_pessoas, 
+        valor_por_pessoa: valor_por_pessoa, 
+        total: total, 
+        cobrar_taxa: cobrarTaxa, 
+        acrescimo: acrescimo, 
+        desconto: desconto, 
+        pago_parcial: pagoParcial, 
+        isFechamentoFinal: true,
+        novosPagamentosCount: novosPagamentosCount
+      };
       imprimirCupom(pedidoFinal, itensFechamentoAdmin);
     }
     
@@ -2081,21 +2093,27 @@ async function imprimirCupom(pedido, itens) {
   
   const numPessoasNoPedido = pedido.num_pessoas || 1;
   
-  // Se for uma impressão imediata após pagar, o último item do histórico é o pagamento atual.
+  // Se for uma impressão imediata após pagar, o último item (ou itens) do histórico é o pagamento atual.
   // Se for uma RE-IMPRESSÃO do histórico, todos os itens já são pagamentos passados.
   const isImpressaoImediata = !!(pedido.isFracaoPagamento || pedido.isFechamentoFinal);
+  const novosPagamentosCount = pedido.novosPagamentosCount || 1;
   
   const jaPagosAnteriormente = isImpressaoImediata 
-    ? historicoPagos.slice(0, -1) 
+    ? historicoPagos.slice(0, -novosPagamentosCount) 
     : historicoPagos;
 
+  const isConferencia = !!(pedido.isImpressaoParcialItens || pedido.isImpressaoParcialMesa);
+
   // No fechamento total ou re-impressão, o total de pessoas é exatamente a quantidade de pagamentos.
-  // No pagamento de fração (apenas 1 parte), o total é quem já pagou + quem falta.
-  const numPessoasExibicao = (pedido.isFracaoPagamento) 
+  // No pagamento de fração (apenas 1 parte) ou Nota Parcial, o total é quem já pagou + quem falta.
+  let numPessoasExibicao = (pedido.isFracaoPagamento) 
     ? (jaPagosAnteriormente.length + numPessoasNoPedido)
     : Math.max(numPessoasNoPedido, historicoPagos.length);
-  
-  const isConferencia = !!(pedido.isImpressaoParcialItens || pedido.isImpressaoParcialMesa);
+
+  // SE FOR CONFERÊNCIA: Se já houve pagamentos, garantimos que mostre pelo menos as partes pagas + 1 a pagar
+  if (isConferencia && historicoPagos.length > 0 && numPessoasNoPedido <= 1) {
+      numPessoasExibicao = historicoPagos.length + 1;
+  }
 
   // Define se é re-impressão do histórico
   const isReimpressaoHistorico = (pedido.status === 'entregue' && !pedido.isFracaoPagamento);
@@ -2103,68 +2121,65 @@ async function imprimirCupom(pedido, itens) {
   // Lógica para exibição da divisão no cupom
   let htmlDivisao = '';
   if (numPessoasExibicao > 1) {
-    let linhasDivisao = '';
-    
-    // Se for Re-impressão do histórico ou pagamento de fração única
-    if (isReimpressaoHistorico || pedido.isFracaoPagamento) {
-        // Mostra o que já foi pago no histórico
-        linhasDivisao += jaPagosAnteriormente.map((pag, idx) => `
-          <div style="display:flex; justify-content:space-between; margin-bottom: 2px; opacity: 0.7;">
-            <span>PARTE ${idx + 1} (JÁ PAGO):</span>
-            <span>R$ ${pag.valor.toFixed(2)}</span>
-          </div>
-        `).join('');
+      let linhasDivisao = '';
 
-        // Se for fração, mostra a parte atual e as restantes a pagar
-        if (pedido.isFracaoPagamento) {
-            Array.from({ length: numPessoasNoPedido }).forEach((_, i) => {
-                const numParte = jaPagosAnteriormente.length + i + 1;
-                const valorParte = totalGeralMesa / numPessoasExibicao;
-                const isSendoPaga = i === 0;
-                
-                linhasDivisao += `
-                  <div style="display:flex; justify-content:space-between; margin-bottom: 2px; ${isSendoPaga ? 'font-weight: bold;' : 'opacity: 0.5;'}">
-                    <span>PARTE ${numParte} ${isSendoPaga ? '(PAGANDO AGORA)' : '(A PAGAR)'}:</span>
-                    <span>R$ ${valorParte.toFixed(2)}</span>
-                  </div>
-                `;
-            });
-        }
-    } else if (pedido.isFechamentoFinal) {
-        // No fechamento final, mostramos a divisão do total atual
-        const valorParte = totalGeralMesa / numPessoasNoPedido;
-        for (let i = 1; i <= numPessoasNoPedido; i++) {
-            linhasDivisao += `
-              <div style="display:flex; justify-content:space-between; margin-bottom: 2px; font-weight: bold;">
-                <span>PARTE ${i} (A PAGAR):</span>
-                <span>R$ ${valorParte.toFixed(2)}</span>
-              </div>
-            `;
-        }
-    } else if (isConferencia) {
-        // Na nota parcial (conferência), mostramos o que já foi pago e as partes que restam a pagar
-        linhasDivisao += jaPagosAnteriormente.map((pag, idx) => `
-          <div style="display:flex; justify-content:space-between; margin-bottom: 2px; opacity: 0.7;">
-            <span>PARTE ${idx + 1} (JÁ PAGO):</span>
-            <span>R$ ${pag.valor.toFixed(2)}</span>
-          </div>
-        `).join('');
+      // Se for Re-impressão, Fração, Fechamento Final OU Nota Parcial (Conferência)
+      if (isReimpressaoHistorico || pedido.isFracaoPagamento || pedido.isFechamentoFinal || isConferencia) {
+          const valorParte = totalGeralMesa / numPessoasExibicao;
 
-        const valorParte = totalGeralMesa / numPessoasExibicao;
-        const jaPagosCount = jaPagosAnteriormente.length;
-        
-        for (let i = jaPagosCount; i < numPessoasExibicao; i++) {
-            linhasDivisao += `
-              <div style="display:flex; justify-content:space-between; margin-bottom: 2px; opacity: 0.5;">
-                <span>PARTE ${i + 1} (A PAGAR):</span>
-                <span>R$ ${valorParte.toFixed(2)}</span>
-              </div>
-            `;
-        }
-    }
+          for (let i = 0; i < numPessoasExibicao; i++) {
+              const numParte = i + 1;
+              let status = '';
+              let style = '';
 
-    if (linhasDivisao) {
-        htmlDivisao = `
+              if (isReimpressaoHistorico) {
+                  status = '(JÁ PAGO)';
+                  style = 'opacity: 0.8;';
+              } else if (pedido.isFracaoPagamento) {
+                  const jaPago = i < jaPagosAnteriormente.length;
+                  const sendoPaga = i === jaPagosAnteriormente.length;
+
+                  if (jaPago) {
+                      status = '(JÁ PAGO)';
+                      style = 'opacity: 0.7;';
+                  } else if (sendoPaga) {
+                      status = '(PAGANDO AGORA)';
+                      style = 'font-weight: bold; color: #27ae60;';
+                  } else {
+                      status = '(A PAGAR)';
+                      style = 'opacity: 0.5;';
+                  }
+              } else if (pedido.isFechamentoFinal) {
+                  const jaPago = i < jaPagosAnteriormente.length;
+                  if (jaPago) {
+                      status = '(JÁ PAGO)';
+                      style = 'opacity: 0.7;';
+                  } else {
+                      status = '(PAGANDO AGORA)';
+                      style = 'font-weight: bold; color: #27ae60;';
+                  }
+              } else if (isConferencia) {
+                  // Na Nota Parcial (Conferência), mostramos apenas JÁ PAGO ou A PAGAR
+                  const jaPago = i < historicoPagos.length;
+                  if (jaPago) {
+                      status = '(JÁ PAGO)';
+                      style = 'opacity: 0.7;';
+                  } else {
+                      status = '(A PAGAR)';
+                      style = 'opacity: 0.5;';
+                  }
+              }
+
+              linhasDivisao += `
+                <div style="display:flex; justify-content:space-between; margin-bottom: 2px; ${style}">
+                  <span>PARTE ${numParte} ${status}:</span>
+                  <span>R$ ${valorParte.toFixed(2)}</span>
+                </div>
+              `;
+          }
+      }
+
+      if (linhasDivisao) {        htmlDivisao = `
           <div style="margin-top: 10px; border: 1px solid #000; padding: 5px; background: #fff; border-style: dashed;">
             <p style="margin: 0 0 5px 0; font-weight: bold; text-align: center; font-size: 10pt; border-bottom: 1px solid #000; padding-bottom: 3px;">
               DETALHAMENTO DA DIVISÃO
