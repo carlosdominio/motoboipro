@@ -363,25 +363,6 @@ async function alterarQtdCarrinhoLancar(index, qtd) {
 
 function removerDoCarrinhoLancar(index) { carrinhoLancar.splice(index, 1); renderizarCarrinhoLancar(); }
 
-async function imprimirCarrinhoLancar() {
-  if (carrinhoLancar.length === 0) return await mostrarAlerta("Carrinho vazio!", "Aviso");
-
-  const sel = document.getElementById('lancar-mesa-select');
-  const nomeMesa = sel.options[sel.selectedIndex].text.replace('Mesa ', '').split(' ')[0];
-  const cobrarTaxa = document.getElementById('lancar-taxa-toggle').checked;
-  const subtotal = carrinhoLancar.reduce((s,i) => s + (i.preco * i.quantidade), 0);
-
-  const pedidoMock = {
-    id: 'novo',
-    mesa_numero: nomeMesa || 'BALCÃO',
-    status: 'novo',
-    total: cobrarTaxa ? subtotal * 1.10 : subtotal
-  };
-
-  pedidosStatusTaxa['novo'] = cobrarTaxa;
-  imprimirCupom(pedidoMock, carrinhoLancar);
-}
-
 let enviandoPedidoLote = false;
 
 async function enviarPedidoLoteAdmin() {
