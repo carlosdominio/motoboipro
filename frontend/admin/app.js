@@ -1572,6 +1572,16 @@ async function confirmarPagamentoAdmin() {
   const valor_por_pessoa = total / num_pessoas;
   const troco = valor_recebido > total ? valor_recebido - total : 0;
 
+  // VALIDAÇÃO OBRIGATÓRIA PARA DINHEIRO
+  if (forma_pagamento === 'Dinheiro') {
+    if (!valor_recebido || valor_recebido <= 0) {
+      return await mostrarAlerta("⚠️ O campo 'Valor Recebido' é obrigatório para pagamentos em Dinheiro!", "Aviso");
+    }
+    if (valor_recebido < total) {
+      return await mostrarAlerta(`⚠️ Valor insuficiente! O total é R$ ${total.toFixed(2)} e você informou R$ ${valor_recebido.toFixed(2)}.`, "Aviso");
+    }
+  }
+
   // NOVO: Modal de Escolha entre Parcial ou Total
   const escolha = await mostrarConfirmacao(
     `Deseja apenas imprimir uma CONTA PARCIAL (a mesa continuará aberta) ou realizar o FECHAMENTO TOTAL e liberar a mesa?`,
