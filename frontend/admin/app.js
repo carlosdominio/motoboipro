@@ -1176,8 +1176,24 @@ async function exibirPedidos() {
     if (bGarcom) bGarcom.textContent = countGarcom;
     if (bBalcao) bBalcao.textContent = countBalcao;
 
-    if (countGarcom === 0) listGarcom.innerHTML = '<p style="text-align:center; padding:2rem; opacity:0.5;">Nenhuma mesa aberta.</p>';
-    if (countBalcao === 0) listBalcao.innerHTML = '<p style="text-align:center; padding:2rem; opacity:0.5;">Nenhum pedido no balcão.</p>';
+    const emptyStateGarcom = `
+      <div class="empty-state-container">
+        <div class="empty-state-icon">🪑</div>
+        <div class="empty-state-title">Nenhuma mesa aberta</div>
+        <div class="empty-state-subtitle">Os pedidos feitos pelos garçons aparecerão aqui.</div>
+      </div>
+    `;
+
+    const emptyStateBalcao = `
+      <div class="empty-state-container">
+        <div class="empty-state-icon">🏪</div>
+        <div class="empty-state-title">Balcão vazio</div>
+        <div class="empty-state-subtitle">As vendas diretas e pedidos de balcão aparecerão aqui.</div>
+      </div>
+    `;
+
+    if (countGarcom === 0) listGarcom.innerHTML = emptyStateGarcom;
+    if (countBalcao === 0) listBalcao.innerHTML = emptyStateBalcao;
 
   } catch (e) { console.error('Erro ao renderizar pedidos:', e); }
   

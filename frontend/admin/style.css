@@ -799,5 +799,38 @@ input:checked + .slider:before {
   color: #7f8c8d;
 }
 
+/* Estado Vazio de Pedidos */
+.empty-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 15px;
+  border: 2px dashed #e0e0e0;
+  margin: 20px 0;
+  color: #95a5a6;
+}
+
+.empty-state-icon {
+  font-size: 4rem;
+  margin-bottom: 15px;
+  opacity: 0.3;
+}
+
+.empty-state-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #7f8c8d;
+}
+
+.empty-state-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
 #ativos-section h2 { margin: 50px 0 !important; }
 #pedidos-list { margin-top: 10px; }
