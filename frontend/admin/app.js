@@ -2346,8 +2346,11 @@ async function confirmarPagamentoAdmin(modo = 'tudo') {
         pagamentos_detalhados_lista: formasPagamentoPessoas
       };
       
-      console.log("🖨️ Disparando impressão final detalhada...");
-      imprimirCupom(pedidoFinal, itensFechamentoAdmin);
+      // NOVA CONFIRMAÇÃO DE IMPRESSÃO
+      if (await mostrarConfirmacao("Venda concluída com sucesso!\n\nDeseja imprimir o cupom final agora?", "Impressão Final", "Sim, Imprimir", "Não")) {
+          console.log("🖨️ Disparando impressão final detalhada...");
+          imprimirCupom(pedidoFinal, itensFechamentoAdmin);
+      }
     }
     
     fecharModalFechamentoAdmin();
@@ -2602,11 +2605,13 @@ async function carregarCardapio() {
 function iniciarPiscarTitulo() { if (intervalPiscaTitulo) return; let alt = false; intervalPiscaTitulo = setInterval(() => { document.title = alt ? '🔔 NOVO!' : '⚠️ VERIFIQUE'; alt = !alt; }, 1000); }
 function pararPiscarTitulo() { clearInterval(intervalPiscaTitulo); intervalPiscaTitulo = null; document.title = tituloOriginal; }
 function solicitarPermissaoNotificacao() { if ("Notification" in window) Notification.requestPermission(); }
-function exibirNotificacaoNativa(tit, msg) { 
+function exibirNotificacaoNativa(tit, msg, tagId = 'geral') { 
   const somWindows = localStorage.getItem('admin_som_windows') === 'true';
   if ("Notification" in window && Notification.permission === "granted") {
     new Notification(tit, { 
       body: msg,
+      tag: tagId, // Evita empilhamento: nova notificação da mesma tag substitui a antiga
+      renotify: true,
       silent: !somWindows 
     }); 
   } 
@@ -2640,7 +2645,7 @@ function configurarPusher() {
   channel.bind('novo-pedido', (data) => {
     console.log('📢 Admin: Novo pedido recebido!', data);
     tocarNotificacao(); iniciarPiscarTitulo();
-    exibirNotificacaoNativa('Novo Pedido!', `Mesa ${data.pedido.mesa_numero}`);
+    exibirNotificacaoNativa('🚀 NOVO PEDIDO', `Mesa ${data.pedido.mesa_numero} acabou de fazer um pedido.`, `mesa-${data.pedido.mesa_id}`);
     mostrarToast(`🚀 NOVO PEDIDO: Mesa ${data.pedido.mesa_numero}`);
     clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 500);
   });
@@ -2651,11 +2656,12 @@ function configurarPusher() {
 
     const mesaData = data.mesa_numero || data.mesa_id || 'X';
     const nMesa = isNaN(mesaData) ? mesaData : `Mesa ${mesaData}`;
+    const tagMesa = `mesa-${data.mesa_id}`;
 
     // Se for liberação de mesa
     if (data.status === 'liberada') {
         tocarNotificacao();
-        exibirNotificacaoNativa('Mesa Liberada', `${nMesa} está livre.`);
+        exibirNotificacaoNativa('✅ Mesa Liberada', `${nMesa} está livre para o próximo cliente.`, tagMesa);
         mostrarToast(`✅ ${nMesa} liberada`);
         clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 500);
         return;
@@ -2663,7 +2669,7 @@ function configurarPusher() {
 
     if (data.status === 'itens_adicionados') {
         tocarNotificacao();
-        exibirNotificacaoNativa('Novos itens!', `${nMesa} adicionou itens.`);
+        exibirNotificacaoNativa('📝 Novos itens!', `${nMesa} adicionou novos produtos ao pedido.`, tagMesa);
         mostrarToast(`📝 ${nMesa} adicionou itens`);
         pedidoAtualizadoId = data.pedido_id;
         clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 500);
@@ -2671,14 +2677,27 @@ function configurarPusher() {
     }
 
     let tit = 'Atualização!';
+    let msg = 'Verifique o painel de pedidos.';
 
-    if (data.status === 'aguardando_fechamento') tit = `🛎️ Fechamento ${nMesa}`;
-    else if (data.status === 'servido') tit = `🚚 ${nMesa} servida!`;
-    else if (data.status === 'itens_atualizados') tit = `📝 Pedido da ${nMesa} editado`;
-    else if (data.status === 'cancelado') tit = `❌ Pedido da ${nMesa} CANCELADO`;
-    else tit = `📝 ${nMesa} atualizada!`;
+    if (data.status === 'aguardando_fechamento') {
+        tit = `🛎️ Fechamento ${nMesa}`;
+        msg = 'O cliente solicitou o fechamento da conta.';
+        tocarNotificacao(); // Agora toca som no fechamento!
+    }
+    else if (data.status === 'servido') {
+        tit = `🚚 ${nMesa} servida!`;
+        msg = 'Todos os itens pendentes foram entregues.';
+    }
+    else if (data.status === 'itens_atualizados') {
+        tit = `📝 Pedido da ${nMesa} editado`;
+        msg = 'A lista de itens do pedido foi alterada.';
+    }
+    else if (data.status === 'cancelado') {
+        tit = `❌ Pedido da ${nMesa} CANCELADO`;
+        msg = 'O pedido foi removido do sistema.';
+    }
 
-    exibirNotificacaoNativa(tit, "Verifique o painel.");
+    exibirNotificacaoNativa(tit, msg, tagMesa);
     mostrarToast(tit);
     clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 500);
   });
