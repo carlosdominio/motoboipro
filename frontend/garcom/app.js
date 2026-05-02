@@ -163,8 +163,8 @@ let timeoutPusher = null;
 function configurarPusher() {
   try {
     console.log('📡 Inicializando Pusher no garçom...');
-    const pusher = new Pusher('1cb59799e6345f51b483', {
-      cluster: 'us2',
+    const pusher = new Pusher('5b2b284e309dea9d90fb', {
+      cluster: 'sa1',
       forceTLS: true
     });    
     pusher.connection.bind('connected', () => {
