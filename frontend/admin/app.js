@@ -1240,7 +1240,8 @@ async function exibirPedidos() {
         </div>` : '';
 
       const card = document.createElement('div');
-      card.className = `pedido-card status-${statusGeral} ${pedido.id === pedidoAtualizadoId ? 'destaque-atualizacao' : ''} ${classeAlertaAtraso}`;
+      const isAguardando = pedido.status === 'aguardando_fechamento';
+      card.className = `pedido-card status-${statusGeral} ${pedido.id === pedidoAtualizadoId ? 'destaque-atualizacao' : ''} ${classeAlertaAtraso} ${isAguardando ? 'alerta-fechamento' : ''}`;
       card.dataset.pedidoId = pedido.id;
       const mesaNomeExibicao = pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO';
       card.innerHTML = `
