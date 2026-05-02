@@ -79,45 +79,61 @@
       </div>
     </section>
 
-    <!-- Seção Lançar Pedido (NOVO) -->
-    <section id="lancar-section" class="hidden">
-      <div class="config-card" style="margin-bottom: 1.5rem;">
-        <div style="display: flex; gap: 1rem; align-items: center;">
-          <h3 style="margin:0">Iniciar em:</h3>
-          <select id="lancar-mesa-select" style="padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 1.1rem; width: 200px;">
-            <option value="">Selecione a Mesa</option>
-          </select>
+    <!-- Seção Lançar Pedido (NOVO - Layout de Altura Fixa) -->
+    <section id="lancar-section" class="hidden" style="height: calc(100vh - 160px); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 10px;">
+      <div class="config-card" style="margin-bottom: 0.5rem; padding: 12px; flex-shrink: 0; background: white; border-radius: 12px; border: 1px solid #eee;">
+        <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <h3 style="margin:0; white-space: nowrap; font-size: 1rem;">📍 Iniciar em:</h3>
+            <select id="lancar-mesa-select" style="padding: 8px; border-radius: 10px; border: 2px solid #3498db; font-size: 1rem; width: 220px; font-weight: bold; color: #2c3e50;">
+              <option value="">Selecione a Mesa</option>
+            </select>
+          </div>
+          
+          <button onclick="enviarPedidoLoteAdmin()" style="padding: 10px 25px; background: #27ae60; color: white; font-size: 1rem; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 0 #219150; transition: 0.2s transform active;">
+            🚀 LANÇAR PEDIDO AGORA
+          </button>
         </div>
       </div>
 
-      <div class="edit-modal-grid" style="height: 65vh !important; background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
+      <div class="edit-modal-grid" style="flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 2fr; gap: 15px; background: white; padding: 15px; border-radius: 12px; border: 1px solid #eee; overflow: hidden;">
         <!-- Coluna Esquerda: Carrinho -->
-        <div class="edit-col-itens">
-          <h3>Carrinho</h3>
-          <div id="lancar-carrinho" style="flex: 1; overflow-y: auto;">
-            <p style="text-align: center; margin-top: 2rem; opacity: 0.5;">Adicione itens do cardápio...</p>
+        <div class="edit-col-itens" style="display: flex; flex-direction: column; height: 100%; overflow: hidden; border-right: 1px solid #f1f5f9; padding-right: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-shrink: 0;">
+            <h3 style="margin:0; font-size: 1.1rem;">🛒 Carrinho</h3>
+            <button onclick="limparCarrinhoLancar()" style="background: #fff1f2; color: #ef4444; border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">🗑️ LIMPAR</button>
           </div>
           
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; border-top: 2px solid #eee; padding-top: 10px;">
-            <div class="toggle-container">
-              <span>Cobrar 10%</span>
-              <label class="switch">
-                <input type="checkbox" id="lancar-taxa-toggle" onchange="renderizarCarrinhoLancar()">
-                <span class="slider"></span>
-              </label>
-            </div>
-            <div id="lancar-total" style="font-weight: bold; font-size: 1.2rem;">Total: R$ 0,00</div>
+          <div id="lancar-carrinho" style="flex: 1; overflow-y: auto; background: #f8fafc; border-radius: 12px; padding: 10px; border: 1px dashed #cbd5e0; margin-bottom: 10px;">
+            <p style="text-align: center; margin-top: 2rem; opacity: 0.5;">Adicione itens...</p>
           </div>
-
-          <div style="display: flex; gap: 0.5rem; margin-top: 10px;">
-            <button onclick="enviarPedidoLoteAdmin()" style="flex: 2; padding: 1.2rem; background: #27ae60; font-size: 1.1rem;">🚀 LANÇAR NA MESA</button>
+          
+          <div style="flex-shrink: 0; background: #fff; padding-top: 10px; border-top: 2px solid #eee;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="toggle-container">
+                <span style="font-size: 0.85rem; font-weight: bold; color: #64748b;">10%</span>
+                <label class="switch">
+                  <input type="checkbox" id="lancar-taxa-toggle" onchange="renderizarCarrinhoLancar()">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div id="lancar-total" style="font-weight: 900; font-size: 1.5rem; color: #27ae60;">R$ 0,00</div>
+            </div>
           </div>
         </div>
 
-        <!-- Coluna Direita: Cardápio -->
-        <div class="edit-col-menu">
-          <div id="lancar-menu-categorias" class="categorias-grid-mini"></div>
-          <div id="lancar-menu-grid" class="menu-grid-mini"></div>
+        <!-- Coluna Direita: Seleção de Itens -->
+        <div class="edit-col-menu" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 10px; flex-shrink: 0; background: #f8fafc; padding: 5px; border-radius: 10px; border: 1px solid #e2e8f0;">
+            <button onclick="scrollCategoriasLancar(-150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❮</button>
+            <div id="lancar-menu-categorias" class="categorias-grid-mini" style="flex: 1; margin-bottom: 0; padding-bottom: 0; overflow-x: auto; scroll-behavior: smooth; display: flex; gap: 8px; scrollbar-width: none; -ms-overflow-style: none;">
+              <!-- Categorias injetadas via JS -->
+            </div>
+            <button onclick="scrollCategoriasLancar(150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❯</button>
+          </div>
+          <div id="lancar-menu-grid" class="menu-grid-mini" style="flex: 1; overflow-y: auto; padding: 5px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;">
+            <!-- Itens rolam verticalmente -->
+          </div>
         </div>
       </div>
     </section>
@@ -265,23 +281,35 @@
       </div>
       <div class="modal-body edit-modal-grid">
         <!-- Coluna da Esquerda: Itens do Pedido Atual -->
-        <div class="edit-col-itens">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <h3>Itens no Pedido</h3>
+        <div class="edit-col-itens" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <div style="flex-shrink: 0; margin-bottom: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <h3 style="margin:0;">Itens no Pedido</h3>
+              <button onclick="removerItensSelecionados()" style="background: #fff1f2; color: #ef4444; border: 1px solid #fecaca; font-size: 0.65rem; width: auto; padding: 4px 8px; border-radius: 6px; font-weight: bold; cursor: pointer;">🗑️ EXCLUIR SELECIONADOS</button>
+            </div>
             <div style="display: flex; gap: 5px;">
-              <button onclick="selecionarTodosItens(true)" style="background: #34495e; font-size: 0.65rem; width: auto; padding: 4px 8px;">Todos</button>
-              <button onclick="selecionarTodosItens(false)" style="background: #7f8c8d; font-size: 0.65rem; width: auto; padding: 4px 8px;">Nenhum</button>
-              <button onclick="removerItensSelecionados()" style="background: #e74c3c; font-size: 0.65rem; width: auto; padding: 4px 8px;">🗑️ Excluir Selecionados</button>
+              <button onclick="selecionarTodosItens(true)" style="background: #f1f5f9; color: #34495e; border: 1px solid #cbd5e0; font-size: 0.65rem; width: auto; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Todos</button>
+              <button onclick="selecionarTodosItens(false)" style="background: #f1f5f9; color: #7f8c8d; border: 1px solid #cbd5e0; font-size: 0.65rem; width: auto; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Nenhum</button>
             </div>
           </div>
-          <div id="itens-atuais"></div>
-          <div id="modal-total" style="font-weight: bold; margin-top: 1rem; font-size: 1.2rem; border-top: 2px solid #eee; padding-top: 10px;">Total: R$ 0,00</div>
+          
+          <div id="itens-atuais" style="flex: 1; overflow-y: auto; padding-right: 5px; background: #f8fafc; border-radius: 8px; border: 1px solid #eee; padding: 5px;">
+            <!-- Lista de itens rola aqui -->
+          </div>
+
+          <div id="modal-total" style="flex-shrink: 0; font-weight: 900; margin-top: 10px; font-size: 1.4rem; color: #166534; border-top: 2px solid #eee; padding-top: 10px; text-align: right;">Total: R$ 0,00</div>
         </div>
         
         <!-- Coluna da Direita: Cardápio para Adicionar -->
         <div class="edit-col-menu">
           <h3>Adicionar Itens</h3>
-          <div id="edit-menu-categorias" class="categorias-grid-mini"></div>
+          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 10px; flex-shrink: 0; background: #f8fafc; padding: 5px; border-radius: 10px; border: 1px solid #e2e8f0;">
+            <button onclick="scrollCategoriasEdicao(-150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❮</button>
+            <div id="edit-menu-categorias" class="categorias-grid-mini" style="flex: 1; margin-bottom: 0; padding-bottom: 0; overflow-x: auto; scroll-behavior: smooth; display: flex; gap: 8px; scrollbar-width: none; -ms-overflow-style: none;">
+              <!-- Categorias injetadas via JS -->
+            </div>
+            <button onclick="scrollCategoriasEdicao(150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❯</button>
+          </div>
           <div id="edit-menu-grid" class="menu-grid-mini"></div>
         </div>
       </div>
@@ -303,7 +331,6 @@
             <h2 style="margin:0;">Fechar Conta - Mesa <span id="fechamento-mesa-admin">--</span></h2>
             <span class="close" onclick="fecharModalFechamentoAdmin()">&times;</span>
           </div>
-          <button onclick="irParaEdicaoDestePedido()" style="background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; width: fit-content;">✏️ Editar Pedido / Adicionar Itens</button>
         </div>
       </div>
       <div class="modal-body" style="display: block;">
@@ -352,6 +379,8 @@
         </div>
 
         <!-- SELEÇÃO DE ITENS (SPLIT BILL) -->
+        <button onclick="irParaEdicaoDestePedido()" style="background: #34495e; color: white; border: none; padding: 12px; border-radius: 12px; cursor: pointer; font-size: 0.85rem; width: 100%; font-weight: bold; margin-bottom: 12px; box-shadow: 0 4px 0 #2c3e50; display: block; transition: 0.2s transform active;">✏️ ADICIONAR ITENS / EDITAR PEDIDO</button>
+
         <div style="background: #eef2f7; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #d1d9e6;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <label style="margin: 0; font-size:0.75rem; font-weight:bold; color:#34495e;">🛒 ITENS PARA PAGAR AGORA:</label>
@@ -408,7 +437,7 @@
 
         <div style="margin-bottom: 15px;">
           <label style="display:block; font-size:0.75rem; font-weight:bold; color:#7f8c8d; margin-bottom:3px;">Forma de Pagamento:</label>
-          <select id="fechamento-forma-admin" style="width:100%; padding:10px; border-radius:5px; border:1px solid #ddd; font-size:1rem;">
+          <select id="fechamento-forma-admin" onchange="recalcularTotalFechamentoAdmin()" style="width:100%; padding:10px; border-radius:5px; border:1px solid #ddd; font-size:1rem;">
             <option value="Dinheiro">Dinheiro</option>
             <option value="Pix">Pix</option>
             <option value="Cartão">Cartão</option>
@@ -421,8 +450,19 @@
           <p style="margin: 5px 0 0 0; color: #27ae60; font-weight:bold;">Troco: R$ <span id="fechamento-troco-admin">0,00</span></p>
         </div>
       </div>
-      <div class="modal-footer">
-        <button onclick="confirmarPagamentoAdmin()" style="background:#27ae60; color:white; padding:12px; font-weight:bold; font-size:1rem; width:100%; border:none; border-radius:8px; cursor:pointer;">💰 CONFIRMAR E LIBERAR MESA</button>
+      <div class="modal-footer" style="flex-direction: column; gap: 10px;">
+        <div id="container-botoes-fechamento-dinamico" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;">
+          <!-- Botão para pagar apenas uma cota (visível se num_pessoas > 1) -->
+          <button id="btn-pagar-cota-admin" onclick="confirmarPagamentoAdmin('cota')" style="display:none; background:#e67e22; color:white; padding:15px 10px; font-weight:bold; font-size:0.9rem; border:none; border-radius:12px; cursor:pointer; box-shadow: 0 4px 0 #d35400;">💳 PAGAR 1 COTA<br><small id="lbl-valor-cota-btn">R$ 0,00</small></button>
+          
+          <!-- Botão para fechar tudo -->
+          <button id="btn-pagar-tudo-admin" onclick="confirmarPagamentoAdmin('tudo')" style="background:#27ae60; color:white; padding:15px 10px; font-weight:bold; font-size:0.9rem; border:none; border-radius:12px; cursor:pointer; box-shadow: 0 4px 0 #219150;">💰 FECHAR TUDO<br><small id="lbl-valor-tudo-btn">R$ 0,00</small></button>
+        </div>
+
+        <!-- NOVO: BOTÃO CANCELAR PEDIDO CENTRALIZADO -->
+        <button onclick="confirmarCancelamentoDesdeFechamento()" style="background: #e74c3c; color: white; padding: 12px; font-weight: bold; font-size: 0.85rem; width: 100%; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 0 #c0392b; margin-top: 5px;">⚠️ CANCELAR ESTE PEDIDO INTEIRO</button>
+        
+        <button onclick="confirmarPagamentoAdmin('imprimir')" style="background:#3498db; color:white; padding:10px; font-weight:bold; font-size:0.85rem; width:100%; border:none; border-radius:10px; cursor:pointer; margin-top: 5px;">📄 APENAS IMPRIMIR PRÉ-CONTA (MESA CONTINUA ABERTA)</button>
       </div>
     </div>
   </div>

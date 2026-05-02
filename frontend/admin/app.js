@@ -206,12 +206,18 @@ function iniciarPainelAdmin() {
 
   setInterval(() => {
     atualizarCronometrosPedidos();
-  }, 60000);
+  }, 10000); // Atualiza a cada 10 segundos para maior precisão
 }
 
 async function mudarQtdItem(index, qtd) { 
   const novaQtd = parseInt(qtd);
   const itemNoPedido = itensEmEdicao[index];
+  
+  // TRAVA: Itens entregues não podem ter quantidade alterada
+  if (itemNoPedido.status === 'entregue') {
+    return await mostrarAlerta("⚠️ Este item já foi entregue e não pode ter a quantidade alterada. Se necessário, adicione uma nova linha.", "Item Entregue");
+  }
+
   const itemNoMenu = cardapio.find(m => m.id === itemNoPedido.menu_id);
 
   if (novaQtd > itemNoPedido.quantidade && itemNoMenu && itemNoMenu.estoque !== -1) {
@@ -225,12 +231,21 @@ async function mudarQtdItem(index, qtd) {
   if (novaQtd > 0) {
     itensEmEdicao[index].quantidade = novaQtd; 
     renderizarItensEdicao(); 
+    renderizarMenuEdicao(); // Re-renderiza cardápio para atualizar estoque disponível
   }
 }
 
-function removerItemEdicao(index) { 
+async function removerItemEdicao(index) { 
+  const item = itensEmEdicao[index];
+  
+  // TRAVA: Itens entregues não podem ser removidos
+  if (item.status === 'entregue') {
+    return await mostrarAlerta("⚠️ Itens já entregues não podem ser excluídos do pedido!", "Ação Bloqueada");
+  }
+
   itensEmEdicao.splice(index, 1); 
   renderizarItensEdicao(); 
+  renderizarMenuEdicao(); // Re-renderiza cardápio para atualizar estoque disponível
 }
 
 function calcularMinutos(dataIso) {
@@ -244,13 +259,16 @@ function calcularMinutos(dataIso) {
 
 function atualizarCronometrosPedidos() {
   if (abaAtiva !== 'ativos') return;
-  const container = document.getElementById('pedidos-list');
-  if (!container) return;
-
-  const spans = container.querySelectorAll('.pedido-cronometro');
+  
+  // Busca todos os cronômetros presentes na página (independente do container)
+  const spans = document.querySelectorAll('.pedido-cronometro');
+  
   spans.forEach((span) => {
     const card = span.closest('.pedido-card');
     const createdAt = span.dataset.createdAt;
+    
+    // SÓ ATUALIZA se o card existir e o status for 'recebido' (cor verde)
+    // Pedidos já servidos (EM ANDAMENTO) ou finalizados não precisam de cronômetro ativo
     const isRecebido = !!card && card.classList.contains('status-recebido');
 
     if (!isRecebido || !createdAt) {
@@ -262,17 +280,29 @@ function atualizarCronometrosPedidos() {
     const minutos = calcularMinutos(createdAt);
     span.textContent = `⏱️ ${minutos} min`;
     span.style.display = '';
+    
+    // PISCA SE PASSAR DE 10 MINUTOS
     card.classList.toggle('alerta-borda-pisca', minutos >= 10);
   });
 }
 
 function switchTab(tab) {
+  // Salva a posição do scroll antes de trocar
+  const scrollPos = window.scrollY;
   abaAtiva = tab;
   
+  // BLOQUEIO DE SCROLL GLOBAL: Se estiver lançando, trava a página
+  if (tab === 'lancar') {
+      document.body.style.overflow = 'hidden';
+      window.scrollTo(0, 0); // Garante que comece do topo
+  } else {
+      document.body.style.overflow = 'auto';
+  }
+
   // Remove classe active de todos os botões
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   
-  // Tenta encontrar o botão correspondente à aba e ativa-o (funciona para chamadas manuais e automáticas)
+  // Tenta encontrar o botão correspondente à aba e ativa-o
   const botoes = document.querySelectorAll('.tab-btn');
   const mapaAbas = {
     'ativos': 'Pedidos Ativos',
@@ -294,11 +324,29 @@ function switchTab(tab) {
     const el = document.getElementById(`${s}-section`);
     if (el) el.classList.toggle('hidden', s !== tab);
   });
+
+  // Restaura a posição do scroll para evitar pulos
+  window.scrollTo(0, scrollPos);
+
   if (tab === 'ativos') carregarPedidos();
   else if (tab === 'historico') carregarHistorico();
   else if (tab === 'configuracoes') carregarDadosConfig();
   else if (tab === 'caixa') carregarStatusCaixa();
   else if (tab === 'lancar') prepararLancarPedido();
+}
+
+function scrollCategoriasLancar(delta) {
+  const container = document.getElementById('lancar-menu-categorias');
+  if (container) {
+    container.scrollBy({ left: delta, behavior: 'smooth' });
+  }
+}
+
+function scrollCategoriasEdicao(delta) {
+  const container = document.getElementById('edit-menu-categorias');
+  if (container) {
+    container.scrollBy({ left: delta, behavior: 'smooth' });
+  }
 }
 
 let carrinhoLancar = [];
@@ -344,29 +392,69 @@ function exibirMenuLancar(categoria) {
   const container = document.getElementById('lancar-menu-grid');
   if (!container) return;
   const itens = categoria === 'todas' ? cardapio : cardapio.filter(i => i.categoria.trim().toLowerCase() === categoria);
-  container.innerHTML = itens.map(item => `
-    <div class="item-menu-mini" onclick="adicionarAoCarrinhoLancar(${item.id})">
-      <img src="${item.imagem}" alt="${item.nome}">
-      <h4>${item.nome}</h4>
-      <p>R$ ${item.preco.toFixed(2)}</p>
-      ${item.estoque !== -1 ? `<small style="display:block; font-size:0.7rem; color:${item.estoque <= 0 ? '#e74c3c' : '#7f8c8d'}">Estoque: ${item.estoque}</small>` : ''}
+  container.innerHTML = itens.map(item => {
+    let estoqueNum = -1;
+    if (item.estoque !== null && item.estoque !== undefined && item.estoque !== '') {
+      estoqueNum = parseInt(item.estoque);
+    }
+    if (isNaN(estoqueNum)) estoqueNum = -1;
+    
+    // CÁLCULO DE SINCRONIZAÇÃO: Subtrai o que já está no carrinho
+    const noCarrinho = carrinhoLancar.filter(c => c.menu_id === item.id).reduce((s, i) => s + i.quantidade, 0);
+    const disponivelReal = (estoqueNum !== -1) ? (estoqueNum - noCarrinho) : -1;
+    
+    const temEstoqueDefinido = estoqueNum !== -1;
+
+    return `
+    <div class="item-menu-mini" onclick="adicionarAoCarrinhoLancar(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${disponivelReal === 0 ? '0.6' : '1'}; min-height: 280px; height: auto; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+      <!-- Badge de Preço em destaque -->
+      <div style="position: absolute; top: 6px; right: 6px; background: #27ae60; color: white; padding: 2px 8px; border-radius: 20px; font-weight: 900; font-size: 0.8rem; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">R$ ${item.preco.toFixed(2)}</div>
+      
+      <img src="${item.imagem}" alt="${item.nome}" style="filter: ${disponivelReal === 0 ? 'grayscale(1)' : 'none'}; height: 110px; width: 100%; object-fit: cover; display: block; border-bottom: 1px solid #f0f0f0;">
+      
+      <div style="padding: 12px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between;">
+        <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: #2c3e50; line-height: 1.2; font-weight: 700; min-height: 2.8rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">${item.nome}</h4>
+        
+        <div style="margin-top: auto; padding-top: 5px;">
+           <p style="margin: 0 0 8px 0; color: #27ae60; font-weight: 900; font-size: 1.05rem;">R$ ${item.preco.toFixed(2)}</p>
+           ${temEstoqueDefinido ? `
+             <div style="background: ${disponivelReal <= 0 ? '#fff5f5' : '#f0f9ff'}; padding: 6px; border-radius: 6px; border: 1px solid ${disponivelReal <= 0 ? '#feb2b2' : '#bee3f8'}; width: 100%; box-sizing: border-box; margin-bottom: 5px;">
+               <small style="display:block; font-size:0.75rem; font-weight: 900; color:${disponivelReal <= 0 ? '#e74c3c' : '#2c3e50'}; text-align: center; text-transform: uppercase;">DISPONÍVEL: ${disponivelReal}</small>
+             </div>
+           ` : `
+             <div style="background: #f8f9fa; padding: 6px; border-radius: 6px; border: 1px solid #e2e8f0; width: 100%; box-sizing: border-box; margin-bottom: 5px;">
+               <small style="display:block; font-size:0.75rem; color:#718096; text-align: center; font-weight: bold; text-transform: uppercase;">ILIMITADO</small>
+             </div>
+           `}
+        </div>
+      </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 async function adicionarAoCarrinhoLancar(itemId) {
   const item = cardapio.find(m => m.id === itemId);
   if (!item) return;
-  if (item.estoque === 0) return await mostrarAlerta("Item esgotado!", "Estoque");
+  
+  // Cálculo do que já está no carrinho para validar estoque antes de adicionar
+  const noCarrinho = carrinhoLancar.filter(c => c.menu_id === itemId).reduce((s, i) => s + i.quantidade, 0);
+  
+  if (item.estoque !== -1 && (noCarrinho + 1) > item.estoque) {
+    return await mostrarAlerta("Limite de estoque atingido!", "Estoque");
+  }
 
   const exist = carrinhoLancar.find(c => c.menu_id === itemId);
   if (exist) {
-    if (item.estoque !== -1 && exist.quantidade + 1 > item.estoque) return await mostrarAlerta("Limite de estoque atingido!", "Estoque");
     exist.quantidade++;
   } else {
     carrinhoLancar.push({ menu_id: item.id, nome: item.nome, preco: item.preco, quantidade: 1 });
   }
+  
   renderizarCarrinhoLancar();
+  // Força atualização do estoque no cardápio
+  const catAtiva = document.querySelector('#lancar-menu-categorias .cat-mini.ativa');
+  const catNome = catAtiva ? catAtiva.id.replace('cat-lancar-', '') : 'todas';
+  exibirMenuLancar(catNome);
 }
 
 function renderizarCarrinhoLancar() {
@@ -377,38 +465,93 @@ function renderizarCarrinhoLancar() {
 
   if (carrinhoLancar.length === 0) {
     container.innerHTML = '<p style="text-align: center; margin-top: 2rem; opacity: 0.5;">Adicione itens do cardápio...</p>';
-    document.getElementById('lancar-total').innerText = 'Total: R$ 0,00';
+    const elTotal = document.getElementById('lancar-total');
+    if (elTotal) elTotal.innerText = 'R$ 0,00';
     return;
   }
+  
   let subtotal = 0;
   container.innerHTML = carrinhoLancar.map((item, index) => {
     subtotal += item.preco * item.quantidade;
+    // Busca a imagem do item no cardápio global
+    const itemMenu = cardapio.find(m => m.id === item.menu_id);
+    const imagemUrl = itemMenu ? itemMenu.imagem : 'https://placehold.co/50';
+
     return `
-      <div class="item-edicao">
-        <div style="flex-grow:1;"><strong>${item.nome}</strong></div>
-        <div style="display:flex; align-items:center; gap:0.5rem">
-          <input type="number" value="${item.quantidade}" min="1" style="width:45px;" onchange="alterarQtdCarrinhoLancar(${index}, this.value)">
-          <button class="btn-remover-item" onclick="removerDoCarrinhoLancar(${index})">X</button>
+      <div class="item-edicao" style="padding: 10px; margin-bottom: 10px; border-radius: 12px; background: #fff; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+        
+        <!-- LINHA 1: IMAGEM + NOME + REMOVER -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <img src="${imagemUrl}" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; background: #f8fafc; border: 1px solid #eee;">
+          
+          <div style="flex: 1; min-width: 0; text-align: left;">
+            <strong style="font-size: 0.9rem; color: #1e293b; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.nome}</strong>
+            <span style="font-size: 0.8rem; color: #64748b; font-weight: bold;">R$ ${item.preco.toFixed(2)} un.</span>
+          </div>
+
+          <button onclick="removerDoCarrinhoLancar(${index})" style="width: 32px; height: 32px; border-radius: 50%; border: none; background: #fff1f2; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; transition: 0.2s; border: 1px solid #fecaca;">✕</button>
+        </div>
+        
+        <!-- LINHA 2: CONTROLES + SUBTOTAL DA LINHA -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 5px; border-top: 1px solid #f1f5f9;">
+          <div style="display: flex; align-items: center; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff; height: 32px;">
+            <button onclick="alterarQtdCarrinhoLancar(${index}, ${item.quantidade - 1})" 
+                    style="width: 32px; height: 100%; border: none; background: #fff; color: #ef4444; font-weight: bold; cursor: pointer; border-right: 1.5px solid #e2e8f0;">-</button>
+            <span style="min-width: 35px; text-align: center; font-weight: 800; font-size: 0.9rem; color: #1e293b;">${item.quantidade}</span>
+            <button onclick="alterarQtdCarrinhoLancar(${index}, ${item.quantidade + 1})" 
+                    style="width: 32px; height: 100%; border: none; background: #fff; color: #22c55e; font-weight: bold; cursor: pointer; border-left: 1.5px solid #e2e8f0;">+</button>
+          </div>
+          <strong style="color: #166534; font-size: 1rem; font-weight: 800;">R$ ${(item.preco * item.quantidade).toFixed(2)}</strong>
         </div>
       </div>`;
   }).join('');
   
   const total = cobrarTaxa ? subtotal * 1.10 : subtotal;
-  document.getElementById('lancar-total').innerText = `Total: R$ ${total.toFixed(2)}`;
+  const elTotal = document.getElementById('lancar-total');
+  if (elTotal) elTotal.innerText = `R$ ${total.toFixed(2)}`;
+}
+
+async function limparCarrinhoLancar() {
+  if (carrinhoLancar.length === 0) return;
+  if (await mostrarConfirmacao("Deseja esvaziar todo o carrinho?", "Limpar Tudo")) {
+    carrinhoLancar = [];
+    renderizarCarrinhoLancar();
+    // Força atualização do estoque no cardápio
+    const catAtiva = document.querySelector('#lancar-menu-categorias .cat-mini.ativa');
+    const catNome = catAtiva ? catAtiva.id.replace('cat-lancar-', '') : 'todas';
+    exibirMenuLancar(catNome);
+    mostrarToast("🗑️ Carrinho esvaziado");
+  }
 }
 
 async function alterarQtdCarrinhoLancar(index, qtd) {
   const novaQtd = parseInt(qtd);
+  if (novaQtd <= 0) return; // Se for 0, usa o botão de remover
+
   const itemMenu = cardapio.find(m => m.id === carrinhoLancar[index].menu_id);
   if (itemMenu && itemMenu.estoque !== -1 && novaQtd > itemMenu.estoque) {
     await mostrarAlerta("Estoque insuficiente!", "Estoque");
-    renderizarCarrinhoLancar();
     return;
   }
-  if (novaQtd > 0) { carrinhoLancar[index].quantidade = novaQtd; renderizarCarrinhoLancar(); }
+  
+  carrinhoLancar[index].quantidade = novaQtd; 
+  renderizarCarrinhoLancar(); 
+  
+  // Força atualização do estoque no cardápio
+  const catAtiva = document.querySelector('#lancar-menu-categorias .cat-mini.ativa');
+  const catNome = catAtiva ? catAtiva.id.replace('cat-lancar-', '') : 'todas';
+  exibirMenuLancar(catNome);
 }
 
-function removerDoCarrinhoLancar(index) { carrinhoLancar.splice(index, 1); renderizarCarrinhoLancar(); }
+function removerDoCarrinhoLancar(index) { 
+  carrinhoLancar.splice(index, 1); 
+  renderizarCarrinhoLancar(); 
+  
+  // Força atualização do estoque no cardápio
+  const catAtiva = document.querySelector('#lancar-menu-categorias .cat-mini.ativa');
+  const catNome = catAtiva ? catAtiva.id.replace('cat-lancar-', '') : 'todas';
+  exibirMenuLancar(catNome);
+}
 
 let enviandoPedidoLote = false;
 
@@ -1114,6 +1257,11 @@ async function exibirPedidos() {
                 🖨️ PARCIAL: R$ ${totalExibicao.toFixed(2)}
               </button>
               
+              <button style="background: #34495e; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: bold; width: 100%; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 0 #2c3e50;" 
+                      onclick='abrirModalEdicao(${JSON.stringify(pedido)}, ${JSON.stringify(itens)})'>
+                ✏️ EDITAR ITENS
+              </button>
+
               <div class="toggle-container" title="${pagoParcial > 0 ? 'Bloqueado: Mesa com pagamento parcial' : ''}">
                 <span>10%</span>
                 <label class="switch" style="${pagoParcial > 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
@@ -1147,11 +1295,7 @@ async function exibirPedidos() {
         </div>
         
         <div class="pedido-footer">
-          <div style="display:flex; gap:0.5rem; flex-grow: 1;">
-            <button style="background:#3498db; flex: 1;" onclick='abrirModalEdicao(${JSON.stringify(pedido)}, ${JSON.stringify(itens)})'>✏️ EDITAR / ADD ITENS</button>
-          </div>
-          
-          <div class="pedido-actions" style="width: 100%; margin-top: 10px;">
+          <div class="pedido-actions" style="width: 100%; margin-top: 5px;">
             ${pedido.status === 'aguardando_fechamento' ? 
               `<button style="background:#27ae60; font-size:1rem; border:2px solid #fff; padding: 1rem; width: 100%;" onclick="aprovarFechamento(${pedido.id}, ${pedido.mesa_id})">💰 CONFIRMAR PAGAMENTO E LIBERAR</button>` : 
               `<div style="display:flex; gap:0.5rem;">
@@ -1283,155 +1427,9 @@ async function alternarTaxaPedido(id, checkboxEl) {
   }
 }
 
-function abrirModalEdicao(pedido, itens) {
-  pedidoEmEdicao = pedido; 
-  itensEmEdicao = [...itens];
-  const elTit = document.getElementById('modal-titulo'); 
-  if (elTit) elTit.innerText = `Editar Pedido - Mesa ${pedido.mesa_numero}`;
-  const elMod = document.getElementById('modal-edicao'); 
-  if (elMod) elMod.style.display = 'flex';
-  
-  exibirCategoriasEdicao();
-  exibirMenuEdicao('todas');
-  renderizarItensEdicao();
-}
+// Bloco de funções duplicadas removido. Usando definições em L1530+
 
-function exibirCategoriasEdicao() {
-  const container = document.getElementById('edit-menu-categorias');
-  if (!container) return;
-  
-  const categoriasUnicas = [...new Set(cardapio.map(item => item.categoria.trim().toLowerCase()))];
-  const categorias = ['todas', ...categoriasUnicas];
-  
-  container.innerHTML = categorias.map(cat => {
-    const nomeExibicao = cat === 'todas' ? 'Todos' : cat.charAt(0).toUpperCase() + cat.slice(1);
-    return `
-      <div class="cat-mini ${cat === 'todas' ? 'ativa' : ''}" 
-           id="cat-edit-${cat}" 
-           onclick="selecionarCategoriaEdicao('${cat}')">
-        ${nomeExibicao}
-      </div>
-    `;
-  }).join('');
-}
-
-function selecionarCategoriaEdicao(cat) {
-  // Remove classe ativa de todos
-  document.querySelectorAll('.cat-mini').forEach(c => c.classList.remove('ativa'));
-  
-  // Adiciona no selecionado por ID (mais seguro que 'this')
-  const el = document.getElementById(`cat-edit-${cat}`);
-  if (el) el.classList.add('ativa');
-  
-  exibirMenuEdicao(cat);
-}
-
-function exibirMenuEdicao(categoria) {
-  const container = document.getElementById('edit-menu-grid');
-  if (!container) return;
-  
-  // Força o display grid caso tenha sido alterado por algum erro
-  container.style.display = 'grid';
-  
-  const itens = categoria === 'todas' 
-    ? cardapio 
-    : cardapio.filter(i => i.categoria.trim().toLowerCase() === categoria);
-    
-  if (itens.length === 0) {
-    container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 20px; opacity: 0.5;">Nenhum item nesta categoria.</p>`;
-    return;
-  }
-
-  container.innerHTML = itens.map(item => `
-    <div class="item-menu-mini" onclick="adicionarAoPedidoEdicao(${item.id})">
-      <img src="${item.imagem}" alt="${item.nome}">
-      <h4>${item.nome}</h4>
-      <p>R$ ${item.preco.toFixed(2)}</p>
-      ${item.estoque !== -1 ? `<small style="display:block; font-size:0.7rem; color:${item.estoque === 0 ? '#e74c3c' : '#7f8c8d'}">Estoque: ${item.estoque}</small>` : ''}
-    </div>
-  `).join('');
-}
-
-async function adicionarAoPedidoEdicao(itemId) {
-  const menuItem = cardapio.find(m => m.id === itemId);
-  if (!menuItem) return;
-
-  // Verifica se existem itens selecionados para substituição
-  const selecionadosIndices = itensEmEdicao.map((item, index) => item.selecionado ? index : -1).filter(index => index !== -1);
-
-  if (selecionadosIndices.length > 0) {
-    if (await mostrarConfirmacao(`Deseja substituir os ${selecionadosIndices.length} itens selecionados por ${menuItem.nome}?`, "Substituir Itens")) {
-      selecionadosIndices.forEach(async index => {
-        const itemOriginal = itensEmEdicao[index];
-
-        // Valida estoque para a substituição
-        if (menuItem.estoque !== -1 && itemOriginal.quantidade > menuItem.estoque) {
-          await mostrarAlerta(`Estoque insuficiente de ${menuItem.nome} para substituir uma das linhas!`, "Estoque");
-          return;
-        }
-
-        // Substitui o item mantendo a quantidade, mas reseta o status para 'pendente' 
-        // já que o novo item ainda não foi entregue ao cliente.
-        itensEmEdicao[index] = {
-          ...itemOriginal,
-          menu_id: menuItem.id,
-          nome: menuItem.nome,
-          preco: menuItem.preco,
-          status: 'pendente', // Novo item substituído deve ser preparado/entregue
-          selecionado: false // Desmarca após substituir
-        };
-      });
-      renderizarItensEdicao();
-      mostrarToast("🔄 Itens substituídos com sucesso!");
-      return;
-    }
-  }
-
-  // Comportamento padrão (Adicionar Novo) se nada estiver selecionado
-  const exist = itensEmEdicao.find(i => i.menu_id === itemId && i.status === 'pendente');
-  const qtdAtual = exist ? exist.quantidade : 0;
-
-  if (menuItem.estoque !== -1 && (qtdAtual + 1) > menuItem.estoque) {
-    return await mostrarAlerta(`Estoque insuficiente! Restam apenas ${menuItem.estoque} unidades.`, "Estoque");
-  }
-
-  if (exist) {
-    exist.quantidade += 1;
-  } else {
-    itensEmEdicao.push({ 
-      menu_id: menuItem.id, 
-      nome: menuItem.nome, 
-      preco: menuItem.preco, 
-      quantidade: 1, 
-      observacao: '', 
-      status: 'pendente' 
-    });
-  }
-  renderizarItensEdicao();
-}
-
-function renderizarItensEdicao() {
-  const container = document.getElementById('itens-atuais'); if (!container) return;
-  let total = 0;
-  container.innerHTML = itensEmEdicao.map((item, index) => {
-    total += item.preco * item.quantidade;
-    const isEntregue = item.status === 'entregue';
-    return `
-      <div class="item-edicao" style="${isEntregue ? 'background: #e8f5e9; border-left: 4px solid #27ae60;' : 'border-left: 4px solid #e67e22;'} padding: 10px; display: flex; align-items: center; gap: 10px;">
-        <input type="checkbox" ${item.selecionado ? 'checked' : ''} onchange="alternarSelecaoItem(${index})" style="width: 18px; height: 18px; cursor: pointer;">
-        <div style="flex-grow:1;">
-          <strong>${item.nome}</strong><br>
-          <small>${isEntregue ? '✅ Já na mesa (Entregue)' : '⏳ Pendente de entrega'}</small>
-        </div>
-        <div style="display:flex; align-items:center; gap:0.5rem">
-          <input type="number" value="${item.quantidade}" min="1" style="width:45px; padding:2px;" onchange="mudarQtdItem(${index}, this.value)">
-          <button class="btn-remover-item" onclick="removerItemEdicao(${index})">X</button>
-          <span style="min-width: 60px; text-align:right;">R$ ${(item.preco * item.quantidade).toFixed(2)}</span>
-        </div>
-      </div>`;
-  }).join('');
-  const elTot = document.getElementById('modal-total'); if (elTot) elTot.innerText = `Total: R$ ${total.toFixed(2)}`;
-}
+// Funções de edição de itens consolidadas na parte inferior do arquivo (L1530+)
 
 function alternarSelecaoItem(index) {
   itensEmEdicao[index].selecionado = !itensEmEdicao[index].selecionado;
@@ -1523,10 +1521,42 @@ async function liberarMesa(idPedido, idMesa, temPendentes = false) {
   }
 }
 
-function irParaEdicaoDestePedido() {
+async function irParaEdicaoDestePedido() {
   if (!pedidoParaFecharAdmin) return;
+  const idPedido = pedidoParaFecharAdmin.id;
+
+  // NOVA LÓGICA: Se estiver na aba de lançamento, "devolve" os itens para o carrinho principal
+  if (abaAtiva === 'lancar') {
+    try {
+      const resItens = await fetch(`/api/pedidos/${idPedido}/itens`);
+      const itens = await resItens.json();
+      
+      // 1. Coloca os itens de volta no carrinho de lançamento
+      carrinhoLancar = itens.map(i => ({
+        menu_id: i.menu_id,
+        nome: i.nome,
+        preco: i.preco,
+        quantidade: i.quantidade
+      }));
+
+      // 2. Exclui esse pedido que acabou de ser gerado (pois vamos lançar um novo corrigido)
+      await fetch(`/api/pedidos/${idPedido}`, { method: 'DELETE' });
+
+      // 3. Fecha o modal e atualiza a tela de lançamento
+      fecharModalFechamentoAdmin();
+      renderizarCarrinhoLancar();
+      exibirMenuLancar('todas');
+      mostrarToast("🔄 Itens retornados ao carrinho!");
+    } catch (e) {
+      console.error("Erro ao retornar itens:", e);
+      mostrarAlerta("Erro ao recuperar itens do pedido.");
+    }
+    return;
+  }
+
+  // Comportamento padrão para as outras abas (abre o modal de edição)
   fecharModalFechamentoAdmin();
-  fetch(`/api/pedidos/${pedidoParaFecharAdmin.id}/itens`).then(res => res.json()).then(itens => abrirModalEdicao(pedidoParaFecharAdmin, itens));
+  fetch(`/api/pedidos/${idPedido}/itens`).then(res => res.json()).then(itens => abrirModalEdicao(pedidoParaFecharAdmin, itens));
 }
 
 function abrirModalEdicao(pedido, itens) {
@@ -1536,27 +1566,72 @@ function abrirModalEdicao(pedido, itens) {
   renderizarItensEdicao();
   renderizarMenuEdicao();
   document.getElementById('modal-edicao').style.display = 'flex';
+  
+  // TRAVA DE SCROLL: Congela o fundo
+  document.body.style.overflow = 'hidden';
 }
 
 function fecharModal() {
   document.getElementById('modal-edicao').style.display = 'none';
   pedidoEmEdicao = null;
   itensEmEdicao = [];
+  
+  // LIBERA O SCROLL SEMPRE: Volta ao normal ao fechar
+  document.body.style.overflow = 'auto';
 }
 
 function renderizarItensEdicao() {
   const container = document.getElementById('itens-atuais');
   if (!container) return;
-  container.innerHTML = itensEmEdicao.map((item, index) => `
-    <div class="item-edicao" style="${item.status === 'entregue' ? 'opacity:0.6;' : ''}">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <input type="checkbox" ${item.selecionado ? 'checked' : ''} onchange="alternarSelecaoItemEdicao(${index})">
-        <span>${item.quantidade}x ${item.nome}</span>
-        ${item.status === 'entregue' ? '<small>(Entregue)</small>' : ''}
+  container.innerHTML = itensEmEdicao.map((item, index) => {
+    const isEntregue = item.status === 'entregue';
+    return `
+    <div class="item-edicao" style="${isEntregue ? 'background: #f0fff4; border-left: 4px solid #27ae60;' : 'border-left: 4px solid #e67e22;'} padding: 12px; margin-bottom: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #edf2f7; display: flex; flex-direction: column; gap: 10px;">
+      
+      <!-- LINHA 1: CHECKBOX + NOME + STATUS -->
+      <div style="display: flex; align-items: flex-start; gap: 10px;">
+        <input type="checkbox" ${item.selecionado ? 'checked' : ''} onchange="alternarSelecaoItemEdicao(${index})" style="width: 22px; height: 22px; cursor: pointer; flex-shrink: 0; margin-top: 2px;">
+        
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 1rem; color: #1e293b; font-weight: 800; line-height: 1.3; margin-bottom: 2px;">${item.nome}</div>
+          <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; background: ${isEntregue ? '#dcfce7' : '#fef3c7'}; color: ${isEntregue ? '#166534' : '#92400e'};">
+            ${isEntregue ? '✅ Entregue' : '⏳ Pendente'}
+          </span>
+        </div>
       </div>
-      <strong>R$ ${(item.preco * item.quantidade).toFixed(2)}</strong>
-    </div>
-  `).join('');
+
+      <!-- LINHA 2: CONTROLES + PREÇO TOTAL -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <!-- SELETOR DE QTD -->
+          <div style="display: flex; align-items: center; border: 2px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: #fff; height: 38px;">
+            <button onclick="mudarQtdItem(${index}, ${item.quantidade - 1})" 
+                    style="width: 38px; height: 100%; border: none; background: #fff; color: #ef4444; font-size: 1.4rem; font-weight: bold; cursor: pointer; border-right: 2px solid #e2e8f0;">-</button>
+            
+            <span style="min-width: 40px; text-align: center; font-weight: 900; font-size: 1.1rem; color: #0f172a;">${item.quantidade}</span>
+            
+            <button onclick="mudarQtdItem(${index}, ${item.quantidade + 1})" 
+                    style="width: 38px; height: 100%; border: none; background: #fff; color: #22c55e; font-size: 1.4rem; font-weight: bold; cursor: pointer; border-left: 2px solid #e2e8f0;">+</button>
+          </div>
+
+          <!-- BOTÃO REMOVER (SÓ APARECE SE NÃO ESTIVER ENTREGUE) -->
+          ${!isEntregue ? `
+            <button onclick="removerItemEdicao(${index})" 
+                    style="background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center;">✕</button>
+          ` : `
+            <div style="width: 38px; height: 38px;"></div> <!-- Espaçador para manter o alinhamento -->
+          `}
+        </div>
+
+        <!-- PREÇO TOTAL DO ITEM -->
+        <div style="text-align: right;">
+          <small style="display: block; font-size: 0.7rem; color: #64748b; font-weight: bold; margin-bottom: -2px;">TOTAL ITEM</small>
+          <strong style="color: #166534; font-size: 1.2rem; font-weight: 900;">R$ ${(item.preco * item.quantidade).toFixed(2)}</strong>
+        </div>
+      </div>
+
+    </div>`;
+  }).join('');
   
   const subtotal = itensEmEdicao.reduce((s, i) => s + (i.preco * i.quantidade), 0);
   document.getElementById('modal-total').textContent = `Total: R$ ${subtotal.toFixed(2)}`;
@@ -1585,39 +1660,114 @@ async function renderizarMenuEdicao(categoria = 'todas') {
   const catContainer = document.getElementById('edit-menu-categorias');
   if (!container || !catContainer) return;
 
-  const categorias = ['todas', ...new Set(cardapio.map(i => i.categoria))];
-  catContainer.innerHTML = categorias.map(cat => `
-    <button class="categoria-mini ${cat === categoria ? 'active' : ''}" onclick="renderizarMenuEdicao('${cat}')">${cat === 'todas' ? 'Todos' : cat}</button>
-  `).join('');
+  const categoriasUnicas = [...new Set(cardapio.map(i => i.categoria.trim().toLowerCase()))];
+  const categorias = ['todas', ...categoriasUnicas];
+  
+  catContainer.innerHTML = categorias.map(cat => {
+    const nomeExibicao = cat === 'todas' ? 'Todos' : cat.charAt(0).toUpperCase() + cat.slice(1);
+    const isAtiva = cat === categoria.trim().toLowerCase();
+    return `
+      <div class="cat-mini ${isAtiva ? 'ativa' : ''}" 
+           onclick="renderizarMenuEdicao('${cat}')">
+        ${nomeExibicao}
+      </div>
+    `;
+  }).join('');
 
-  const itens = categoria === 'todas' ? cardapio : cardapio.filter(i => i.categoria === categoria);
-  container.innerHTML = itens.map(item => `
-    <div class="item-menu-mini" onclick="adicionarItemNaEdicao(${item.id})">
-      <img src="${item.imagem}" style="width:30px; height:30px; border-radius:4px;">
-      <div style="flex:1; font-size:0.8rem;">${item.nome}</div>
-      <div style="font-weight:bold; font-size:0.8rem;">R$ ${item.preco.toFixed(2)}</div>
+  const itens = categoria === 'todas' ? cardapio : cardapio.filter(i => i.categoria.trim().toLowerCase() === categoria.trim().toLowerCase());
+  container.innerHTML = itens.map(item => {
+    let estoqueNum = -1;
+    if (item.estoque !== null && item.estoque !== undefined && item.estoque !== '') {
+      estoqueNum = parseInt(item.estoque);
+    }
+    if (isNaN(estoqueNum)) estoqueNum = -1;
+    
+    // NOVO: Calcula quanto desse item já está na "mesa" (na lista de edição atual)
+    const qtdNaEdicao = itensEmEdicao
+      .filter(i => i.menu_id === item.id)
+      .reduce((sum, i) => sum + i.quantidade, 0);
+    
+    const estoqueDisponivel = (estoqueNum !== -1) ? (estoqueNum - qtdNaEdicao) : -1;
+    const temEstoqueDefinido = estoqueNum !== -1;
+    
+    return `
+    <div class="item-menu-mini" onclick="adicionarItemNaEdicao(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${estoqueDisponivel === 0 ? '0.6' : '1'}; min-height: 280px; height: auto; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+      <!-- Badge de Preço em destaque -->
+      <div style="position: absolute; top: 6px; right: 6px; background: #27ae60; color: white; padding: 2px 8px; border-radius: 20px; font-weight: 900; font-size: 0.8rem; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">R$ ${item.preco.toFixed(2)}</div>
+      
+      <img src="${item.imagem}" alt="${item.nome}" style="filter: ${estoqueDisponivel === 0 ? 'grayscale(1)' : 'none'}; height: 110px; width: 100%; object-fit: cover; display: block; border-bottom: 1px solid #f0f0f0;">
+      
+      <div style="padding: 12px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between;">
+        <h4 style="margin: 0 0 5px 0; font-size: 0.85rem; color: #2c3e50; line-height: 1.2; font-weight: 700; min-height: 2.8rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">${item.nome}</h4>
+        
+        <div style="margin-top: auto; padding-top: 5px;">
+           <p style="margin: 0 0 8px 0; color: #27ae60; font-weight: 900; font-size: 1.05rem;">R$ ${item.preco.toFixed(2)}</p>
+           ${temEstoqueDefinido ? `
+             <div style="background: ${estoqueDisponivel <= 0 ? '#fff5f5' : '#f0f9ff'}; padding: 6px; border-radius: 6px; border: 1px solid ${estoqueDisponivel <= 0 ? '#feb2b2' : '#bee3f8'}; width: 100%; box-sizing: border-box; margin-bottom: 5px;">
+               <small style="display:block; font-size:0.75rem; font-weight: 900; color:${estoqueDisponivel <= 0 ? '#e74c3c' : '#2c3e50'}; text-align: center; text-transform: uppercase;">DISPONÍVEL: ${estoqueDisponivel}</small>
+             </div>
+           ` : `
+             <div style="background: #f8f9fa; padding: 6px; border-radius: 6px; border: 1px solid #e2e8f0; width: 100%; box-sizing: border-box; margin-bottom: 5px;">
+               <small style="display:block; font-size:0.75rem; color:#718096; text-align: center; font-weight: bold; text-transform: uppercase;">ILIMITADO</small>
+             </div>
+           `}
+        </div>
+      </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
-function adicionarItemNaEdicao(itemId) {
-  const itemMenu = cardapio.find(i => i.id === itemId);
-  if (!itemMenu) return;
+async function adicionarItemNaEdicao(itemId) {
+  const menuItem = cardapio.find(m => m.id === itemId);
+  if (!menuItem) return;
+
+  // Verifica se existem itens selecionados para substituição
+  const selecionadosIndices = itensEmEdicao.map((item, index) => item.selecionado ? index : -1).filter(index => index !== -1);
+
+  if (selecionadosIndices.length > 0) {
+    if (await mostrarConfirmacao(`Deseja substituir os ${selecionadosIndices.length} itens selecionados por ${menuItem.nome}?`, "Substituir Itens")) {
+      selecionadosIndices.forEach(index => {
+        const itemOriginal = itensEmEdicao[index];
+        if (menuItem.estoque !== -1 && itemOriginal.quantidade > menuItem.estoque) {
+           mostrarToast(`⚠️ Estoque insuficiente de ${menuItem.nome}!`);
+           return;
+        }
+        itensEmEdicao[index] = {
+          ...itemOriginal,
+          menu_id: menuItem.id,
+          nome: menuItem.nome,
+          preco: menuItem.preco,
+          status: 'pendente',
+          selecionado: false
+        };
+      });
+      renderizarItensEdicao();
+      mostrarToast("🔄 Itens substituídos com sucesso!");
+      return;
+    }
+  }
+
+  const exist = itensEmEdicao.find(i => i.menu_id === itemId && i.status === 'pendente');
+  const qtdAtual = exist ? exist.quantidade : 0;
   
-  const existente = itensEmEdicao.find(i => i.menu_id === itemId && i.status !== 'entregue');
-  if (existente) {
-    existente.quantidade++;
+  if (menuItem.estoque !== -1 && (qtdAtual + 1) > menuItem.estoque) {
+    return await mostrarAlerta(`Estoque insuficiente! Restam apenas ${menuItem.estoque} unidades.`, "Estoque");
+  }
+
+  if (exist) {
+    exist.quantidade++;
   } else {
-    itensEmEdicao.push({
-      menu_id: itemMenu.id,
-      nome: itemMenu.nome,
-      preco: itemMenu.preco,
-      quantidade: 1,
+    itensEmEdicao.push({ 
+      menu_id: menuItem.id, 
+      nome: menuItem.nome, 
+      preco: menuItem.preco, 
+      quantidade: 1, 
       status: 'pendente',
-      selecionado: false
+      selecionado: false 
     });
   }
   renderizarItensEdicao();
+  renderizarMenuEdicao(); // ATUALIZAÇÃO EM TEMPO REAL DO ESTOQUE NO CARDÁPIO
 }
 
 async function salvarAlteracoes() {
@@ -1777,6 +1927,14 @@ function selecionarTodosItensFechamento(selecionar) {
 function mudarPessoasFechamento(delta) {
   const input = document.getElementById('fechamento-divisao-pessoas');
   if (!input) return;
+
+  // TRAVA DE SEGURANÇA: Não permite mudar pessoas se houver pagamento parcial
+  const pagoParcial = (pedidoParaFecharAdmin && pedidoParaFecharAdmin.pago_parcial) ? pedidoParaFecharAdmin.pago_parcial : 0;
+  if (pagoParcial > 0) {
+    mostrarAlerta("⚠️ Esta mesa já possui pagamentos parciais registrados. Para alterar o número de pessoas, é necessário concluir o fechamento atual.", "Ação Bloqueada");
+    return;
+  }
+
   let val = parseInt(input.value) || 1;
   val += delta;
   if (val < 1) val = 1;
@@ -1788,6 +1946,36 @@ function mudarPessoasFechamento(delta) {
   }
   
   recalcularTotalFechamentoAdmin();
+}
+
+async function confirmarCancelamentoDesdeFechamento() {
+  if (!pedidoParaFecharAdmin) return;
+  
+  const pagoParcial = pedidoParaFecharAdmin.pago_parcial || 0;
+  if (pagoParcial > 0) {
+    return await mostrarAlerta("⚠️ Esta mesa já possui pagamentos parciais (R$ "+pagoParcial.toFixed(2)+"). Não é possível cancelar o pedido inteiro. Você deve concluir o recebimento ou estornar os pagamentos manualmente no banco.", "Aviso de Segurança");
+  }
+
+  // NOVA TRAVA: Verifica se existem itens já entregues (servidos)
+  const temEntregues = itensFechamentoAdmin.some(i => i.status === 'entregue');
+  let mensagemConfirmacao = "⚠️ DESEJA REALMENTE CANCELAR TODO O PEDIDO?\n\nA mesa será liberada e o pedido irá para o histórico como CANCELADO.";
+  
+  if (temEntregues) {
+    mensagemConfirmacao = "🚨 ATENÇÃO: EXISTEM ITENS JÁ SERVIDOS NESTA MESA!\n\nSe você cancelar, esses produtos terão saído do estoque sem registro de venda. \n\nCONFIRMA O CANCELAMENTO MESMO ASSIM?";
+  }
+
+  if (await mostrarConfirmacao(mensagemConfirmacao, temEntregues ? "ALERTA CRÍTICO" : "Atenção", "SIM, CANCELAR", "NÃO")) {
+    const res = await fetch(`/api/pedidos/${pedidoParaFecharAdmin.id}/status`, { 
+      method: 'PUT', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ status: 'cancelado' }) 
+    });
+    if (res.ok) { 
+      mostrarToast("❌ Pedido cancelado!"); 
+      fecharModalFechamentoAdmin(); 
+      carregarPedidos(); 
+    }
+  }
 }
 
 function recalcularTotalFechamentoAdmin() {
@@ -1813,17 +2001,65 @@ function recalcularTotalFechamentoAdmin() {
   // O SALDO RESTANTE agora é o Total Bruto (itens+taxa+acres-desc) MENOS o que já foi pago antecipadamente
   const totalBruto = (subtotalConsumoAdmin + taxa + acrescimo - desconto);
   const saldoRestante = Math.max(0, totalBruto - pagoParcial);
-  
-  const troco = recebido > saldoRestante ? recebido - saldoRestante : 0;
   const valorPessoa = saldoRestante / pessoas;
+  
+  const trocoTotal = recebido > saldoRestante ? recebido - saldoRestante : 0;
+  const trocoCota = (recebido > valorPessoa && pessoas > 1) ? recebido - valorPessoa : 0;
 
   document.getElementById('fechamento-subtotal-admin').textContent = subtotalConsumoAdmin.toFixed(2);
   document.getElementById('fechamento-taxa-valor-admin').textContent = taxa.toFixed(2);
   
   // Exibe o Saldo Real que falta pagar
   document.getElementById('fechamento-total-admin').textContent = saldoRestante.toFixed(2);
-  document.getElementById('fechamento-troco-admin').textContent = troco.toFixed(2);
   document.getElementById('fechamento-valor-pessoa-admin').textContent = valorPessoa.toFixed(2);
+
+  const elTroco = document.getElementById('fechamento-troco-admin');
+  if (pessoas > 1) {
+      elTroco.style.fontSize = "0.9rem";
+      elTroco.innerHTML = `Cota: <strong>R$ ${trocoCota.toFixed(2)}</strong><br><small style="opacity:0.6">Total: R$ ${trocoTotal.toFixed(2)}</small>`;
+  } else {
+      elTroco.style.fontSize = "1.1rem";
+      elTroco.textContent = trocoTotal.toFixed(2);
+  }
+
+  // ATUALIZAÇÃO DOS NOVOS BOTÕES DE AÇÃO DIRETA
+  const btnCota = document.getElementById('btn-pagar-cota-admin');
+  const btnTudo = document.getElementById('btn-pagar-tudo-admin');
+  const lblCota = document.getElementById('lbl-valor-cota-btn');
+  const lblTudo = document.getElementById('lbl-valor-tudo-btn');
+  const containerBotoes = document.getElementById('container-botoes-fechamento-dinamico');
+
+  if (btnCota && btnTudo) {
+    if (pessoas > 1) {
+      btnCota.style.display = 'block';
+      containerBotoes.style.gridTemplateColumns = '1fr 1fr';
+      const txtTrocoCota = trocoCota > 0 ? ` | TROCO: R$ ${trocoCota.toFixed(2)}` : '';
+      if (lblCota) lblCota.textContent = `R$ ${valorPessoa.toFixed(2)}${txtTrocoCota}`;
+    } else {
+      btnCota.style.display = 'none';
+      containerBotoes.style.gridTemplateColumns = '1fr';
+    }
+    const txtTrocoTudo = trocoTotal > 0 ? ` | TROCO: R$ ${trocoTotal.toFixed(2)}` : '';
+    if (lblTudo) lblTudo.textContent = `R$ ${saldoRestante.toFixed(2)}${txtTrocoTudo}`;
+  }
+
+  // CONTROLE DINÂMICO DE VISIBILIDADE DO TROCO
+  const formaPagamento = document.getElementById('fechamento-forma-admin').value;
+  const secaoTroco = document.getElementById('secao-troco-admin');
+  const inputRecebido = document.getElementById('fechamento-recebido-admin');
+
+  if (secaoTroco) {
+      const estavaEscondido = secaoTroco.style.display === 'none';
+      secaoTroco.style.display = (formaPagamento === 'Dinheiro') ? 'block' : 'none';
+      
+      // SÓ FOCA se a seção acabou de aparecer (evita perder o foco enquanto digita)
+      if (formaPagamento === 'Dinheiro' && estavaEscondido && inputRecebido) {
+          setTimeout(() => {
+              inputRecebido.focus();
+              inputRecebido.select();
+          }, 50);
+      }
+  }
 
   // Chama a renderização dos assentos de forma unificada
   renderizarAssentosFechamento();
@@ -1842,7 +2078,8 @@ async function renderizarAssentosFechamento() {
   const gridAssentos = document.getElementById('fechamento-grid-assentos');
   if (!gridAssentos) return;
 
-  const numPessoas = parseInt(document.getElementById('fechamento-divisao-pessoas').value) || 1;
+  // numRestantes é o que está no input (pessoas que ainda faltam pagar)
+  const numRestantes = parseInt(document.getElementById('fechamento-divisao-pessoas').value) || 1;
   const progressoTxt = document.getElementById('txt-progresso-divisao');
   const progressoPerc = document.getElementById('perc-progresso-divisao');
   const progressoBarra = document.getElementById('barra-progresso-divisao');
@@ -1852,21 +2089,24 @@ async function renderizarAssentosFechamento() {
     const pagamentos = await res.json();
     const pagosCount = pagamentos ? pagamentos.length : 0;
 
+    // O TOTAL real de pessoas é quem já pagou + quem falta pagar
+    const totalPessoasOriginal = pagosCount + numRestantes;
+
     // Atualiza Barra de Progresso
     if (progressoBarra) {
-      const percentual = Math.min(100, Math.round((pagosCount / numPessoas) * 100));
-      if (progressoTxt) progressoTxt.textContent = `Pagamento: ${pagosCount} de ${numPessoas} ${numPessoas > 1 ? 'pessoas' : 'pessoa'}`;
+      const percentual = Math.min(100, Math.round((pagosCount / totalPessoasOriginal) * 100));
+      if (progressoTxt) progressoTxt.textContent = `Pagamento: ${pagosCount} de ${totalPessoasOriginal} ${totalPessoasOriginal > 1 ? 'pessoas' : 'pessoa'}`;
       if (progressoPerc) progressoPerc.textContent = `${percentual}%`;
       progressoBarra.style.width = `${percentual}%`;
     }
 
-    // Lógica de Seleção: Se nada selecionado, foca no próximo que falta pagar
-    if (pessoaSelecionadaFechamento === null || pessoaSelecionadaFechamento <= pagosCount || pessoaSelecionadaFechamento > numPessoas) {
-      pessoaSelecionadaFechamento = (pagosCount < numPessoas) ? pagosCount + 1 : numPessoas;
+    // Lógica de Seleção: Foca no próximo que falta pagar (sempre logo após os já pagos)
+    if (pessoaSelecionadaFechamento === null || pessoaSelecionadaFechamento <= pagosCount || pessoaSelecionadaFechamento > totalPessoasOriginal) {
+      pessoaSelecionadaFechamento = (pagosCount < totalPessoasOriginal) ? pagosCount + 1 : totalPessoasOriginal;
     }
 
     let html = '';
-    for (let i = 1; i <= numPessoas; i++) {
+    for (let i = 1; i <= totalPessoasOriginal; i++) {
       let bg = '#fff';
       let border = '#ffcc80';
       let corTexto = '#d35400';
@@ -1877,13 +2117,15 @@ async function renderizarAssentosFechamento() {
       let sombra = 'none';
 
       if (i <= pagosCount) {
+        // JÁ PAGO
         bg = '#27ae60';
         border = '#219150';
         corTexto = '#fff';
         icone = '✅';
         cursor = 'default';
-        onclick = ''; // Já pago não clica
+        onclick = ''; 
       } else if (i === pessoaSelecionadaFechamento) {
+        // SELECIONADO ATUAL
         bg = '#e67e22';
         border = '#d35400';
         corTexto = '#fff';
@@ -1903,7 +2145,7 @@ async function renderizarAssentosFechamento() {
   } catch (e) { console.error("Erro ao renderizar:", e); }
 }
 
-async function confirmarPagamentoAdmin() {
+async function confirmarPagamentoAdmin(modo = 'tudo') {
   const idPedido = pedidoParaFecharAdmin.id;
   const idMesa = pedidoParaFecharAdmin.mesa_id;
   const selecionados = itensFechamentoAdmin.filter(i => i.selecionadoFechamento);
@@ -1931,27 +2173,28 @@ async function confirmarPagamentoAdmin() {
 
   const total = (subtotalLocal + taxaServico + acrescimo - desconto) - pagoParcial;
   const valor_por_pessoa = total / num_pessoas;
-  const troco = valor_recebido > total ? valor_recebido - total : 0;
+  
+  // CORREÇÃO DO TROCO: Se for apenas 1 cota, calcula troco sobre a cota. Se for tudo, sobre o total.
+  const valorParaTroco = (modo === 'cota') ? valor_por_pessoa : total;
+  const troco = valor_recebido > valorParaTroco ? valor_recebido - valorParaTroco : 0;
+
   // VALIDAÇÃO OBRIGATÓRIA PARA DINHEIRO
-  if (forma_pagamento === 'Dinheiro') {
+  // Só valida se for pagamento em dinheiro E (for pagamento de 1 cota OU fechamento total de apenas 1 pessoa)
+  // Se for "FECHAR TUDO" com mais de 1 pessoa, o sistema abrirá o multi-pagamento e não precisa validar aqui.
+  const isPagamentoUnicoDinheiro = forma_pagamento === 'Dinheiro' && (modo === 'cota' || (modo === 'tudo' && num_pessoas === 1));
+
+  if (modo !== 'imprimir' && isPagamentoUnicoDinheiro) {
+    const valorComparar = modo === 'cota' ? valor_por_pessoa : total;
     if (!valor_recebido || valor_recebido <= 0) {
       return await mostrarAlerta("⚠️ O campo 'Valor Recebido' é obrigatório para pagamentos em Dinheiro!", "Aviso");
     }
-    if (valor_recebido < total) {
-      return await mostrarAlerta(`⚠️ Valor insuficiente! O total é R$ ${total.toFixed(2)} e você informou R$ ${valor_recebido.toFixed(2)}.`, "Aviso");
+    if (valor_recebido < valorComparar) {
+      return await mostrarAlerta(`⚠️ Valor insuficiente! O valor a pagar é R$ ${valorComparar.toFixed(2)} e você informou R$ ${valor_recebido.toFixed(2)}.`, "Aviso");
     }
   }
 
-  // NOVO: Modal de Escolha entre Parcial ou Total
-  const escolha = await mostrarConfirmacao(
-    `Deseja apenas imprimir uma CONTA PARCIAL (a mesa continuará aberta) ou realizar o FECHAMENTO TOTAL e liberar a mesa?`,
-    "Opções de Finalização",
-    "FECHAR CONTA TOTAL",
-    "APENAS IMPRIMIR PARCIAL"
-  );
-
-  // Se escolheu APENAS IMPRIMIR PARCIAL (false no mostrarConfirmacao porque o cancelar é o segundo botão)
-  if (escolha === false) {
+  // MODO: APENAS IMPRIMIR PRÉ-CONTA
+  if (modo === 'imprimir') {
     const pedidoParcialMock = {
       ...pedidoParaFecharAdmin,
       num_pessoas: num_pessoas,
@@ -1960,18 +2203,16 @@ async function confirmarPagamentoAdmin() {
       desconto: desconto,
       cobrar_taxa: cobrarTaxa,
       pago_parcial: pagoParcial,
-      isImpressaoParcialMesa: true, // Flag para o cupom
+      isImpressaoParcialMesa: true,
       total: (subtotalLocal + taxaServico + acrescimo - desconto)
     };
     imprimirCupom(pedidoParcialMock, selecionados);
-    return; // Interrompe aqui, não chama APIs de fechamento
+    return;
   }
 
-  // Se escolheu FECHAR CONTA TOTAL (true), segue a lógica normal...
   try {
-    // CENÁRIO: Pagamento de APENAS UMA PARTE DA DIVISÃO
-    if (num_pessoas > 1 && todosItensSelecionados) {
-      // Busca o histórico real para saber qual é o número desta parte
+    // MODO: PAGAR APENAS UMA COTA (FRAÇÃO)
+    if (modo === 'cota') {
       let historicoAtual = [];
       try {
         const resH = await fetch(`/api/pedidos/${idPedido}/pagamentos`);
@@ -1979,52 +2220,51 @@ async function confirmarPagamentoAdmin() {
       } catch(e) {}
       
       const proximaParte = historicoAtual.length + 1;
-      const pagarFracao = await mostrarConfirmacao(`Esta conta está dividida para ${num_pessoas} pessoas.\n\nDeseja pagar apenas a PARTE ${proximaParte} (R$ ${valor_por_pessoa.toFixed(2)}) e manter a mesa aberta para as outras ${num_pessoas - 1} pessoas?`, "Pagamento de Fração", "Sim", "Não");
       
-      if (pagarFracao) {
-        const resFracao = await fetch(`/api/pedidos/${idPedido}/pagamento-fracao`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            mesa_id: idMesa, 
-            valor_pago: valor_por_pessoa,
-            forma_pagamento, 
-            num_pessoas_restantes: Math.max(1, num_pessoas - 1)
-          })
-        });
+      const resFracao = await fetch(`/api/pedidos/${idPedido}/pagamento-fracao`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          mesa_id: idMesa, 
+          valor_pago: valor_por_pessoa,
+          forma_pagamento, 
+          num_pessoas_restantes: Math.max(1, num_pessoas - 1),
+          recebido: valor_recebido, // ENVIA O RECEBIDO REAL
+          troco: troco             // ENVIA O TROCO REAL
+        })
+      });
 
-        if (resFracao.ok) {
-          const dataFracao = await resFracao.json();
-          mostrarToast(`✅ Parte ${proximaParte} paga com sucesso!`);
-          
-          // Prepara um "mock" do pedido com flag de pagamento de fração
-          const pedidoMock = {
-            ...pedidoParaFecharAdmin,
-            num_pessoas: num_pessoas,
-            valor_por_pessoa: valor_por_pessoa,
-            acrescimo: acrescimo,
-            desconto: desconto,
-            cobrar_taxa: cobrarTaxa,
-            pago_parcial: pedidoParaFecharAdmin.pago_parcial || 0,
+      if (resFracao.ok) {
+        mostrarToast(`✅ Parte ${proximaParte} paga com sucesso!`);
+        const pedidoMock = {
+          ...pedidoParaFecharAdmin,
+          num_pessoas: num_pessoas,
+          valor_por_pessoa: valor_por_pessoa,
+          acrescimo: acrescimo,
+          desconto: desconto,
+          cobrar_taxa: cobrarTaxa,
+          pago_parcial: pedidoParaFecharAdmin.pago_parcial || 0,
+          forma_pagamento: forma_pagamento,
+          valor_recebido: valor_recebido,
+          troco: troco,
+          isFracaoPagamento: true,
+          total: (subtotalLocal + taxaServico + acrescimo - desconto),
+          pagamentos_detalhados_lista: [{ // Adiciona à lista para o cupom ler na hora
             forma_pagamento: forma_pagamento,
-            valor_recebido: valor_recebido,
-            troco: troco,
-            isFracaoPagamento: true, // Flag para o cupom mostrar o valor da fração
-            total: (subtotalLocal + taxaServico + acrescimo - desconto)
-          };
-
-          imprimirCupom(pedidoMock, itensFechamentoAdmin);
-          
-          fecharModalFechamentoAdmin();
-          await carregarStatusCaixa();
-          
-          // Força recarregamento completo para atualizar saldos nos cards
-          setTimeout(() => carregarPedidos(), 300);
-          return;
-        }
+            valor: valor_por_pessoa,
+            recebido: valor_recebido,
+            troco: troco
+          }]
+        };
+        imprimirCupom(pedidoMock, itensFechamentoAdmin);
+        fecharModalFechamentoAdmin();
+        await carregarStatusCaixa();
+        setTimeout(() => carregarPedidos(), 300);
+        return;
       }
     }
 
+    // MODO: FECHAMENTO TOTAL OU PARCIAL POR ITENS
     if (!todosItensSelecionados) {
       // PAGAMENTO PARCIAL POR ITENS
       const resParcial = await fetch(`/api/pedidos/${idPedido}/pagamento-parcial`, {
@@ -2044,24 +2284,17 @@ async function confirmarPagamentoAdmin() {
         })
       });
 
-      if (!resParcial.ok) {
-        const err = await resParcial.json();
-        throw new Error(err.error || "Erro no pagamento parcial");
-      }
+      if (!resParcial.ok) throw new Error("Erro no pagamento parcial");
       
       mostrarToast("✅ Pagamento parcial (itens) registrado!");
-      
-      // PERGUNTA SE DESEJA IMPRIMIR
-      if (await mostrarConfirmacao("Deseja imprimir o comprovante desta parcial?", "Impressão", "Sim, Imprimir", "Não")) {
-        imprimirCupomParcialItens(pedidoParaFecharAdmin, selecionados, total, cobrarTaxa);
-      }
+      imprimirCupomParcialItens(pedidoParaFecharAdmin, selecionados, total, cobrarTaxa);
     } else {
-      // 4. FECHAMENTO TOTAL DA MESA
-      // Se for dividido, perguntar as formas de cada pessoa antes de enviar
+      // FECHAMENTO TOTAL DA MESA
       let formasPagamentoPessoas = null;
-      if (num_pessoas > 1) {
+      // Se num_pessoas > 1 e clicou em "FECHAR TUDO", abre o modal de multi-pagamento DIRETO
+      if (num_pessoas > 1 && modo === 'tudo') {
           formasPagamentoPessoas = await mostrarModalMultiPagamento(num_pessoas, valor_por_pessoa);
-          if (!formasPagamentoPessoas) return; // Cancelou
+          if (!formasPagamentoPessoas) return; // Se cancelar no modal, interrompe
       }
 
       const resFechamento = await fetch(`/api/pedidos/${idPedido}/solicitar-fechamento`, {
@@ -2088,25 +2321,25 @@ async function confirmarPagamentoAdmin() {
       mostrarToast("✅ Conta Total Finalizada!");
       const novosPagamentosCount = (formasPagamentoPessoas && formasPagamentoPessoas.length) ? formasPagamentoPessoas.length : 1;
       
-      // PERGUNTA SE DESEJA IMPRIMIR O FINAL
-      if (await mostrarConfirmacao("Venda concluída! Deseja imprimir o comprovante final?", "Impressão Final", "Sim, Imprimir", "Não")) {
-        const pedidoFinal = { 
-          ...pedidoParaFecharAdmin, 
-          num_pessoas: num_pessoas, 
-          valor_por_pessoa: valor_por_pessoa, 
-          total: total, 
-          cobrar_taxa: cobrarTaxa, 
-          acrescimo: acrescimo, 
-          desconto: desconto, 
-          pago_parcial: pagoParcial, 
-          forma_pagamento: forma_pagamento,
-          valor_recebido: valor_recebido,
-          troco: troco,
-          isFechamentoFinal: true,
-          novosPagamentosCount: novosPagamentosCount
-        };
-        imprimirCupom(pedidoFinal, itensFechamentoAdmin);
-      }
+      const pedidoFinal = { 
+        ...pedidoParaFecharAdmin, 
+        num_pessoas: num_pessoas, 
+        valor_por_pessoa: valor_por_pessoa, 
+        total: total, 
+        cobrar_taxa: cobrarTaxa, 
+        acrescimo: acrescimo, 
+        desconto: desconto, 
+        pago_parcial: pagoParcial, 
+        forma_pagamento: forma_pagamento,
+        valor_recebido: valor_recebido,
+        troco: troco,
+        isFechamentoFinal: true,
+        novosPagamentosCount: novosPagamentosCount,
+        pagamentos_detalhados_lista: formasPagamentoPessoas
+      };
+      
+      console.log("🖨️ Disparando impressão final detalhada...");
+      imprimirCupom(pedidoFinal, itensFechamentoAdmin);
     }
     
     fecharModalFechamentoAdmin();
@@ -2239,33 +2472,100 @@ function fecharModalMultiPagamento() { document.getElementById('modal-multi-paga
 
 function mostrarModalMultiPagamento(numPessoas, valorPorPessoa) {
   return new Promise(resolve => {
-    document.getElementById('multi-pag-valor-pessoa').innerText = valorPorPessoa.toFixed(2);
+    const elV = document.getElementById('multi-pag-valor-pessoa');
+    if (elV) elV.innerText = valorPorPessoa.toFixed(2);
+    
     const container = document.getElementById('multi-pag-lista-pessoas');
     if (!container) return resolve(null);
 
     container.innerHTML = '';
     for (let i = 1; i <= numPessoas; i++) {
       container.innerHTML += `
-        <div style="display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;">
-          <strong style="color: #2c3e50;">Pessoa ${i}:</strong>
-          <select class="multi-pag-forma-select" style="padding: 8px; border-radius: 5px; border: 1px solid #ced4da; font-size: 0.95rem;">
-            <option value="Dinheiro">💵 Dinheiro</option>
-            <option value="Pix">📱 Pix</option>
-            <option value="Cartão">💳 Cartão</option>
-          </select>
+        <div class="multi-pag-card" style="background: #f8f9fa; padding: 12px; border-radius: 10px; border: 1px solid #dee2e6; margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="color: #2c3e50; font-size: 1rem;">👤 Pessoa ${i}:</strong>
+            <select class="multi-pag-forma-select" data-index="${i}" onchange="toggleMultiPagDinheiro(${i}, this.value)" style="padding: 8px; border-radius: 6px; border: 1px solid #cbd5e0; font-size: 0.95rem; font-weight: bold; background: white;">
+              <option value="Dinheiro">💵 Dinheiro</option>
+              <option value="Pix">📱 Pix</option>
+              <option value="Cartão">💳 Cartão</option>
+            </select>
+          </div>
+          
+          <div id="multi-pag-dinheiro-container-${i}" style="display: flex; gap: 10px; align-items: center; padding-top: 8px; border-top: 1px dashed #cbd5e0; transition: 0.3s opacity;">
+            <div style="flex: 1;">
+              <label style="display:block; font-size: 0.7rem; font-weight: bold; color: #64748b; margin-bottom: 2px;">VALOR RECEBIDO:</label>
+              <input type="number" step="0.01" class="multi-pag-recebido-input" 
+                     oninput="calcularTrocoMultiPag(${i}, ${valorPorPessoa})" 
+                     id="multi-pag-recebido-${i}" 
+                     value="${valorPorPessoa.toFixed(2)}" 
+                     style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e0; font-weight: 800; font-size: 1rem; color: #27ae60; box-sizing: border-box;">
+            </div>
+            <div style="flex: 1; text-align: right;">
+              <label style="display:block; font-size: 0.7rem; font-weight: bold; color: #64748b; margin-bottom: 2px;">TROCO:</label>
+              <strong id="multi-pag-troco-${i}" style="font-size: 1.1rem; color: #27ae60;">R$ 0,00</strong>
+            </div>
+          </div>
         </div>`;
     }
 
     const modal = document.getElementById('modal-multi-pagamento');
     modal.style.display = 'flex';
 
-    document.getElementById('btn-confirmar-multi-pagamento').onclick = () => {
+    // Garante que o botão de confirmar capture os dados exatos da tela
+    const btnFinalizar = document.getElementById('btn-confirmar-multi-pagamento');
+    btnFinalizar.onclick = () => {
+      const pagamentosDetalhados = [];
       const selects = container.querySelectorAll('.multi-pag-forma-select');
-      const formas = Array.from(selects).map(s => s.value);
-      modal.style.display = 'none';
-      resolve(formas);
+      
+      for (let sel of selects) {
+        const i = sel.dataset.index;
+        const forma = sel.value;
+        const inputRec = document.getElementById(`multi-pag-recebido-${i}`);
+        
+        // Valor que foi efetivamente digitado (ou o valor da cota se não digitou nada)
+        const valorDigitado = inputRec ? parseFloat(inputRec.value) : 0;
+        const recebido = (forma === 'Dinheiro') ? (valorDigitado || valorPorPessoa) : valorPorPessoa;
+        const troco = (forma === 'Dinheiro') ? Math.max(0, recebido - valorPorPessoa) : 0;
+        
+        if (forma === 'Dinheiro' && recebido < (valorPorPessoa - 0.01)) {
+          mostrarAlerta(`⚠️ Pessoa ${i}: Valor recebido insuficiente!`, "Aviso");
+          return;
+        }
+        
+        pagamentosDetalhados.push({
+          pessoa: parseInt(i),
+          forma_pagamento: forma,
+          valor: valorPorPessoa,
+          recebido: recebido,
+          troco: troco
+        });
+      }
+      
+      console.log("✅ Dados capturados para o cupom:", pagamentosDetalhados);
+      fecharModalMultiPagamento();
+      resolve(pagamentosDetalhados);
     };
   });
+}
+
+// FUNÇÕES AUXILIARES PARA O MULTI-PAGAMENTO
+function toggleMultiPagDinheiro(index, forma) {
+  const container = document.getElementById(`multi-pag-dinheiro-container-${index}`);
+  if (container) {
+    container.style.opacity = (forma === 'Dinheiro') ? '1' : '0.3';
+    const input = document.getElementById(`multi-pag-recebido-${index}`);
+    if (input) input.disabled = (forma !== 'Dinheiro');
+  }
+}
+
+function calcularTrocoMultiPag(index, valorCota) {
+  const recebido = parseFloat(document.getElementById(`multi-pag-recebido-${index}`).value) || 0;
+  const elTroco = document.getElementById(`multi-pag-troco-${index}`);
+  if (elTroco) {
+    const troco = Math.max(0, recebido - valorCota);
+    elTroco.innerText = `R$ ${troco.toFixed(2)}`;
+    elTroco.style.color = troco > 0 ? '#27ae60' : '#e74c3c';
+  }
 }
 
 async function carregarCardapio() {
@@ -2274,7 +2574,21 @@ async function carregarCardapio() {
   const select = document.getElementById('menu-select');
   if (select) select.innerHTML = cardapio.map(item => `<option value="${item.id}">${item.nome} - R$ ${item.preco.toFixed(2)}</option>`).join('');
   
+  // Atualiza as interfaces que dependem do cardápio/estoque em tempo real
   if (abaAtiva === 'configuracoes') exibirMenuConfig();
+  if (abaAtiva === 'lancar') {
+      const catAtiva = document.querySelector('#lancar-menu-categorias .cat-mini.ativa');
+      const catNome = catAtiva ? catAtiva.id.replace('cat-lancar-', '') : 'todas';
+      exibirMenuLancar(catNome);
+  }
+  
+  // Se o modal de edição estiver aberto, atualiza o cardápio de lá também
+  const modalEdicao = document.getElementById('modal-edicao');
+  if (modalEdicao && modalEdicao.style.display === 'flex') {
+      const btnAtivo = document.querySelector('#edit-menu-categorias .categoria-mini.active');
+      const catNomeEdicao = btnAtivo ? btnAtivo.innerText : 'Todos';
+      renderizarMenuEdicao(catNomeEdicao === 'Todos' ? 'todas' : catNomeEdicao);
+  }
 }
 
 function iniciarPiscarTitulo() { if (intervalPiscaTitulo) return; let alt = false; intervalPiscaTitulo = setInterval(() => { document.title = alt ? '🔔 NOVO!' : '⚠️ VERIFIQUE'; alt = !alt; }, 1000); }
@@ -2479,6 +2793,8 @@ async function imprimirCupom(pedido, itens) {
   try {
     const resPagos = await fetch(`/api/pedidos/${pedido.id}/pagamentos`);
     if (resPagos.ok) historicoPagos = await resPagos.json();
+    console.log("📜 Histórico de Pagamentos (Banco):", historicoPagos);
+    console.log("📑 Detalhes Imediatos (Memória):", pedido.pagamentos_detalhados_lista);
   } catch (e) { console.error("Erro ao buscar pagamentos:", e); }
 
   const subtotal = itens.reduce((sum, i) => sum + (i.preco * i.quantidade), 0);
@@ -2592,10 +2908,66 @@ async function imprimirCupom(pedido, itens) {
                   }
               }
 
+              // LÓGICA DE BUSCA DE DADOS (CORRIGIDA)
+              let formaExibicao = '';
+              let valorRecebidoParte = 0;
+              let trocoParte = 0;
+              let valorRealDaParte = valorParte; // Fallback para a divisão simples
+
+              // Se a parte i já foi paga anteriormente (está no início do histórico)
+              if (i < jaPagosAnteriormente.length) {
+                const h = jaPagosAnteriormente[i];
+                formaExibicao = h.forma_pagamento;
+                valorRecebidoParte = h.recebido || h.valor || 0;
+                trocoParte = h.troco || 0;
+                valorRealDaParte = h.valor || valorParte;
+              } 
+              // Se a parte i está sendo paga AGORA (está na lista detalhada atual)
+              else {
+                const indiceNoNovo = i - jaPagosAnteriormente.length;
+                if (pedido.pagamentos_detalhados_lista && pedido.pagamentos_detalhados_lista[indiceNoNovo]) {
+                  const d = pedido.pagamentos_detalhados_lista[indiceNoNovo];
+                  formaExibicao = d.forma_pagamento;
+                  valorRecebidoParte = d.recebido || 0;
+                  trocoParte = d.troco || 0;
+                  valorRealDaParte = d.valor || valorParte;
+                } else if (historicoPagos && historicoPagos[i]) {
+                  // Fallback para re-impressão total do histórico
+                  const h = historicoPagos[i];
+                  formaExibicao = h.forma_pagamento;
+                  valorRecebidoParte = h.recebido || h.valor || 0;
+                  trocoParte = h.troco || 0;
+                  valorRealDaParte = h.valor || valorParte;
+                }
+              }
+              
+              let infoExtra = '';
+              if (formaExibicao === 'Dinheiro') {
+                  // Se os valores forem 0 mas for dinheiro, tentamos usar o valor da parte como recebido (fallback)
+                  const exibRec = valorRecebidoParte > 0 ? valorRecebidoParte : valorRealDaParte;
+                  const exibTrc = trocoParte;
+                  
+                  infoExtra = `
+                    <div style="font-size: 8pt; margin-top: 2px; padding-left: 10px; opacity: 0.9;">
+                      <div style="display:flex; justify-content:space-between;">
+                        <span>VALOR RECEBIDO:</span>
+                        <span>R$ ${exibRec.toFixed(2)}</span>
+                      </div>
+                      <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                        <span>TROCO:</span>
+                        <span>R$ ${exibTrc.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  `;
+              }
+
               linhasDivisao += `
-                <div style="display:flex; justify-content:space-between; margin-bottom: 2px; ${style}">
-                  <span>PARTE ${numParte} ${status}:</span>
-                  <span>R$ ${valorParte.toFixed(2)}</span>
+                <div style="margin-bottom: 8px; ${style} border-bottom: 1px dotted #ccc; padding-bottom: 4px;">
+                  <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                    <span>PARTE ${numParte} ${formaExibicao ? '(' + formaExibicao.toUpperCase() + ')' : ''} ${status}:</span>
+                    <span>R$ ${valorRealDaParte.toFixed(2)}</span>
+                  </div>
+                  ${infoExtra}
                 </div>
               `;
           }
@@ -2663,9 +3035,9 @@ async function imprimirCupom(pedido, itens) {
         <div style="margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; font-size: 9pt;">
           <div style="display:flex; justify-content:space-between;">
             <span>FORMA DE PAGAMENTO:</span>
-            <span style="font-weight:bold;">${pedido.forma_pagamento || 'N/A'}</span>
+            <span style="font-weight:bold;">${(pedido.pagamentos_detalhados_lista || (historicoPagos && historicoPagos.length > 1)) ? 'MÚLTIPLAS / DIVIDIDO' : (pedido.forma_pagamento || 'N/A')}</span>
           </div>
-          ${pedido.forma_pagamento === 'Dinheiro' ? `
+          ${(pedido.forma_pagamento === 'Dinheiro' && !pedido.pagamentos_detalhados_lista && (!historicoPagos || historicoPagos.length <= 1)) ? `
             <div style="display:flex; justify-content:space-between;">
               <span>VALOR RECEBIDO:</span>
               <span>R$ ${(pedido.valor_recebido || 0).toFixed(2)}</span>

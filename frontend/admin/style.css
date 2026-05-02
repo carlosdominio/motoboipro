@@ -29,6 +29,9 @@ header {
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  position: sticky;
+  top: 0;
+  z-index: 2000;
 }
 
 .header-main {
@@ -565,7 +568,18 @@ button.btn-entregue { background-color: #95a5a6; }
 
 /* Abas e Histórico */
 .hidden { display: none !important; }
-.tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: #eee; padding: 0.5rem; border-radius: 8px; }
+.tabs { 
+  display: flex; 
+  gap: 0.5rem; 
+  margin-bottom: 1.5rem; 
+  background: #eee; 
+  padding: 0.5rem; 
+  border-radius: 8px; 
+  position: sticky;
+  top: 77px; /* Ajuste fino para não sumir atrás do header */
+  z-index: 1000;
+  box-shadow: 0 4px 6px -2px rgba(0,0,0,0.1);
+}
 .tab-btn { background: transparent; color: #555; border: none; padding: 0.8rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; transition: all 0.2s; }
 .tab-btn.active { background: #2c3e50; color: white; }
 .tab-btn:hover:not(.active) { background: #ddd; }
@@ -583,8 +597,8 @@ button.btn-entregue { background-color: #95a5a6; }
 .config-card button { padding: 0.8rem; font-size: 0.9rem; }
 .item-config { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f9f9f9; }
 .btn-excluir { background-color: #e74c3c; padding: 4px 8px; font-size: 0.8rem; width: auto; }
-.menu-item-config { background: #f9f9f9; padding: 1rem; border-radius: 8px; display: flex; gap: 1rem; align-items: center; }
-.menu-item-config img { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; }
+.menu-item-config { background: #f9f9f9; padding: 1rem; border-radius: 8px; display: flex; gap: 1rem; align-items: center; border-bottom: 1px solid #eee; }
+.menu-item-config img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; }
 .config-card-full { grid-column: 1 / -1; }
 .form-config-menu { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; align-items: flex-end; }
 .form-config-menu input { 
@@ -673,17 +687,56 @@ button.btn-entregue { background-color: #95a5a6; }
 .menu-grid-mini {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
-  gap: 15px !important;
+  gap: 12px !important;
+  padding: 10px !important;
   overflow-y: auto !important;
-  padding: 10px 5px !important;
-  flex: 1;
+  max-height: 450px !important; /* Altura fixa para forçar rolagem dentro do modal */
 }
 
-.item-menu-mini { background: white; border: 1px solid #eee; border-radius: 8px; padding: 8px; text-align: center; cursor: pointer; transition: transform 0.1s; }
-.item-menu-mini:active { transform: scale(0.95); }
-.item-menu-mini img { width: 100%; height: 70px; object-fit: cover; border-radius: 4px; margin-bottom: 5px; }
-.item-menu-mini h4 { font-size: 0.8rem; margin: 5px 0; height: 2.4em; overflow: hidden; }
-.item-menu-mini p { font-size: 0.85rem; color: #27ae60; font-weight: bold; }
+.item-menu-mini {
+  background: #fff !important;
+  border: 1px solid #eee !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05) !important;
+  transition: transform 0.1s !important;
+}
+
+.item-menu-mini img {
+  width: 100% !important;
+  height: 110px !important;
+  object-fit: cover !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+
+.item-menu-mini h4 {
+  font-size: 0.85rem !important;
+  padding: 8px 8px 2px 8px !important;
+  color: #2c3e50 !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+  text-align: left !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3 !important; /* Aumentado para 3 linhas */
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: normal !important;
+  line-height: 1.1 !important;
+  min-height: 2.8rem !important; /* Espaço para as 3 linhas */
+}
+
+.item-menu-mini p {
+  font-size: 0.95rem !important;
+  color: #27ae60 !important;
+  font-weight: 800 !important;
+  padding: 0 8px 10px 8px !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
 
 .badge-contador {
   background: #e74c3c;

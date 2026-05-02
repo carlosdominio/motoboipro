@@ -246,11 +246,35 @@ async function carregarMesas() {
 
 function calcularMinutos(dataIso) {
   if (!dataIso) return 0;
-  const data = new Date(dataIso.replace(' ', 'T'));
+  // Trata formato YYYY-MM-DD HH:MM:SS para ISO
+  const isoStr = dataIso.replace(' ', 'T');
+  const data = new Date(isoStr);
   const agora = new Date();
   const diffMs = agora - data;
   return Math.floor(diffMs / 60000);
 }
+
+function atualizarCronometrosGarcom() {
+  const container = document.getElementById('cronometro-mesa-detalhe');
+  if (!container || !pedidoAbertoNaMesa || !pedidoAbertoNaMesa.created_at) {
+    if (container) container.style.display = 'none';
+    return;
+  }
+
+  const minutos = calcularMinutos(pedidoAbertoNaMesa.created_at);
+  container.innerHTML = `⏱️ Mesa aberta há <strong>${minutos}</strong> min`;
+  container.style.display = 'block';
+
+  // Se passar de 10 min, destaca mais
+  container.style.backgroundColor = minutos >= 10 ? '#ffcccc' : '#eee';
+  container.style.color = minutos >= 10 ? '#e74c3c' : '#c0392b';
+}
+
+// Atualiza a cada 60 segundos
+setInterval(() => {
+  exibirMesas();
+  atualizarCronometrosGarcom();
+}, 60000);
 
 function exibirMesas() {
   const grid = document.getElementById('mesas-grid');
@@ -601,10 +625,11 @@ async function exibirMenu(categoria) {
   grid.innerHTML = itens.map(item => {
     const itemNoPedido = pedidoAtual.find(p => p.menu_id === item.id);
     const qtdBadge = itemNoPedido ? `<div class="badge-qtd">${itemNoPedido.quantidade}</div>` : '';
-    
+
     // Lógica de estoque
-    const esgotado = item.estoque === 0;
-    const infoEstoque = item.estoque === -1 ? '' : `<div class="info-estoque ${esgotado ? 'zero' : ''}">Estoque: ${item.estoque}</div>`;
+    const estoqueNum = (item.estoque !== null && item.estoque !== undefined) ? parseInt(item.estoque) : -1;
+    const temEstoqueDefinido = estoqueNum !== -1;
+    const esgotado = estoqueNum === 0;
 
     return `
       <div class="item-menu ${esgotado ? 'esgotado' : ''}" data-id="${item.id}">
@@ -612,9 +637,15 @@ async function exibirMenu(categoria) {
         <img src="${item.imagem}" alt="${item.nome}">
         <h3>${item.nome}</h3>
         <p>R$ ${item.preco.toFixed(2)}</p>
-        ${infoEstoque}
-        ${esgotado ? '<div class="overlay-esgotado">ESGOTADO</div>' : ''}
-      </div>`;
+        ${temEstoqueDefinido ? `
+          <div class="info-estoque ${esgotado ? 'zero' : ''}" style="font-weight: bold; padding: 2px 5px; border-radius: 4px; display: inline-block; font-size: 0.75rem;">
+            Estoque: ${estoqueNum}
+          </div>
+        ` : `
+          <div class="info-estoque" style="opacity: 0.6; font-size: 0.7rem;">Estoque: Ilimitado</div>
+        `}
+      </div>
+    `;
   }).join('');
 
   document.querySelectorAll('.item-menu').forEach(itemEl => {
