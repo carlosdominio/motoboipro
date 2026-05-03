@@ -323,6 +323,56 @@ function switchTab(tab) {
   else if (tab === 'configuracoes') carregarDadosConfig();
   else if (tab === 'caixa') carregarStatusCaixa();
   else if (tab === 'lancar') prepararLancarPedido();
+  else if (tab === 'whatsapp') carregarStatusWhatsApp();
+}
+
+async function carregarStatusWhatsApp() {
+  const badge = document.getElementById('whatsapp-status-badge');
+  const numberEl = document.getElementById('whatsapp-notify-number');
+  const toggle = document.getElementById('toggle-whatsapp');
+  if (!badge) return;
+
+  try {
+    const res = await fetch('/api/whatsapp-status');
+    const status = await res.json();
+
+    if (!status.configured) {
+      badge.textContent = 'NÃO CONFIGURADO';
+      badge.style.background = '#fee2e2';
+      badge.style.color = '#ef4444';
+    } else if (status.connected) {
+      badge.textContent = 'CONECTADO';
+      badge.style.background = '#dcfce7';
+      badge.style.color = '#166534';
+    } else {
+      badge.textContent = 'DESCONECTADO';
+      badge.style.background = '#fef9c3';
+      badge.style.color = '#854d0e';
+    }
+
+    if (toggle) toggle.checked = status.enabled;
+    numberEl.textContent = status.number || 'Não configurado';
+  } catch (e) {
+    badge.textContent = 'ERRO';
+    badge.style.background = '#fee2e2';
+    badge.style.color = '#ef4444';
+  }
+}
+
+async function alternarWhatsApp(ativo) {
+  try {
+    const res = await fetch('/api/whatsapp-toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: ativo })
+    });
+    if (res.ok) {
+      mostrarToast(`🤖 Robô WhatsApp ${ativo ? 'ATIVADO' : 'DESATIVADO'}`);
+    }
+  } catch (e) {
+    console.error('Erro ao alternar WhatsApp:', e);
+    mostrarToast('❌ Erro ao alterar status do robô');
+  }
 }
 
 function scrollCategoriasLancar(delta) {

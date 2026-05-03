@@ -13,6 +13,7 @@ const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const ioClient = require('socket.io-client');
 
 // Configuração de ambiente
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -20,6 +21,46 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
+
+// INTEGRAÇÃO WHATSAPP (BOT EXTERNO)
+let whatsappSocket = null;
+if (process.env.WHATSAPP_BOT_URL) {
+  console.log('📡 Iniciando conexão com Bot WhatsApp:', process.env.WHATSAPP_BOT_URL);
+  whatsappSocket = ioClient(process.env.WHATSAPP_BOT_URL, {
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 2000,
+  });
+  
+  whatsappSocket.on('connect', () => console.log('✅ Conectado ao Bot do WhatsApp (Render)'));
+  whatsappSocket.on('connect_error', (err) => console.log('❌ Erro de conexão com Bot WhatsApp:', err.message));
+  whatsappSocket.on('disconnect', () => console.log('⚠️ Desconectado do Bot WhatsApp'));
+}
+
+async function sendWhatsAppMessage(text) {
+  try {
+    const config = await query("SELECT valor FROM sistema_config WHERE chave = 'whatsapp_enabled'");
+    const isEnabled = config.rows[0]?.valor === 'true';
+
+    if (!isEnabled) {
+      console.log('🚫 [WhatsApp] Automação desativada pelo usuário');
+      return;
+    }
+
+    if (whatsappSocket && whatsappSocket.connected && process.env.WHATSAPP_NOTIFY_NUMBER) {
+      const number = process.env.WHATSAPP_NOTIFY_NUMBER.replace(/\D/g, '');
+      whatsappSocket.emit('send_msg', { 
+        number: number, 
+        text: text 
+      });
+      console.log(`📱 [WhatsApp] Enviando para ${number}: ${text.substring(0, 30)}...`);
+    } else {
+      console.log('⚠️ [WhatsApp] Bot não conectado ou número não configurado');
+    }
+  } catch (e) {
+    console.error('❌ Erro ao enviar WhatsApp:', e.message);
+  }
+}
 
 // Log global de todas as requisições
 app.use((req, res, next) => {
@@ -171,6 +212,14 @@ async function notifyStatus(pedidoId, mesaDbId, status) {
     const payload = { pedido_id: pedidoId, mesa_id: mesaNum, mesa_numero: mesaNum, status: status };
     console.log(`🔔 Notificando status: Mesa ${mesaNum}, Status ${status}`);
     await safePusherTrigger('garconnexpress', 'status-atualizado', payload);
+
+    // NOTIFICAÇÃO WHATSAPP
+    if (status === 'aguardando_fechamento') {
+      await sendWhatsAppMessage(`🛎️ *SOLICITAÇÃO DE FECHAMENTO*\n📍 Mesa: ${mesaNum}\n💰 O cliente solicitou a conta.`);
+    } else if (status === 'cancelado') {
+      await sendWhatsAppMessage(`❌ *PEDIDO CANCELADO*\n📍 Mesa: ${mesaNum}\n🗑️ O pedido foi removido do sistema.`);
+    }
+
   } catch (e) { console.error('Erro notificar:', e.message); }
 }
 
@@ -184,6 +233,7 @@ async function initDb() {
     `CREATE TABLE IF NOT EXISTS pedido_itens (id SERIAL PRIMARY KEY, pedido_id INTEGER, menu_id INTEGER, quantidade INTEGER, observacao TEXT, status TEXT DEFAULT 'pendente')`,
     `CREATE TABLE IF NOT EXISTS garcons (id SERIAL PRIMARY KEY, nome TEXT NOT NULL, usuario TEXT UNIQUE NOT NULL, senha TEXT NOT NULL DEFAULT '123', telefone TEXT)`,
     `CREATE TABLE IF NOT EXISTS usuarios_admin (id SERIAL PRIMARY KEY, usuario TEXT UNIQUE NOT NULL, senha TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS sistema_config (chave TEXT PRIMARY KEY, valor TEXT)`,
     `CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP, data_fechamento TIMESTAMP, valor_inicial REAL NOT NULL, valor_final REAL, status TEXT DEFAULT 'aberto', total_dinheiro REAL DEFAULT 0, total_pix REAL DEFAULT 0, total_cartao REAL DEFAULT 0, total_vendas REAL DEFAULT 0)`
   ];
   
@@ -191,15 +241,22 @@ async function initDb() {
   try {
     const tableCheck = isPostgres 
       ? await db.query("SELECT to_regclass('public.usuarios_admin') as exists") 
-      : { rows: [{ exists: true }] }; // SQLite não tem to_regclass, mas é rápido
+      : { rows: [{ exists: true }] }; 
 
-    // Se a tabela usuarios_admin já existe no Postgres, pulamos a criação das tabelas para economizar tempo no Cold Start
     if (!isPostgres || !tableCheck.rows[0].exists) {
       for (let tableSql of tables) {
         if (isPostgres) await db.query(tableSql);
         else db.exec(tableSql.replace(/SERIAL PRIMARY KEY/g, 'INTEGER PRIMARY KEY AUTOINCREMENT'));
       }
     }
+
+    // GARANTE QUE SISTEMA_CONFIG EXISTA (Caso tenha sido adicionada depois)
+    const sqlConfig = `CREATE TABLE IF NOT EXISTS sistema_config (chave TEXT PRIMARY KEY, valor TEXT)`;
+    if (isPostgres) await db.query(sqlConfig);
+    else db.exec(sqlConfig);
+
+    await query("INSERT INTO sistema_config (chave, valor) SELECT 'whatsapp_enabled', 'true' WHERE NOT EXISTS (SELECT 1 FROM sistema_config WHERE chave = 'whatsapp_enabled')");
+
   } catch (e) {
     console.error('Erro ao verificar/criar tabelas:', e);
   }
@@ -518,6 +575,16 @@ app.post('/api/pedidos', async (req, res) => {
     await notifyStatus(pedidoId, mesa_id, 'recebido');
     let mesaNum = 'BALCÃO';
     if (mesa_id) { const rm = await query("SELECT numero FROM mesas WHERE id = ?", [mesa_id]); mesaNum = rm.rows[0] ? rm.rows[0].numero : 'BALCÃO'; }
+
+    // NOTIFICAÇÃO WHATSAPP DETALHADA
+    const itensNomes = [];
+    for (const item of itens) {
+      const p = (await query("SELECT nome FROM menu WHERE id = ?", [item.menu_id])).rows[0];
+      itensNomes.push(`${item.quantidade}x ${p ? p.nome : 'Item'}`);
+    }
+    const msgWpp = `🚀 *NOVO PEDIDO #${pedidoId}*\n📍 Mesa: ${mesaNum}\n📝 Itens:\n${itensNomes.join('\n')}\n💰 Total: R$ ${total.toFixed(2)}`;
+    await sendWhatsAppMessage(msgWpp);
+
     await safePusherTrigger('garconnexpress', 'novo-pedido', { pedido: { id: pedidoId, mesa_id, mesa_numero: mesaNum, status: 'recebido' } });
     await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
     res.json({ id: pedidoId, success: true });
@@ -899,6 +966,33 @@ app.get('/api/pusher-config', (req, res) => {
     key: process.env.PUSHER_APP_KEY || "5b2b284e309dea9d90fb",
     cluster: process.env.PUSHER_CLUSTER || "sa1"
   });
+});
+
+app.get('/api/whatsapp-status', async (req, res) => {
+  try {
+    const config = await query("SELECT valor FROM sistema_config WHERE chave = 'whatsapp_enabled'");
+    const isEnabled = config.rows && config.rows.length > 0 ? config.rows[0].valor === 'true' : true;
+
+    res.json({
+      configured: !!process.env.WHATSAPP_BOT_URL,
+      connected: whatsappSocket ? whatsappSocket.connected : false,
+      enabled: isEnabled,
+      number: process.env.WHATSAPP_NOTIFY_NUMBER || 'Não configurado'
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar status do WhatsApp:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/whatsapp-toggle', async (req, res) => {
+  const { enabled } = req.body;
+  try {
+    await query("UPDATE sistema_config SET valor = ? WHERE chave = 'whatsapp_enabled'", [enabled ? 'true' : 'false']);
+    res.json({ success: true, enabled });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/api/diag', async (req, res) => {
