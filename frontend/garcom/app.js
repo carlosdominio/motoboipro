@@ -160,11 +160,14 @@ async function atualizarStatusCaixa() {
 }
 
 let timeoutPusher = null;
-function configurarPusher() {
+async function configurarPusher() {
   try {
-    console.log('📡 Inicializando Pusher no garçom...');
-    const pusher = new Pusher('5b2b284e309dea9d90fb', {
-      cluster: 'sa1',
+    const configRes = await fetch('/api/pusher-config');
+    const pusherConfig = await configRes.json();
+    
+    console.log('📡 Inicializando Pusher no garçom...', pusherConfig.key);
+    const pusher = new Pusher(pusherConfig.key, {
+      cluster: pusherConfig.cluster,
       forceTLS: true
     });    
     pusher.connection.bind('connected', () => {

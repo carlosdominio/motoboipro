@@ -213,11 +213,6 @@ async function mudarQtdItem(index, qtd) {
   const novaQtd = parseInt(qtd);
   const itemNoPedido = itensEmEdicao[index];
   
-  // TRAVA: Itens entregues não podem ter quantidade alterada
-  if (itemNoPedido.status === 'entregue') {
-    return await mostrarAlerta("⚠️ Este item já foi entregue e não pode ter a quantidade alterada. Se necessário, adicione uma nova linha.", "Item Entregue");
-  }
-
   const itemNoMenu = cardapio.find(m => m.id === itemNoPedido.menu_id);
 
   if (novaQtd > itemNoPedido.quantidade && itemNoMenu && itemNoMenu.estoque !== -1) {
@@ -238,11 +233,6 @@ async function mudarQtdItem(index, qtd) {
 async function removerItemEdicao(index) { 
   const item = itensEmEdicao[index];
   
-  // TRAVA: Itens entregues não podem ser removidos
-  if (item.status === 'entregue') {
-    return await mostrarAlerta("⚠️ Itens já entregues não podem ser excluídos do pedido!", "Ação Bloqueada");
-  }
-
   itensEmEdicao.splice(index, 1); 
   renderizarItensEdicao(); 
   renderizarMenuEdicao(); // Re-renderiza cardápio para atualizar estoque disponível
@@ -1132,6 +1122,9 @@ async function carregarPedidos() {
     if (!res.ok) return;
     pedidos = await res.json();
     
+    // Atualiza o select de mesas com os dados recém carregados
+    atualizarSelectMesasAtivas();
+    
     // Atualiza os indicadores do topo sempre que carregar os pedidos
     await atualizarIndicadoresTopo();
     atualizarContadorAtivos();
@@ -1199,6 +1192,44 @@ async function imprimirParcialMesaRapido(idPedido) {
 }
 
 let isRenderingPedidos = false;
+let filtroBuscaMesa = '';
+let filtroSelectMesa = '';
+
+function filtrarMesasAtivas(valor) {
+  filtroBuscaMesa = valor.toLowerCase().trim();
+  exibirPedidos();
+}
+
+function filtrarPorSelect(valor) {
+  filtroSelectMesa = valor;
+  exibirPedidos();
+}
+
+function atualizarSelectMesasAtivas() {
+  const select = document.getElementById('select-mesas-ativas');
+  if (!select) return;
+  
+  const valorAtual = select.value;
+  const nomesMesas = [...new Set(pedidos.map(p => p.mesa_numero ? `Mesa ${p.mesa_numero}` : 'BALCÃO'))].sort((a, b) => {
+    if (a === 'BALCÃO') return -1;
+    if (b === 'BALCÃO') return 1;
+    return a.localeCompare(b, undefined, {numeric: true});
+  });
+
+  let html = '<option value="">Todas</option>';
+  nomesMesas.forEach(nome => {
+    html += `<option value="${nome}">${nome}</option>`;
+  });
+  
+  select.innerHTML = html;
+  // Restaura a seleção se a mesa ainda estiver ativa
+  if (nomesMesas.includes(valorAtual)) {
+    select.value = valorAtual;
+  } else {
+    filtroSelectMesa = '';
+  }
+}
+
 async function exibirPedidos() {
   if (isRenderingPedidos || abaAtiva !== 'ativos') return;
   const listGarcom = document.getElementById('pedidos-list-garcom');
@@ -1214,6 +1245,18 @@ async function exibirPedidos() {
 
   try {
     for (const pedido of pedidos) {
+      const mesaNomeExibicao = pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO';
+      
+      // FILTRO DE BUSCA (TEXTO)
+      if (filtroBuscaMesa && !mesaNomeExibicao.toLowerCase().includes(filtroBuscaMesa)) {
+        continue; 
+      }
+
+      // FILTRO DE SELECT (EXATO)
+      if (filtroSelectMesa && mesaNomeExibicao !== filtroSelectMesa) {
+        continue;
+      }
+
       if (pedidosStatusTaxa[pedido.id] === undefined) {
         pedidosStatusTaxa[pedido.id] = (pedido.cobrar_taxa !== undefined) ? pedido.cobrar_taxa : true;
       }
@@ -1250,7 +1293,6 @@ async function exibirPedidos() {
       const isAguardando = pedido.status === 'aguardando_fechamento';
       card.className = `pedido-card status-${statusGeral} ${pedido.id === pedidoAtualizadoId ? 'destaque-atualizacao' : ''} ${classeAlertaAtraso} ${isAguardando ? 'alerta-fechamento' : ''}`;
       card.dataset.pedidoId = pedido.id;
-      const mesaNomeExibicao = pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO';
       card.innerHTML = `
         <div class="pedido-header">
           <div>
@@ -1622,13 +1664,9 @@ function renderizarItensEdicao() {
                     style="width: 38px; height: 100%; border: none; background: #fff; color: #22c55e; font-size: 1.4rem; font-weight: bold; cursor: pointer; border-left: 2px solid #e2e8f0;">+</button>
           </div>
 
-          <!-- BOTÃO REMOVER (SÓ APARECE SE NÃO ESTIVER ENTREGUE) -->
-          ${!isEntregue ? `
-            <button onclick="removerItemEdicao(${index})" 
-                    style="background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center;">✕</button>
-          ` : `
-            <div style="width: 38px; height: 38px;"></div> <!-- Espaçador para manter o alinhamento -->
-          `}
+          <!-- BOTÃO REMOVER -->
+          <button onclick="removerItemEdicao(${index})" 
+                  style="background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center;">✕</button>
         </div>
 
         <!-- PREÇO TOTAL DO ITEM -->
@@ -1906,6 +1944,7 @@ async function aprovarFechamento(idPedido, idMesa, mesaNomeForcado = null) {
 
   renderizarAssentosFechamento();
   document.getElementById('modal-fechamento-admin').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
 }
 
 function renderizarListaItensFechamento() {
@@ -2477,7 +2516,10 @@ function imprimirCupomParcialItens(pedido, itensPagos, totalPago, cobrarTaxa) {
   setTimeout(() => { window.print(); }, 250);
 }
 
-function fecharModalFechamentoAdmin() { document.getElementById('modal-fechamento-admin').style.display = 'none'; }
+function fecharModalFechamentoAdmin() { 
+  document.getElementById('modal-fechamento-admin').style.display = 'none'; 
+  document.body.style.overflow = 'auto';
+}
 
 function fecharModalMultiPagamento() { document.getElementById('modal-multi-pagamento').style.display = 'none'; }
 
@@ -2621,13 +2663,16 @@ let timeoutPusher = null;
 let pusherInstancia = null;
 let pedidoAtualizadoId = null;
 
-function configurarPusher() {
+async function configurarPusher() {
   if (pusherInstancia) return;
   
   try {
-    console.log('📡 Inicializando Pusher no Admin...');
-    pusherInstancia = new Pusher('5b2b284e309dea9d90fb', {
-      cluster: 'sa1',
+    const configRes = await fetch('/api/pusher-config');
+    const pusherConfig = await configRes.json();
+    
+    console.log('📡 Inicializando Pusher no Admin...', pusherConfig.key);
+    pusherInstancia = new Pusher(pusherConfig.key, {
+      cluster: pusherConfig.cluster,
       forceTLS: true
     });    
     pusherInstancia.connection.bind('connected', () => {

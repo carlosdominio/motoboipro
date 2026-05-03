@@ -190,8 +190,20 @@
     </section>
 
     <section id="ativos-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px; flex-wrap: wrap; gap: 10px;">
         <h2 style="margin: 0;">Pedidos em Andamento</h2>
+        
+        <div class="search-container" style="position: relative; flex: 1; max-width: 500px; min-width: 300px; display: flex; gap: 10px;">
+          <input type="text" id="filtro-mesas" placeholder="🔍 Buscar Mesa ou Balcão..." 
+                 oninput="filtrarMesasAtivas(this.value)"
+                 style="flex: 2; padding: 10px 15px; border-radius: 10px; border: 2px solid #e2e8f0; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box;">
+          
+          <select id="select-mesas-ativas" onchange="filtrarPorSelect(this.value)"
+                  style="flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #e2e8f0; background: white; outline: none; cursor: pointer; font-size: 0.9rem; min-width: 120px;">
+            <option value="">Todas</option>
+          </select>
+        </div>
+
         <div class="sub-tabs" style="display: flex; gap: 0.5rem; background: #f1f2f6; padding: 5px; border-radius: 10px;">
           <button id="tab-sub-garcom" onclick="switchSubTab('garcom')" class="sub-tab-btn active" style="padding: 8px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 8px;">
             🍽️ Mesas <span id="badge-sub-garcom" class="badge-mini">0</span>

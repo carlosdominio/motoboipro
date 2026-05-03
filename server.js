@@ -894,6 +894,13 @@ app.post('/api/login', async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+app.get('/api/pusher-config', (req, res) => {
+  res.json({
+    key: process.env.PUSHER_APP_KEY || "5b2b284e309dea9d90fb",
+    cluster: process.env.PUSHER_CLUSTER || "sa1"
+  });
+});
+
 app.get('/api/diag', async (req, res) => {
   try {
     let dbStatus = 'disconnected';
