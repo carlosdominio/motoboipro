@@ -1,0 +1,607 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR" translate="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GarçonExpress - Admin</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Modal de Login Admin -->
+  <div id="tela-login-admin" class="tela-login-admin">
+    <div class="login-box">
+      <h1>Painel Admin</h1>
+      <p>Acesso Restrito</p>
+      <input type="text" id="admin-usuario" placeholder="Usuário Admin">
+      <input type="password" id="admin-senha" placeholder="Senha">
+      <button onclick="realizarLoginAdmin()" style="background-color: #2c3e50;">Entrar no Sistema</button>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-main">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <h1 style="margin:0">Painel Administrativo</h1>
+        <span id="caixa-status-badge-admin" class="badge-caixa" style="display:none; width:fit-content;"></span>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="display:flex; align-items:center; gap:8px; background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);">
+          <span style="font-size: 0.7rem; font-weight: bold; color: #fff;">🔊 SOM WINDOWS</span>
+          <label class="switch" style="width: 40px; height: 20px;">
+            <input type="checkbox" id="toggle-som-windows" onchange="alternarSomWindows(this.checked)">
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <a href="https://web.whatsapp.com" target="_blank" class="btn-whatsapp-header">
+          💬 WhatsApp Web
+        </a>
+      </div>
+    </div>
+    
+    <div class="header-stats">
+      <div class="stat-item">
+        <small>ATIVO AGORA</small>
+        <strong id="faturamento-resumo">R$ 0,00</strong>
+      </div>
+      <div class="stat-item v-hoje">
+        <small>VENDAS HOJE</small>
+        <strong id="vendas-dia-resumo">R$ 0,00</strong>
+      </div>
+      <div class="stat-item print-config">
+        <small>IMPRESSÃO</small>
+        <select id="print-paper-select" class="print-paper-select">
+          <option value="58">58mm</option>
+          <option value="80">80mm</option>
+        </select>
+      </div>
+      <button onclick="logoutAdmin()" class="btn-sair">SAIR</button>
+    </div>
+  </header>
+
+  <main>
+    <nav class="tabs">
+      <button class="tab-btn active" onclick="switchTab('ativos')">
+        Pedidos Ativos
+        <span id="badge-ativos-contador" class="badge-contador hidden">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('lancar')">🛒 Lançar Pedido</button>
+      <button class="tab-btn" onclick="switchTab('historico')">Histórico</button>
+      <button class="tab-btn" onclick="switchTab('mapa')">📍 Mapa de Mesas</button>
+      <button class="tab-btn" onclick="switchTab('caixa')">💰 Caixa</button>
+      <button class="tab-btn" onclick="switchTab('whatsapp')">🤖 WhatsApp Beta</button>
+      <button class="tab-btn" onclick="switchTab('configuracoes')">⚙️ Configurações</button>
+    </nav>
+
+    <section id="whatsapp-section" class="hidden">
+      <div class="config-card" style="padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+          <h3 style="margin:0;">🤖 Automação WhatsApp (Beta)</h3>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 6px; background: #f1f5f9; padding: 4px 10px; border-radius: 20px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.65rem; font-weight: 900; color: #64748b;">ROBÔ:</span>
+              <label class="switch">
+                <input type="checkbox" id="toggle-whatsapp" onchange="alternarWhatsApp(this.checked)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div id="whatsapp-status-badge" style="padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; background: #eee; min-width: 100px; text-align: center;">Verificando...</div>
+          </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+          <div style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <h4 style="margin-top:0;">📱 Configuração de Notificação</h4>
+            <p style="font-size: 0.9rem; color: #64748b;">Número que receberá os alertas de novos pedidos e fechamentos:</p>
+            <div style="font-size: 1.1rem; font-weight: bold; color: #2c3e50; margin: 10px 0;" id="whatsapp-notify-number">...</div>
+            <small style="color: #94a3b8;">* Edite o arquivo .env para alterar o número.</small>
+          </div>
+          <div style="background: #f0f9ff; padding: 15px; border-radius: 12px; border: 1px solid #bae6fd;">
+            <h4 style="margin-top:0;">ℹ️ Como funciona?</h4>
+            <ul style="font-size: 0.85rem; color: #0369a1; padding-left: 20px;">
+              <li>Conecte seu WhatsApp no painel abaixo.</li>
+              <li>O sistema enviará alertas automáticos para o número configurado.</li>
+              <li>Mantenha o bot conectado para garantir as entregas.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="height: 600px; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+          <iframe id="whatsapp-iframe" src="https://meu-zap-bot.onrender.com/" style="width: 100%; height: 100%; border: none;"></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção Lançar Pedido (NOVO - Layout de Altura Fixa) -->
+    <section id="lancar-section" class="hidden" style="height: calc(100vh - 160px); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 10px;">
+      <div class="config-card" style="margin-bottom: 0.5rem; padding: 12px; flex-shrink: 0; background: white; border-radius: 12px; border: 1px solid #eee;">
+        <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <h3 style="margin:0; white-space: nowrap; font-size: 1rem;">📍 Iniciar em:</h3>
+            <select id="lancar-mesa-select" style="padding: 8px; border-radius: 10px; border: 2px solid #3498db; font-size: 1rem; width: 220px; font-weight: bold; color: #2c3e50;">
+              <option value="">Selecione a Mesa</option>
+            </select>
+          </div>
+          
+          <button onclick="enviarPedidoLoteAdmin()" style="padding: 10px 25px; background: #27ae60; color: white; font-size: 1rem; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 0 #219150; transition: 0.2s transform active;">
+            🚀 LANÇAR PEDIDO AGORA
+          </button>
+        </div>
+      </div>
+
+      <div class="edit-modal-grid" style="flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 2fr; gap: 15px; background: white; padding: 15px; border-radius: 12px; border: 1px solid #eee; overflow: hidden;">
+        <!-- Coluna Esquerda: Carrinho -->
+        <div class="edit-col-itens" style="display: flex; flex-direction: column; height: 100%; overflow: hidden; border-right: 1px solid #f1f5f9; padding-right: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-shrink: 0;">
+            <h3 style="margin:0; font-size: 1.1rem;">🛒 Carrinho</h3>
+            <button onclick="limparCarrinhoLancar()" style="background: #fff1f2; color: #ef4444; border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">🗑️ LIMPAR</button>
+          </div>
+          
+          <div id="lancar-carrinho" style="flex: 1; overflow-y: auto; background: #f8fafc; border-radius: 12px; padding: 10px; border: 1px dashed #cbd5e0; margin-bottom: 10px;">
+            <p style="text-align: center; margin-top: 2rem; opacity: 0.5;">Adicione itens...</p>
+          </div>
+          
+          <div style="flex-shrink: 0; background: #fff; padding-top: 10px; border-top: 2px solid #eee;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="toggle-container">
+                <span style="font-size: 0.85rem; font-weight: bold; color: #64748b;">10%</span>
+                <label class="switch">
+                  <input type="checkbox" id="lancar-taxa-toggle" onchange="renderizarCarrinhoLancar()">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div id="lancar-total" style="font-weight: 900; font-size: 1.5rem; color: #27ae60;">R$ 0,00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna Direita: Seleção de Itens -->
+        <div class="edit-col-menu" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 10px; flex-shrink: 0; background: #f8fafc; padding: 5px; border-radius: 10px; border: 1px solid #e2e8f0;">
+            <button onclick="scrollCategoriasLancar(-150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❮</button>
+            <div id="lancar-menu-categorias" class="categorias-grid-mini" style="flex: 1; margin-bottom: 0; padding-bottom: 0; overflow-x: auto; scroll-behavior: smooth; display: flex; gap: 8px; scrollbar-width: none; -ms-overflow-style: none;">
+              <!-- Categorias injetadas via JS -->
+            </div>
+            <button onclick="scrollCategoriasLancar(150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❯</button>
+          </div>
+          <div id="lancar-menu-grid" class="menu-grid-mini" style="flex: 1; overflow-y: auto; padding: 5px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;">
+            <!-- Itens rolam verticalmente -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="caixa-section" class="hidden">
+      <div id="caixa-fechado-view" class="config-card" style="max-width: 500px; margin: 2rem auto; text-align: center;">
+        <h2 style="margin-bottom: 1.5rem;">O Caixa está FECHADO</h2>
+        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Informe o valor inicial em dinheiro para abrir o caixa e começar a receber pedidos.</p>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <input type="number" id="caixa-valor-inicial" placeholder="Valor Inicial (R$)" step="0.50" style="padding: 1rem; font-size: 1.2rem; text-align: center;">
+          <button onclick="abrirCaixa()" style="padding: 1rem; font-size: 1.1rem; background: #27ae60;">🚀 ABRIR CAIXA AGORA</button>
+        </div>
+      </div>
+
+      <div id="caixa-aberto-view" class="hidden">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          <div class="config-card" style="border-top: 4px solid #3498db;">
+            <small>Valor Inicial</small>
+            <h2 id="resumo-caixa-inicial">R$ 0,00</h2>
+          </div>
+          <div class="config-card" style="border-top: 4px solid #27ae60;">
+            <small>Vendas (Total)</small>
+            <h2 id="resumo-caixa-vendas">R$ 0,00</h2>
+          </div>
+          <div class="config-card" style="border-top: 4px solid #f1c40f;">
+            <small>Em Dinheiro (Esperado)</small>
+            <h2 id="resumo-caixa-dinheiro">R$ 0,00</h2>
+          </div>
+        </div>
+
+        <div class="config-card" style="margin-bottom: 2rem;">
+          <h3>Detalhamento por Meio de Pagamento</h3>
+          <div style="display: flex; justify-content: space-around; padding: 1rem 0;">
+            <div style="text-align: center;">
+              <p>💵 Dinheiro</p>
+              <strong id="detalhe-caixa-dinheiro" style="font-size: 1.2rem;">R$ 0,00</strong>
+            </div>
+            <div style="text-align: center;">
+              <p>📱 Pix</p>
+              <strong id="detalhe-caixa-pix" style="font-size: 1.2rem;">R$ 0,00</strong>
+            </div>
+            <div style="text-align: center;">
+              <p>💳 Cartão</p>
+              <strong id="detalhe-caixa-cartao" style="font-size: 1.2rem;">R$ 0,00</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+          <button onclick="imprimirRelatorioCaixa()" style="background: #3498db; flex: 1; padding: 1.5rem; font-size: 1.2rem;">🖨️ IMPRIMIR RELATÓRIO PARCIAL</button>
+          <button onclick="confirmarFechamentoCaixa()" style="background: #e74c3c; flex: 1; padding: 1.5rem; font-size: 1.2rem;">🏁 FECHAR CAIXA E ENCERRAR DIA</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="ativos-section">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+        <h2 style="margin: 0;">Pedidos em Andamento</h2>
+        
+        <div class="search-container" style="position: relative; flex: 1; max-width: 500px; min-width: 300px; display: flex; gap: 10px;">
+          <input type="text" id="filtro-mesas" placeholder="🔍 Buscar Mesa ou Balcão..." 
+                 oninput="filtrarMesasAtivas(this.value)"
+                 style="flex: 2; padding: 10px 15px; border-radius: 10px; border: 2px solid #e2e8f0; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box;">
+          
+          <select id="select-mesas-ativas" onchange="filtrarPorSelect(this.value)"
+                  style="flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #e2e8f0; background: white; outline: none; cursor: pointer; font-size: 0.9rem; min-width: 120px;">
+            <option value="">Todas</option>
+          </select>
+        </div>
+
+        <div class="sub-tabs" style="display: flex; gap: 0.5rem; background: #f1f2f6; padding: 5px; border-radius: 10px;">
+          <button id="tab-sub-garcom" onclick="switchSubTab('garcom')" class="sub-tab-btn active" style="padding: 8px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 8px;">
+            🍽️ Mesas <span id="badge-sub-garcom" class="badge-mini">0</span>
+          </button>
+          <button id="tab-sub-balcao" onclick="switchSubTab('balcao')" class="sub-tab-btn" style="padding: 8px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 8px;">
+            🏪 Balcão <span id="badge-sub-balcao" class="badge-mini">0</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="group-garcom" class="sub-tab-content">
+        <div id="kanban-garcom" class="kanban-board">
+          <div class="kanban-column column-recebidos">
+            <h3>⏳ RECEBIDOS <span id="count-garcom-recebidos" class="count-badge">0</span></h3>
+            <div id="list-garcom-recebidos"></div>
+          </div>
+          <div class="kanban-column column-servidos">
+            <h3>✅ SERVIDOS <span id="count-garcom-servidos" class="count-badge">0</span></h3>
+            <div id="list-garcom-servidos"></div>
+          </div>
+          <div class="kanban-column column-pagamento">
+            <h3>💰 PAGAMENTO <span id="count-garcom-pagamento" class="count-badge">0</span></h3>
+            <div id="list-garcom-pagamento"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="group-balcao" class="sub-tab-content hidden">
+        <div id="kanban-balcao" class="kanban-board">
+          <div class="kanban-column column-recebidos">
+            <h3>⏳ RECEBIDOS <span id="count-balcao-recebidos" class="count-badge">0</span></h3>
+            <div id="list-balcao-recebidos"></div>
+          </div>
+          <div class="kanban-column column-servidos">
+            <h3>✅ SERVIDOS <span id="count-balcao-servidos" class="count-badge">0</span></h3>
+            <div id="list-balcao-servidos"></div>
+          </div>
+          <div class="kanban-column column-pagamento">
+            <h3>💰 PAGAMENTO <span id="count-balcao-pagamento" class="count-badge">0</span></h3>
+            <div id="list-balcao-pagamento"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="mapa-section" class="hidden">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+        <h2 style="margin: 0;">📍 Monitor de Mesas</h2>
+        <div style="display: flex; gap: 15px; font-size: 0.8rem; font-weight: bold;">
+          <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #27ae60; border-radius: 3px;"></span> LIVRE</div>
+          <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #e74c3c; border-radius: 3px;"></span> OCUPADA</div>
+          <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: #f1c40f; border-radius: 3px;"></span> CONTA</div>
+        </div>
+      </div>
+      <div id="grid-mapa-mesas" class="mapa-grid">
+        <!-- Mesas injetadas via JS -->
+      </div>
+    </section>
+
+    <section id="historico-section" class="hidden">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2>Histórico de Hoje <span id="data-historico" style="color: #666; font-size: 1rem;"></span></h2>
+        <div style="text-align: right;">
+          <div id="faturamento-total-dia" style="font-weight: bold; font-size: 1.2rem; color: #27ae60;">Faturamento Concluído: R$ 0,00</div>
+          <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem;">
+            <button onclick="imprimirResumoDiario()" style="background-color: #3498db; font-size: 0.8rem;">🖨️ Imprimir Resumo</button>
+            <button onclick="limparHistoricoTotal()" style="background-color: #e74c3c; font-size: 0.8rem;">🗑️ Limpar Tudo</button>
+          </div>
+        </div>
+      </div>
+      <div id="historico-list"></div>
+    </section>
+
+    <section id="configuracoes-section" class="hidden">
+      <div class="config-grid">
+        <!-- Gerenciamento de Mesas -->
+        <div class="config-card">
+          <h3>Mesas do Bar</h3>
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="number" id="nova-mesa-num" placeholder="Nº da Mesa">
+            <button onclick="adicionarMesa()">Adicionar</button>
+          </div>
+          <div id="lista-mesas-config"></div>
+        </div>
+
+        <!-- Gerenciamento de Garçons -->
+        <div class="config-card">
+          <h3>Gerenciar Garçons</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="text" id="garcom-nome" placeholder="Nome do Garçom">
+            <input type="text" id="garcom-usuario" placeholder="Usuário (ex: joao123)">
+            <input type="text" id="garcom-telefone" placeholder="Telefone (ex: 5511999999999)">
+            <input type="password" id="garcom-senha" placeholder="Senha">
+            <button id="btn-acao-garcom" onclick="processarAcaoGarcom()">Cadastrar</button>
+            <button id="btn-cancelar-garcom" class="hidden" onclick="cancelarEdicaoGarcom()" style="background-color: #95a5a6;">Cancelar</button>
+          </div>
+          <div id="lista-garcons-config"></div>
+        </div>
+
+        <!-- Gerenciamento de Cardápio -->
+        <div class="config-card config-card-full">
+          <h3>Gerenciar Cardápio</h3>
+          <div class="form-config-menu">
+            <input type="text" id="menu-nome" placeholder="Nome">
+            <input type="text" id="menu-cat" placeholder="Categoria">
+            <input type="number" id="menu-preco" placeholder="Preço">
+            <input type="number" id="menu-estoque" placeholder="Qtd. Estoque (-1 = ilimitado)" value="-1">
+            <input type="date" id="menu-validade" title="Data de Validade">
+            <input type="text" id="menu-img" placeholder="Link da Foto">
+            <button id="btn-acao-menu" onclick="processarAcaoMenu()">Adicionar Item</button>
+            <button id="btn-cancelar-menu" class="hidden" onclick="cancelarEdicaoMenu()" style="background-color: #95a5a6;">Cancelar</button>
+          </div>
+          <div id="lista-menu-config" class="menu-config-grid"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de Edição -->
+  <div id="modal-edicao" class="modal">
+    <div class="modal-content" style="max-width: 900px; width: 95%;">
+      <div class="modal-header">
+        <h2 id="modal-titulo">Editar Pedido</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button id="btn-imprimir-edicao" style="background:#2c3e50; font-size: 0.8rem; width: auto; padding: 5px 15px;">🖨️ Imprimir Parcial</button>
+          <span class="close" onclick="fecharModal()">&times;</span>
+        </div>
+      </div>
+      <div class="modal-body edit-modal-grid">
+        <!-- Coluna da Esquerda: Itens do Pedido Atual -->
+        <div class="edit-col-itens" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <div style="flex-shrink: 0; margin-bottom: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <h3 style="margin:0;">Itens no Pedido</h3>
+              <button onclick="removerItensSelecionados()" style="background: #fff1f2; color: #ef4444; border: 1px solid #fecaca; font-size: 0.65rem; width: auto; padding: 4px 8px; border-radius: 6px; font-weight: bold; cursor: pointer;">🗑️ EXCLUIR SELECIONADOS</button>
+            </div>
+            <div style="display: flex; gap: 5px;">
+              <button onclick="selecionarTodosItens(true)" style="background: #f1f5f9; color: #34495e; border: 1px solid #cbd5e0; font-size: 0.65rem; width: auto; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Todos</button>
+              <button onclick="selecionarTodosItens(false)" style="background: #f1f5f9; color: #7f8c8d; border: 1px solid #cbd5e0; font-size: 0.65rem; width: auto; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Nenhum</button>
+            </div>
+          </div>
+          
+          <div id="itens-atuais" style="flex: 1; overflow-y: auto; padding-right: 5px; background: #f8fafc; border-radius: 8px; border: 1px solid #eee; padding: 5px;">
+            <!-- Lista de itens rola aqui -->
+          </div>
+
+          <div id="modal-total" style="flex-shrink: 0; font-weight: 900; margin-top: 10px; font-size: 1.4rem; color: #166534; border-top: 2px solid #eee; padding-top: 10px; text-align: right;">Total: R$ 0,00</div>
+        </div>
+        
+        <!-- Coluna da Direita: Cardápio para Adicionar -->
+        <div class="edit-col-menu">
+          <h3>Adicionar Itens</h3>
+          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 10px; flex-shrink: 0; background: #f8fafc; padding: 5px; border-radius: 10px; border: 1px solid #e2e8f0;">
+            <button onclick="scrollCategoriasEdicao(-150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❮</button>
+            <div id="edit-menu-categorias" class="categorias-grid-mini" style="flex: 1; margin-bottom: 0; padding-bottom: 0; overflow-x: auto; scroll-behavior: smooth; display: flex; gap: 8px; scrollbar-width: none; -ms-overflow-style: none;">
+              <!-- Categorias injetadas via JS -->
+            </div>
+            <button onclick="scrollCategoriasEdicao(150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❯</button>
+          </div>
+          <div id="edit-menu-grid" class="menu-grid-mini"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; width: 100%;">
+          <button class="btn-cancelar-pedido" onclick="confirmarCancelamento()" style="width: auto; padding: 10px 20px;">❌ Cancelar Pedido</button>
+          <button class="btn-salvar-edicao" onclick="salvarAlteracoes()" style="width: auto; padding: 10px 20px; background: #27ae60;">💾 Salvar Alterações</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Fechamento Admin -->
+  <div id="modal-fechamento-admin" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <div style="display: flex; flex-direction: column; gap: 5px; width: 100%;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin:0;">Fechar Conta - Mesa <span id="fechamento-mesa-admin">--</span></h2>
+            <span class="close" onclick="fecharModalFechamentoAdmin()">&times;</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body" style="display: block;">
+        <!-- HISTÓRICO DE PAGAMENTOS DESTA MESA -->
+        <div id="fechamento-historico-pagamentos-container" style="background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #27ae60; display: none;">
+          <h4 style="margin: 0 0 8px 0; font-size: 0.8rem; color: #27ae60; border-bottom: 1px solid #e8f5e9; padding-bottom: 5px; display: flex; justify-content: space-between;">
+            <span>💳 JÁ PAGO NESTA MESA</span>
+            <span id="fechamento-total-ja-pago" style="font-weight: bold;">R$ 0,00</span>
+          </h4>
+          <div id="fechamento-lista-pagamentos-admin" style="max-height: 80px; overflow-y: auto; font-size: 0.85rem;">
+            <!-- Pagamentos injetados via JS -->
+          </div>
+        </div>
+
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+            <label style="margin: 0; color: #2c3e50; font-weight: bold; cursor: pointer;">
+              <input type="checkbox" id="fechamento-taxa-admin" checked onchange="recalcularTotalFechamentoAdmin()"> Cobrar Taxa de Serviço (10%)
+            </label>
+          </div>
+          <p style="margin: 0; font-size: 0.9rem;">Subtotal Consumo: R$ <span id="fechamento-subtotal-admin">0,00</span></p>
+          <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #3498db;">Taxa de Serviço (10%): R$ <span id="fechamento-taxa-valor-admin">0,00</span></p>
+          <p id="fechamento-pago-parcial-container" style="margin: 5px 0 0 0; font-size: 0.9rem; color: #27ae60; font-weight: bold; display: none;">(-) Já Pago Antecipado: R$ <span id="fechamento-pago-parcial-admin">0,00</span></p>
+          <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+              <div style="height: 18px; margin-bottom: 2px; display: flex; align-items: center;">
+                <label style="font-size:0.7rem; font-weight:bold; color:#7f8c8d; margin: 0;">Acréscimo (R$):</label>
+              </div>
+              <input type="number" id="fechamento-acrescimo-admin" value="0" step="0.50" min="0" oninput="recalcularTotalFechamentoAdmin()" style="width:100%; padding:5px; border-radius:6px; border:1px solid #ddd; height: 32px; box-sizing: border-box; font-weight: bold; font-size: 0.9rem;">
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; height: 18px;">
+                <label id="label-desconto-admin" style="font-size:0.75rem; font-weight:bold; color:#7f8c8d; margin: 0;">Desconto (%):</label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span id="span-tipo-desconto" style="font-size: 0.7rem; font-weight: bold; color: #7f8c8d;">%</span>
+                  <label class="switch">
+                    <input type="checkbox" id="check-tipo-desconto" checked onchange="toggleTipoDesconto(this.checked)">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+              </div>
+              <input type="number" id="fechamento-desconto-admin" value="0" step="1" min="0" oninput="recalcularTotalFechamentoAdmin()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; height: 32px; box-sizing: border-box; font-weight: bold; font-size: 0.9rem;">
+            </div>
+          </div>
+          <p style="margin: 15px 0 0 0; font-size: 1.3rem; color: #2c3e50; font-weight:bold; border-top: 2px solid #eee; padding-top: 10px;">SALDO RESTANTE: R$ <span id="fechamento-total-admin">0,00</span></p>
+        </div>
+
+        <!-- SELEÇÃO DE ITENS (SPLIT BILL) -->
+        <button onclick="irParaEdicaoDestePedido()" style="background: #34495e; color: white; border: none; padding: 12px; border-radius: 12px; cursor: pointer; font-size: 0.85rem; width: 100%; font-weight: bold; margin-bottom: 12px; box-shadow: 0 4px 0 #2c3e50; display: block; transition: 0.2s transform active;">✏️ ADICIONAR ITENS / EDITAR PEDIDO</button>
+
+        <div style="background: #eef2f7; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #d1d9e6;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label style="margin: 0; font-size:0.75rem; font-weight:bold; color:#34495e;">🛒 ITENS PARA PAGAR AGORA:</label>
+            <div style="display: flex; gap: 5px;">
+              <button onclick="selecionarTodosItensFechamento(true)" style="font-size: 0.65rem; padding: 2px 6px; background: #95a5a6; color: white; border: none; border-radius: 3px; cursor: pointer;">Todos</button>
+              <button onclick="selecionarTodosItensFechamento(false)" style="font-size: 0.65rem; padding: 2px 6px; background: #95a5a6; color: white; border: none; border-radius: 3px; cursor: pointer;">Nenhum</button>
+            </div>
+          </div>
+          <div id="fechamento-itens-lista-admin" style="max-height: 120px; overflow-y: auto; background: #fff; border-radius: 5px; border: 1px solid #ddd; padding: 2px;">
+            <!-- Itens injetados via JS -->
+          </div>
+        </div>
+
+        <!-- PAINEL DE DIVISÃO DE CONTA EM DESTAQUE -->
+        <div id="secao-divisao-destaque" style="background: #fff3e0; padding: 18px; border-radius: 15px; border: 2px solid #e67e22; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 10px rgba(230, 126, 34, 0.15);">
+          <p style="margin: 0 0 15px 0; font-size: 0.95rem; font-weight: bold; color: #d35400; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            📊 CONTROLE DE DIVISÃO
+          </p>
+          
+          <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 18px;">
+            <div style="flex: 1;">
+              <small style="display: block; color: #7f8c8d; font-weight: bold; margin-bottom: 8px; font-size: 0.75rem;">PESSOAS NA MESA</small>
+              <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <button type="button" onclick="mudarPessoasFechamento(-1)" style="width: 36px; height: 36px; border-radius: 50%; border: none; background: #e67e22; color: white; cursor: pointer; font-weight: bold; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">-</button>
+                <input type="number" id="fechamento-divisao-pessoas" value="1" min="1" oninput="recalcularTotalFechamentoAdmin()" style="width: 60px; text-align: center; font-size: 1.5rem; font-weight: bold; border: 2px solid #ffcc80; border-radius: 8px; background: white; color: #2c3e50; padding: 5px;">
+                <button type="button" onclick="mudarPessoasFechamento(1)" style="width: 36px; height: 36px; border-radius: 50%; border: none; background: #e67e22; color: white; cursor: pointer; font-weight: bold; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">+</button>
+              </div>
+            </div>
+            
+            <div style="width: 2px; background: #ffcc80; height: 50px; margin: 0 15px; opacity: 0.5;"></div>
+            
+            <div style="flex: 1;">
+              <small style="display: block; color: #7f8c8d; font-weight: bold; margin-bottom: 8px; font-size: 0.75rem;">VALOR POR PESSOA</small>
+              <strong style="font-size: 1.8rem; color: #e67e22; display: block; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1));">R$ <span id="fechamento-valor-pessoa-admin">0,00</span></strong>
+            </div>
+          </div>
+
+          <!-- Barra de Progresso de Pagamento da Mesa -->
+          <div style="padding: 0 5px; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: bold; color: #d35400; margin-bottom: 8px;">
+              <span id="txt-progresso-divisao">Progresso da Mesa</span>
+              <span id="perc-progresso-divisao">0%</span>
+            </div>
+            <div style="width: 100%; height: 14px; background: #ffe0b2; border-radius: 7px; overflow: hidden; border: 1px solid #ffcc80; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+              <div id="barra-progresso-divisao" style="width: 0%; height: 100%; background: linear-gradient(90deg, #e67e22, #f39c12); transition: 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></div>
+            </div>
+          </div>
+
+          <!-- VISUALIZAÇÃO INDIVIDUAL (P1, P2, P3...) -->
+          <div id="fechamento-grid-assentos" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 10px; border: 1px dashed #ffcc80;">
+            <!-- Avatares injetados via JS -->
+          </div>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="display:block; font-size:0.75rem; font-weight:bold; color:#7f8c8d; margin-bottom:3px;">Forma de Pagamento:</label>
+          <select id="fechamento-forma-admin" onchange="recalcularTotalFechamentoAdmin()" style="width:100%; padding:10px; border-radius:5px; border:1px solid #ddd; font-size:1rem;">
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Pix">Pix</option>
+            <option value="Cartão">Cartão</option>
+          </select>
+        </div>
+
+        <div id="secao-troco-admin" style="margin-bottom: 15px; border-top:1px dashed #ddd; padding-top:10px;">
+          <label style="display:block; font-size:0.75rem; font-weight:bold; color:#7f8c8d; margin-bottom:3px;">Valor Recebido (R$):</label>
+          <input type="number" id="fechamento-recebido-admin" placeholder="0,00" step="0.50" oninput="recalcularTotalFechamentoAdmin()" style="width:100%; padding:10px; border-radius:5px; border:1px solid #ddd; font-size:1.1rem; font-weight:bold; color:#27ae60;">
+          <p style="margin: 5px 0 0 0; color: #27ae60; font-weight:bold;">Troco: R$ <span id="fechamento-troco-admin">0,00</span></p>
+        </div>
+      </div>
+      <div class="modal-footer" style="flex-direction: column; gap: 10px;">
+        <div id="container-botoes-fechamento-dinamico" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;">
+          <!-- Botão para pagar apenas uma cota (visível se num_pessoas > 1) -->
+          <button id="btn-pagar-cota-admin" onclick="confirmarPagamentoAdmin('cota')" style="display:none; background:#e67e22; color:white; padding:15px 10px; font-weight:bold; font-size:0.9rem; border:none; border-radius:12px; cursor:pointer; box-shadow: 0 4px 0 #d35400;">💳 PAGAR 1 COTA<br><small id="lbl-valor-cota-btn">R$ 0,00</small></button>
+          
+          <!-- Botão para fechar tudo -->
+          <button id="btn-pagar-tudo-admin" onclick="confirmarPagamentoAdmin('tudo')" style="background:#27ae60; color:white; padding:15px 10px; font-weight:bold; font-size:0.9rem; border:none; border-radius:12px; cursor:pointer; box-shadow: 0 4px 0 #219150;">💰 FECHAR TUDO<br><small id="lbl-valor-tudo-btn">R$ 0,00</small></button>
+        </div>
+
+        <!-- NOVO: BOTÃO CANCELAR PEDIDO CENTRALIZADO -->
+        <button onclick="confirmarCancelamentoDesdeFechamento()" style="background: #e74c3c; color: white; padding: 12px; font-weight: bold; font-size: 0.85rem; width: 100%; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 0 #c0392b; margin-top: 5px;">⚠️ CANCELAR ESTE PEDIDO INTEIRO</button>
+        
+        <button onclick="confirmarPagamentoAdmin('imprimir')" style="background:#3498db; color:white; padding:10px; font-weight:bold; font-size:0.85rem; width:100%; border:none; border-radius:10px; cursor:pointer; margin-top: 5px;">📄 APENAS IMPRIMIR PRÉ-CONTA (MESA CONTINUA ABERTA)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Decisão Pós-Lançamento -->
+  <div id="modal-decisao-pos-lancar" class="modal">
+    <div class="modal-content" style="max-width: 400px; text-align: center; padding: 2rem;">
+      <h2 style="margin-bottom: 1.5rem; color: #2c3e50;">Pedido Lançado! 🚀</h2>
+      <p style="margin-bottom: 2rem; color: #7f8c8d; font-weight: bold;">O que deseja fazer agora com este pedido?</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <button id="btn-decisao-fechar" style="background: #27ae60; padding: 1.2rem; font-size: 1.1rem; border-radius: 12px; color: white; font-weight: bold; border: none; cursor: pointer;">💰 FECHAR CONTA AGORA</button>
+        <button id="btn-decisao-manter" style="background: #3498db; padding: 1.2rem; font-size: 1.1rem; border-radius: 12px; color: white; font-weight: bold; border: none; cursor: pointer;">⏳ MANTER EM ABERTO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Sistema (Alert/Confirm) -->
+  <div id="modal-sistema" class="modal">
+    <div class="modal-content" style="max-width: 400px; text-align: center; padding: 2rem;">
+      <h2 id="modal-sistema-titulo" style="margin-bottom: 1rem; color: #2c3e50;">Aviso</h2>
+      <p id="modal-sistema-mensagem" style="margin-bottom: 2rem; color: #7f8c8d; font-size: 1.1rem; line-height: 1.4;"></p>
+      
+      <div id="modal-sistema-acoes" style="display: flex; gap: 1rem; justify-content: center;">
+        <button id="btn-sistema-cancelar" style="background: #7f8c8d; padding: 0.8rem 1.5rem; border-radius: 8px; flex: 1;" class="hidden">Cancelar</button>
+        <button id="btn-sistema-confirmar" style="background: #27ae60; padding: 0.8rem 1.5rem; border-radius: 8px; flex: 1;">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Multi-Pagamento (Seleção de Formas por Pessoa) -->
+  <div id="modal-multi-pagamento" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-header">
+        <h2>Pagamento por Pessoa</h2>
+        <span class="close" onclick="fecharModalMultiPagamento()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 15px; font-weight: bold; color: #2c3e50; text-align: center;">Selecione a forma de cada parte (R$ <span id="multi-pag-valor-pessoa">0,00</span>):</p>
+        <div id="multi-pag-lista-pessoas" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; padding: 5px;">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 15px;">
+        <button id="btn-confirmar-multi-pagamento" style="background: #27ae60; color: white; padding: 12px; font-weight: bold; font-size: 1.1rem; width: 100%; border: none; border-radius: 8px; cursor: pointer;">✅ FINALIZAR TUDO</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cupom-impressao"></div>
+
+  <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+  <script src="app.js?v=1.0.1"></script>
+</body>
+</html>
+
