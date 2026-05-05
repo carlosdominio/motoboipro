@@ -1301,7 +1301,11 @@ function aplicarFiltrosVisuais() {
     const matchesBusca = !filtroBuscaMesa || mesaNome.includes(filtroBuscaMesa);
     const matchesSelect = !filtroSelectMesa || mesaNome === filtroSelectMesa.toLowerCase();
     
-    const isVisible = matchesBusca && matchesSelect;
+    // NOVO: Pedidos pendentes agora ignoram o filtro para você nunca perder um pedido novo!
+    const listId = card.parentElement ? card.parentElement.id : '';
+    const isPendente = listId.includes('-pendentes-');
+    
+    const isVisible = (matchesBusca && matchesSelect) || isPendente;
     
     if (isVisible) {
       card.style.display = 'block';
@@ -1441,11 +1445,26 @@ async function exibirPedidos() {
       card.dataset.pedidoId = pedido.id;
       card.dataset.mesa = mesaNomeExibicao; // Adicionado para facilitar o filtro exato
 
-      // Toggle minimização ao clicar no h3 (número da mesa)
+      // Toggle minimização ao clicar em qualquer lugar do card (exceto botões/inputs)
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('label') || e.target.closest('.slider')) {
+          return;
+        }
+        
+        const id = card.dataset.pedidoId;
+        if (card.classList.contains('minimized')) {
+          card.classList.remove('minimized');
+          expandedPedidoIds.add(id);
+        } else {
+          card.classList.add('minimized');
+          expandedPedidoIds.delete(id);
+        }
+      });
+
       card.innerHTML = `
         <div class="pedido-header">
           <div>
-            <h3 style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="event.stopPropagation(); const c = this.closest('.pedido-card'); const id = c.dataset.pedidoId; if(c.classList.contains('minimized')){ c.classList.remove('minimized'); expandedPedidoIds.add(id); } else { c.classList.add('minimized'); expandedPedidoIds.delete(id); }">
+            <h3 style="display:flex; align-items:center; gap:8px;">
               ${mesaNomeExibicao}
               <span class="pedido-cronometro" data-created-at="${pedido.created_at || ''}" style="font-size:0.8rem; background:#2c3e50; padding:2px 8px; border-radius:12px; color:#fff; ${minutosCronometro === null ? 'display:none;' : ''}">
                 ⏱️ ${minutosCronometro === null ? '' : `${minutosCronometro} min`}
