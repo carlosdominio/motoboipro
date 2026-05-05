@@ -1091,7 +1091,7 @@ async function exibirHistorico() {
       </div>
       <div class="pedido-itens">${itens.map(item => `
         <div class="pedido-item">
-          <span>• ${item.quantidade}x ${item.nome}</span>
+          <span>• ${item.quantidade}x ${item.nome} <span style="font-size:0.75rem; color:#7f8c8d;">(R$ ${(item.preco * item.quantidade).toFixed(2)})</span></span>
           ${item.observacao ? `<br><small style="color:#e67e22; margin-left:15px;">Obs: ${item.observacao}</small>` : ''}
         </div>`).join('')}</div>
       ${htmlPagamentos}
@@ -1475,7 +1475,7 @@ async function exibirPedidos() {
           </div>
           <div style="text-align:right">
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-              <button class="btn-imprimir-parcial-rapido" onclick="imprimirParcialMesaRapido(${pedido.id})" title="Imprimir Nota Parcial" style="background:#3498db; color:white; border-radius:8px; padding:6px 12px; font-weight:bold; font-size:0.9rem; border:none; cursor:pointer; box-shadow:0 3px 0 #2980b9;">
+              <button class="btn-imprimir-parcial-rapido" data-role="btn-total" onclick="imprimirParcialMesaRapido(${pedido.id})" title="Imprimir Nota Parcial" style="background:#3498db; color:white; border-radius:8px; padding:6px 12px; font-weight:bold; font-size:0.9rem; border:none; cursor:pointer; box-shadow:0 3px 0 #2980b9;">
                 🖨️ R$ ${totalExibicao.toFixed(2)}
               </button>
               
@@ -1504,7 +1504,7 @@ async function exibirPedidos() {
               ${itensPendentes.map(item => `
                 <div class="pedido-item" style="border-left:4px solid #e74c3c; background:#fff5f5; border-radius:6px; padding:6px 10px; margin-bottom:5px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="font-size:0.95rem;">${item.quantidade}x ${item.nome}</strong>
+                    <strong style="font-size:0.95rem;">${item.quantidade}x ${item.nome} <span class="item-valor" data-base-valor="${(item.preco * item.quantidade).toFixed(2)}" style="font-size:0.75rem; color:#7f8c8d; font-weight:normal;">(R$ ${(item.preco * item.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)})</span></strong>
                     <span style="font-size:0.65rem; font-weight:bold; background:#e74c3c; color:white; padding:2px 6px; border-radius:4px;">⏳ PENDENTE</span>
                   </div>
                   ${item.observacao ? `<small style="color:#d35400; display:block; margin-top:2px; font-weight:bold;">📝 Obs: ${item.observacao}</small>` : ''}
@@ -1519,7 +1519,7 @@ async function exibirPedidos() {
               ${itensEntregues.map(item => `
                 <div class="pedido-item" style="border-left:4px solid #27ae60; background:#f0fff4; border-radius:6px; padding:4px 10px; margin-bottom:4px; text-decoration: line-through;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.85rem;">${item.quantidade}x ${item.nome}</span>
+                    <span style="font-size:0.85rem;">${item.quantidade}x ${item.nome} <span class="item-valor" data-base-valor="${(item.preco * item.quantidade).toFixed(2)}" style="font-size:0.7rem; color:#7f8c8d;">(R$ ${(item.preco * item.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)})</span></span>
                     <span style="font-size:0.6rem; color:#27ae60; font-weight:bold; text-decoration:none !important;">✓</span>
                   </div>
                 </div>
@@ -1660,6 +1660,18 @@ async function alternarTaxaPedido(id, checkboxEl) {
 
       const elSub = card.querySelector('[data-role="pedido-subtotais"]');
       if (elSub) elSub.textContent = `Sub: R$ ${subtotal.toFixed(2)} + 10%: R$ ${taxaServico.toFixed(2)}`;
+
+      // Atualiza o botão de impressão rápida
+      const elBtnTotal = card.querySelector('[data-role="btn-total"]');
+      if (elBtnTotal) elBtnTotal.textContent = `🖨️ R$ ${totalExibicao.toFixed(2)}`;
+
+      // Atualiza os valores individuais dos itens no card
+      const itemValores = card.querySelectorAll('.item-valor');
+      itemValores.forEach(el => {
+        const base = parseFloat(el.dataset.baseValor);
+        const novoValor = novoEstado ? base * 1.1 : base;
+        el.textContent = `(R$ ${novoValor.toFixed(2)})`;
+      });
     } else {
       pedidosStatusTaxa[id] = estadoAnterior;
       if (checkboxEl) checkboxEl.checked = estadoAnterior;
