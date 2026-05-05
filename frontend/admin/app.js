@@ -68,6 +68,7 @@ let abaAtiva = 'ativos';
 let subAbaAtiva = 'garcom';
 let adminLogado = null;
 let tipoDescontoAdmin = 'porcentagem'; // Ativado por padrão como porcentagem
+let veioDoFechamento = false; 
 
 function toggleTipoDesconto(isPorcentagem) {
   tipoDescontoAdmin = isPorcentagem ? 'porcentagem' : 'real';
@@ -91,20 +92,29 @@ function toggleTipoDesconto(isPorcentagem) {
 
 function switchSubTab(sub) {
   subAbaAtiva = sub;
-  document.querySelectorAll('.sub-tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.getElementById(`tab-sub-${sub}`).classList.add('active');
   
-  document.querySelectorAll('.sub-tab-content').forEach(content => content.classList.add('hidden'));
-  document.getElementById(`group-${sub}`).classList.remove('hidden');
-  
-  // Estilo visual dos botões
+  // Limpa estados de todos os botões
   document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+    btn.classList.remove('active');
     btn.style.background = 'transparent';
     btn.style.color = '#7f8c8d';
   });
+
+  // Ativa o botão selecionado
   const activeBtn = document.getElementById(`tab-sub-${sub}`);
-  activeBtn.style.background = sub === 'garcom' ? '#3498db' : '#27ae60';
-  activeBtn.style.color = 'white';
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+    activeBtn.style.background = sub === 'garcom' ? '#3498db' : '#27ae60';
+    activeBtn.style.color = 'white';
+  }
+
+  // Alterna visibilidade do conteúdo
+  document.querySelectorAll('.sub-tab-content').forEach(content => content.classList.add('hidden'));
+  const targetGroup = document.getElementById(`group-${sub}`);
+  if (targetGroup) targetGroup.classList.remove('hidden');
+
+  // Re-aplica filtros visuais se houver algo digitado
+  aplicarFiltrosVisuais();
 }
 let caixaAtual = null;
 
@@ -256,8 +266,13 @@ async function removerItemEdicao(index) {
 
 function calcularMinutos(dataIso) {
   if (!dataIso) return 0;
-  const isoStr = dataIso.replace(' ', 'T');
-  const data = new Date(isoStr);
+  let d = dataIso;
+  // Se for string no formato YYYY-MM-DD HH:MM:SS (padrão do backend)
+  // Adicionamos 'Z' para que o navegador trate como UTC e converta para o fuso local
+  if (typeof d === 'string' && d.includes('-') && d.includes(':') && !d.includes('Z') && !d.includes('+')) {
+    d = d.replace(' ', 'T') + 'Z';
+  }
+  const data = new Date(d);
   const agora = new Date();
   const diffMs = agora - data;
   return Math.floor(diffMs / 60000);
@@ -1263,12 +1278,57 @@ let filtroSelectMesa = '';
 
 function filtrarMesasAtivas(valor) {
   filtroBuscaMesa = valor.toLowerCase().trim();
-  exibirPedidos();
+  aplicarFiltrosVisuais();
 }
 
 function filtrarPorSelect(valor) {
   filtroSelectMesa = valor;
-  exibirPedidos();
+  aplicarFiltrosVisuais();
+}
+
+function aplicarFiltrosVisuais() {
+  const cards = document.querySelectorAll('.pedido-card');
+  const counts = {
+    garcom: { pendentes: 0, servidos: 0, fechamento: 0 },
+    balcao: { pendentes: 0, servidos: 0, fechamento: 0 }
+  };
+
+  cards.forEach(card => {
+    // Usa o atributo data-mesa para o filtro exato, evitando conflito com o cronômetro no H3
+    const mesaNome = (card.dataset.mesa || '').trim().toLowerCase();
+    
+    const matchesBusca = !filtroBuscaMesa || mesaNome.includes(filtroBuscaMesa);
+    const matchesSelect = !filtroSelectMesa || mesaNome === filtroSelectMesa.toLowerCase();
+    
+    const isVisible = matchesBusca && matchesSelect;
+    
+    if (isVisible) {
+      card.style.display = 'block';
+      card.style.opacity = '1';
+      card.style.transform = 'scale(1)';
+      
+      // Incrementa contadores baseado na coluna onde o card está
+      const listId = card.parentElement.id;
+      if (listId) {
+        const parts = listId.split('-'); // ex: list-pendentes-garcom
+        if (parts.length === 3) {
+          counts[parts[2]][parts[1]]++;
+        }
+      }
+    } else {
+      card.style.display = 'none';
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.95)';
+    }
+  });
+
+  // Atualiza contadores dos títulos das colunas
+  Object.keys(counts).forEach(group => {
+    Object.keys(counts[group]).forEach(col => {
+      const badge = document.getElementById(`count-${col}-${group}`);
+      if (badge) badge.textContent = counts[group][col];
+    });
+  });
 }
 
 function atualizarSelectMesasAtivas() {
@@ -1338,12 +1398,6 @@ async function exibirPedidos() {
     for (const pedido of pedidosOrdenados) {
       const mesaNomeExibicao = pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO';
       
-      // FILTRO DE BUSCA (TEXTO)
-      if (filtroBuscaMesa && !mesaNomeExibicao.toLowerCase().includes(filtroBuscaMesa)) continue;
-
-      // FILTRO DE SELECT (EXATO)
-      if (filtroSelectMesa && mesaNomeExibicao !== filtroSelectMesa) continue;
-
       if (pedidosStatusTaxa[pedido.id] === undefined) {
         pedidosStatusTaxa[pedido.id] = (pedido.cobrar_taxa !== undefined) ? pedido.cobrar_taxa : true;
       }
@@ -1381,6 +1435,7 @@ async function exibirPedidos() {
       const isAguardando = pedido.status === 'aguardando_fechamento';
       card.className = `pedido-card status-${statusGeral} ${pedido.id === pedidoAtualizadoId ? 'destaque-atualizacao' : ''} ${classeAlertaAtraso} ${isAguardando ? 'alerta-fechamento' : ''}`;
       card.dataset.pedidoId = pedido.id;
+      card.dataset.mesa = mesaNomeExibicao; // Adicionado para facilitar o filtro exato
       card.innerHTML = `
         <div class="pedido-header">
           <div>
@@ -1503,6 +1558,9 @@ async function exibirPedidos() {
     checkEmpty('balcao', 'servidos', '🍽️', 'Ninguém consumindo');
     checkEmpty('balcao', 'fechamento', '💰', 'Sem fechamentos');
 
+    // RE-APLICA OS FILTROS APÓS RENDERIZAR TUDO
+    aplicarFiltrosVisuais();
+
   } catch (e) { console.error('Erro ao renderizar pedidos:', e); }
   
   isRenderingPedidos = false;
@@ -1615,25 +1673,7 @@ async function removerItensSelecionados() {
   }
 }
 
-async function salvarAlteracoes() {
-  if (itensEmEdicao.length === 0) { if (await mostrarConfirmacao("Pedido vazio. Deseja cancelar pedido?", "Aviso")) return confirmarCancelamento(); return; }
-  const res = await fetch(`/api/pedidos/${pedidoEmEdicao.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itens: itensEmEdicao }) });
-  if (res.ok) { mostrarToast("Pedido atualizado!"); fecharModal(); }
-  else { const err = await res.json(); await mostrarAlerta("Erro: " + err.error, "Erro"); }
-}
-
-async function confirmarCancelamento() {
-  if (await mostrarConfirmacao("⚠️ CANCELAR TODO O PEDIDO?\nA mesa será liberada e o pedido irá para o histórico como CANCELADO.", "Cancelar Pedido")) {
-    const res = await fetch(`/api/pedidos/${pedidoEmEdicao.id}/status`, { 
-      method: 'PUT', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ status: 'cancelado' }) 
-    });
-    if (res.ok) { mostrarToast("❌ Pedido cancelado!"); fecharModal(); carregarPedidos(); }
-  }
-}
-
-function fecharModal() { document.getElementById('modal-edicao').style.display = 'none'; }
+// Funções de edição de itens consolidadas na parte inferior do arquivo
 
 async function excluirPedido(id) {
   if (await mostrarConfirmacao("⚠️ EXCLUIR PERMANENTEMENTE?\n\nIsso removerá o pedido do banco de dados e do histórico. Esta ação não pode ser desfeita.", "Excluir Registro")) {
@@ -1719,6 +1759,7 @@ async function irParaEdicaoDestePedido() {
   }
 
   // Comportamento padrão para as outras abas (abre o modal de edição)
+  veioDoFechamento = true; // Flag para saber que deve voltar ao fechamento
   fecharModalFechamentoAdmin();
   fetch(`/api/pedidos/${idPedido}/itens`).then(res => res.json()).then(itens => abrirModalEdicao(pedidoParaFecharAdmin, itens));
 }
@@ -1939,9 +1980,20 @@ async function salvarAlteracoes() {
       body: JSON.stringify({ itens: itensEmEdicao })
     });
     if (res.ok) {
-      mostrarToast("Pedido atualizado!");
+      mostrarToast("✅ Pedido atualizado!");
+      const idPed = pedidoEmEdicao.id;
+      const idMesa = pedidoEmEdicao.mesa_id;
+      
       fecharModal();
-      carregarPedidos();
+      await carregarPedidos(); // Atualiza a lista global de pedidos
+
+      if (veioDoFechamento) {
+        veioDoFechamento = false;
+        // Reabre o modal de fechamento com os dados atualizados
+        setTimeout(() => {
+          aprovarFechamento(idPed, idMesa);
+        }, 100);
+      }
     } else {
       mostrarAlerta("Erro ao salvar alterações");
     }
@@ -2009,7 +2061,8 @@ async function aprovarFechamento(idPedido, idMesa, mesaNomeForcado = null) {
   
   renderizarListaItensFechamento();
 
-  document.getElementById('fechamento-mesa-admin').textContent = pedidoParaFecharAdmin.mesa_numero;
+  const mesaLabel = pedidoParaFecharAdmin.mesa_numero ? `Mesa ${pedidoParaFecharAdmin.mesa_numero}` : 'BALCÃO';
+  document.getElementById('fechamento-mesa-admin').textContent = mesaLabel;
   
   let cobrarTaxaNoPedido = true;
   if (pedidoParaFecharAdmin.cobrar_taxa !== undefined) {

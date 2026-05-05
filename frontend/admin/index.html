@@ -222,28 +222,43 @@
     </section>
 
     <section id="ativos-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px; flex-wrap: wrap; gap: 10px;">
-        <h2 style="margin: 0;">Pedidos em Andamento</h2>
-        
-        <div class="search-container" style="position: relative; flex: 1; max-width: 500px; min-width: 300px; display: flex; gap: 10px;">
-          <input type="text" id="filtro-mesas" placeholder="🔍 Buscar Mesa ou Balcão..." 
-                 oninput="filtrarMesasAtivas(this.value)"
-                 style="flex: 2; padding: 10px 15px; border-radius: 10px; border: 2px solid #e2e8f0; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box;">
+      <!-- Barra de Filtros e Sub-Abas (Sticky) -->
+      <div class="filters-bar">
+          <!-- Seletor de Grupo (Mesas/Balcão) -->
+          <div class="sub-tabs" style="background: #f1f2f6; padding: 4px; border-radius: 10px; display: flex; gap: 4px; border: 1px solid #e2e8f0;">
+            <button id="tab-sub-garcom" onclick="switchSubTab('garcom')" class="sub-tab-btn active" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+              🍽️ Mesas <span id="badge-sub-garcom" class="badge-mini">0</span>
+            </button>
+            <button id="tab-sub-balcao" onclick="switchSubTab('balcao')" class="sub-tab-btn" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+              🏪 Balcão <span id="badge-sub-balcao" class="badge-mini">0</span>
+            </button>
+          </div>
+
+          <div style="width: 1px; height: 30px; background: #e2e8f0; margin: 0 5px;" class="hide-mobile"></div>
+
+          <div style="font-weight: 800; color: #2c3e50; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;" class="hide-mobile">
+            <span style="font-size: 1.1rem;">🎯</span> BUSCA:
+          </div>
+
+          <div style="flex: 2; position: relative;">
+            <input type="text" id="filtro-mesas" placeholder="Buscar mesa específica..." 
+                   oninput="filtrarMesasAtivas(this.value)"
+                   style="width: 100%; padding: 10px 15px; border-radius: 8px; border: 2px solid #edf2f7; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box;">
+          </div>
           
           <select id="select-mesas-ativas" onchange="filtrarPorSelect(this.value)"
-                  style="flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #e2e8f0; background: white; outline: none; cursor: pointer; font-size: 0.9rem; min-width: 120px;">
-            <option value="">Todas</option>
+                  style="flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #edf2f7; background: #f8fafc; outline: none; cursor: pointer; font-size: 0.95rem; font-weight: bold; color: #2d3748; min-width: 150px;">
+            <option value="">Todas as Mesas</option>
           </select>
-        </div>
+          
+          <button onclick="document.getElementById('filtro-mesas').value=''; filtrarMesasAtivas(''); document.getElementById('select-mesas-ativas').value=''; filtrarPorSelect('');" 
+                  style="background: #e2e8f0; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; color: #4a5568; font-size: 0.85rem; transition: 0.2s;">
+            LIMPAR
+          </button>
+      </div>
 
-        <div class="sub-tabs" style="display: flex; gap: 0.5rem; background: #f1f2f6; padding: 5px; border-radius: 10px;">
-          <button id="tab-sub-garcom" onclick="switchSubTab('garcom')" class="sub-tab-btn active" style="padding: 8px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 8px;">
-            🍽️ Mesas <span id="badge-sub-garcom" class="badge-mini">0</span>
-          </button>
-          <button id="tab-sub-balcao" onclick="switchSubTab('balcao')" class="sub-tab-btn" style="padding: 8px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 8px;">
-            🏪 Balcão <span id="badge-sub-balcao" class="badge-mini">0</span>
-          </button>
-        </div>
+      <div style="margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+        <h2 style="margin: 0; font-size: 1.3rem; color: #2c3e50;">Pedidos em Andamento</h2>
       </div>
 
       <div id="group-garcom" class="sub-tab-content">
@@ -394,145 +409,165 @@
 
   <!-- Modal de Fechamento Admin -->
   <div id="modal-fechamento-admin" class="modal">
-    <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-content" style="max-width: 850px;">
       <div class="modal-header">
         <div style="display: flex; flex-direction: column; gap: 5px; width: 100%;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="margin:0;">Fechar Conta - Mesa <span id="fechamento-mesa-admin">--</span></h2>
+            <h2 style="margin:0;">Finalizar e Liberar <span id="fechamento-mesa-admin">--</span></h2>
             <span class="close" onclick="fecharModalFechamentoAdmin()">&times;</span>
           </div>
+          <p style="margin:0; font-size: 0.9rem; color: #64748b; font-weight: bold;">Confira os itens e selecione a forma de pagamento</p>
         </div>
       </div>
-      <div class="modal-body" style="display: block;">
-        <!-- HISTÓRICO DE PAGAMENTOS DESTA MESA -->
-        <div id="fechamento-historico-pagamentos-container" style="background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #27ae60; display: none;">
-          <h4 style="margin: 0 0 8px 0; font-size: 0.8rem; color: #27ae60; border-bottom: 1px solid #e8f5e9; padding-bottom: 5px; display: flex; justify-content: space-between;">
-            <span>💳 JÁ PAGO NESTA MESA</span>
-            <span id="fechamento-total-ja-pago" style="font-weight: bold;">R$ 0,00</span>
-          </h4>
-          <div id="fechamento-lista-pagamentos-admin" style="max-height: 80px; overflow-y: auto; font-size: 0.85rem;">
-            <!-- Pagamentos injetados via JS -->
-          </div>
-        </div>
-
-        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-            <label style="margin: 0; color: #2c3e50; font-weight: bold; cursor: pointer;">
-              <input type="checkbox" id="fechamento-taxa-admin" checked onchange="recalcularTotalFechamentoAdmin()"> Cobrar Taxa de Serviço (10%)
-            </label>
-          </div>
-          <p style="margin: 0; font-size: 0.9rem;">Subtotal Consumo: R$ <span id="fechamento-subtotal-admin">0,00</span></p>
-          <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #3498db;">Taxa de Serviço (10%): R$ <span id="fechamento-taxa-valor-admin">0,00</span></p>
-          <p id="fechamento-pago-parcial-container" style="margin: 5px 0 0 0; font-size: 0.9rem; color: #27ae60; font-weight: bold; display: none;">(-) Já Pago Antecipado: R$ <span id="fechamento-pago-parcial-admin">0,00</span></p>
-          <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div>
-              <div style="height: 18px; margin-bottom: 2px; display: flex; align-items: center;">
-                <label style="font-size:0.7rem; font-weight:bold; color:#7f8c8d; margin: 0;">Acréscimo (R$):</label>
+      
+      <div class="modal-body" style="padding: 0; display: block;">
+        <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 0; min-height: 450px;">
+          
+          <!-- COLUNA ESQUERDA: LISTA DE ITENS -->
+          <div style="padding: 20px; border-right: 1px solid #edf2f7; background: #f8fafc; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h4 style="margin:0; color: #2c3e50; font-size: 0.95rem;">📋 Itens do Pedido</h4>
+              <div style="display: flex; gap: 8px;">
+                <button onclick="selecionarTodosItensFechamento(true)" style="background: #e2e8f0; color: #475569; padding: 4px 8px; font-size: 0.7rem; border-radius: 4px; border: none; cursor: pointer;">Todos</button>
+                <button onclick="selecionarTodosItensFechamento(false)" style="background: #f1f5f9; color: #94a3b8; padding: 4px 8px; font-size: 0.7rem; border-radius: 4px; border: none; cursor: pointer;">Nenhum</button>
               </div>
-              <input type="number" id="fechamento-acrescimo-admin" value="0" step="0.50" min="0" oninput="recalcularTotalFechamentoAdmin()" style="width:100%; padding:5px; border-radius:6px; border:1px solid #ddd; height: 32px; box-sizing: border-box; font-weight: bold; font-size: 0.9rem;">
             </div>
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; height: 18px;">
-                <label id="label-desconto-admin" style="font-size:0.75rem; font-weight:bold; color:#7f8c8d; margin: 0;">Desconto (%):</label>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span id="span-tipo-desconto" style="font-size: 0.7rem; font-weight: bold; color: #7f8c8d;">%</span>
-                  <label class="switch">
-                    <input type="checkbox" id="check-tipo-desconto" checked onchange="toggleTipoDesconto(this.checked)">
-                    <span class="slider round"></span>
-                  </label>
+            
+            <div id="fechamento-itens-lista-admin" style="flex: 1; overflow-y: auto; max-height: 350px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px;">
+              <!-- Preenchido via JS -->
+            </div>
+
+            <!-- Resumo de Pagamentos já feitos -->
+            <div id="fechamento-historico-pagamentos-container" style="margin-top: 15px; display: none;">
+              <div style="background: #dcfce7; padding: 10px; border-radius: 8px; border: 1px solid #bbf7d0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <strong style="color: #166534; font-size: 0.8rem;">✅ PAGAMENTOS REGISTRADOS:</strong>
+                  <span id="fechamento-total-ja-pago" style="font-weight: 800; color: #166534; font-size: 0.85rem;">R$ 0,00</span>
+                </div>
+                <div id="fechamento-lista-pagamentos-admin" style="font-size: 0.75rem;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- COLUNA DIREITA: FINANCEIRO -->
+          <div style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
+            
+            <div style="background: #fff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; font-size: 0.9rem;">
+                <div style="color: #64748b;">Subtotal:</div>
+                <div style="text-align: right; font-weight: bold;">R$ <span id="fechamento-subtotal-admin">0.00</span></div>
+                
+                <div style="display: flex; align-items: center; gap: 5px; color: #64748b;">
+                  Taxa de Serviço (10%):
+                  <input type="checkbox" id="fechamento-taxa-admin" checked onchange="recalcularTotalFechamentoAdmin()" style="width: 16px; height: 16px;">
+                </div>
+                <div style="text-align: right; font-weight: bold;">R$ <span id="fechamento-taxa-valor-admin">0.00</span></div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <div>
+                  <label style="display:block; font-size: 0.75rem; font-weight: bold; color: #64748b;">Acréscimo (R$):</label>
+                  <input type="number" id="fechamento-acrescimo-admin" value="0" step="0.50" oninput="recalcularTotalFechamentoAdmin()" style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
+                </div>
+                <div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <label id="label-desconto-admin" style="font-size: 0.75rem; font-weight: bold; color: #64748b;">Desconto (%):</label>
+                    <label class="switch" style="transform: scale(0.7); margin-top: -5px;">
+                      <input type="checkbox" id="check-tipo-desconto" checked onchange="toggleTipoDesconto(this.checked)">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <input type="number" id="fechamento-desconto-admin" value="0" step="1" oninput="recalcularTotalFechamentoAdmin()" style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
                 </div>
               </div>
-              <input type="number" id="fechamento-desconto-admin" value="0" step="1" min="0" oninput="recalcularTotalFechamentoAdmin()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #ddd; height: 32px; box-sizing: border-box; font-weight: bold; font-size: 0.9rem;">
-            </div>
-          </div>
-          <p style="margin: 15px 0 0 0; font-size: 1.3rem; color: #2c3e50; font-weight:bold; border-top: 2px solid #eee; padding-top: 10px;">SALDO RESTANTE: R$ <span id="fechamento-total-admin">0,00</span></p>
-        </div>
 
-        <!-- SELEÇÃO DE ITENS (SPLIT BILL) -->
-        <button onclick="irParaEdicaoDestePedido()" style="background: #34495e; color: white; border: none; padding: 12px; border-radius: 12px; cursor: pointer; font-size: 0.85rem; width: 100%; font-weight: bold; margin-bottom: 12px; box-shadow: 0 4px 0 #2c3e50; display: block; transition: 0.2s transform active;">✏️ ADICIONAR ITENS / EDITAR PEDIDO</button>
+              <div id="fechamento-pago-parcial-container" style="display:none; background: #f1f5f9; padding: 8px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #64748b;">
+                <div style="display:flex; justify-content:space-between; font-size: 0.85rem; font-weight:bold; color: #475569;">
+                  <span>(-) JÁ PAGO NESTA MESA:</span>
+                  <span>R$ <span id="fechamento-pago-parcial-admin">0.00</span></span>
+                </div>
+              </div>
 
-        <div style="background: #eef2f7; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #d1d9e6;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <label style="margin: 0; font-size:0.75rem; font-weight:bold; color:#34495e;">🛒 ITENS PARA PAGAR AGORA:</label>
-            <div style="display: flex; gap: 5px;">
-              <button onclick="selecionarTodosItensFechamento(true)" style="font-size: 0.65rem; padding: 2px 6px; background: #95a5a6; color: white; border: none; border-radius: 3px; cursor: pointer;">Todos</button>
-              <button onclick="selecionarTodosItensFechamento(false)" style="font-size: 0.65rem; padding: 2px 6px; background: #95a5a6; color: white; border: none; border-radius: 3px; cursor: pointer;">Nenhum</button>
-            </div>
-          </div>
-          <div id="fechamento-itens-lista-admin" style="max-height: 120px; overflow-y: auto; background: #fff; border-radius: 5px; border: 1px solid #ddd; padding: 2px;">
-            <!-- Itens injetados via JS -->
-          </div>
-        </div>
-
-        <!-- PAINEL DE DIVISÃO DE CONTA EM DESTAQUE -->
-        <div id="secao-divisao-destaque" style="background: #fff3e0; padding: 18px; border-radius: 15px; border: 2px solid #e67e22; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 10px rgba(230, 126, 34, 0.15);">
-          <p style="margin: 0 0 15px 0; font-size: 0.95rem; font-weight: bold; color: #d35400; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            📊 CONTROLE DE DIVISÃO
-          </p>
-          
-          <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 18px;">
-            <div style="flex: 1;">
-              <small style="display: block; color: #7f8c8d; font-weight: bold; margin-bottom: 8px; font-size: 0.75rem;">PESSOAS NA MESA</small>
-              <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <button type="button" onclick="mudarPessoasFechamento(-1)" style="width: 36px; height: 36px; border-radius: 50%; border: none; background: #e67e22; color: white; cursor: pointer; font-weight: bold; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">-</button>
-                <input type="number" id="fechamento-divisao-pessoas" value="1" min="1" oninput="recalcularTotalFechamentoAdmin()" style="width: 60px; text-align: center; font-size: 1.5rem; font-weight: bold; border: 2px solid #ffcc80; border-radius: 8px; background: white; color: #2c3e50; padding: 5px;">
-                <button type="button" onclick="mudarPessoasFechamento(1)" style="width: 36px; height: 36px; border-radius: 50%; border: none; background: #e67e22; color: white; cursor: pointer; font-weight: bold; font-size: 1.4rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">+</button>
+              <div style="background: #2c3e50; color: white; padding: 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold; font-size: 1rem;">SALDO A PAGAR:</span>
+                <span style="font-size: 1.4rem; font-weight: 900;">R$ <span id="fechamento-total-admin">0.00</span></span>
               </div>
             </div>
-            
-            <div style="width: 2px; background: #ffcc80; height: 50px; margin: 0 15px; opacity: 0.5;"></div>
-            
-            <div style="flex: 1;">
-              <small style="display: block; color: #7f8c8d; font-weight: bold; margin-bottom: 8px; font-size: 0.75rem;">VALOR POR PESSOA</small>
-              <strong style="font-size: 1.8rem; color: #e67e22; display: block; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1));">R$ <span id="fechamento-valor-pessoa-admin">0,00</span></strong>
+
+            <!-- Divisão e Pagamento -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="font-size: 0.8rem; font-weight: bold; color: #475569;">DIVIDIR POR:</div>
+                  <div style="display: flex; align-items: center; background: white; border: 1px solid #cbd5e0; border-radius: 8px; overflow: hidden;">
+                    <button onclick="mudarPessoasFechamento(-1)" style="padding: 5px 10px; border: none; background: #f1f5f9; cursor: pointer; font-weight: bold;">-</button>
+                    <input type="number" id="fechamento-divisao-pessoas" value="1" readonly style="width: 35px; text-align: center; border: none; font-weight: 800; background: white; pointer-events: none;">
+                    <button onclick="mudarPessoasFechamento(1)" style="padding: 5px 10px; border: none; background: #f1f5f9; cursor: pointer; font-weight: bold;">+</button>
+                  </div>
+                </div>
+                <div style="text-align: right;">
+                  <small style="display:block; font-size: 0.65rem; color: #64748b; font-weight: bold;">VALOR POR PESSOA:</small>
+                  <strong style="font-size: 1.1rem; color: #2c3e50;">R$ <span id="fechamento-valor-pessoa-admin">0.00</span></strong>
+                </div>
+              </div>
+
+              <!-- Novo Visual de Divisão de Assentos -->
+              <div id="fechamento-container-divisao" style="margin-bottom: 15px; background: #fff; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span id="txt-progresso-divisao" style="font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Pagamento: 0 de 1 pessoas</span>
+                  <span id="perc-progresso-divisao" style="font-size: 0.75rem; font-weight: 900; color: #27ae60;">0%</span>
+                </div>
+                <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; margin-bottom: 15px; overflow: hidden;">
+                  <div id="barra-progresso-divisao" style="width: 0%; height: 100%; background: #27ae60; transition: 0.5s width ease-in-out;"></div>
+                </div>
+                <div id="fechamento-grid-assentos" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; min-height: 60px;">
+                  <!-- Assentos gerados via JS -->
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 10px;">
+                <div>
+                  <label style="display:block; font-size: 0.75rem; font-weight: bold; color: #64748b;">FORMA DE PAGAMENTO:</label>
+                  <select id="fechamento-forma-admin" onchange="recalcularTotalFechamentoAdmin()" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e0; border-radius: 8px; font-weight: bold; font-size: 0.95rem; background: white;">
+                    <option value="Dinheiro">💵 Dinheiro</option>
+                    <option value="Pix">📱 Pix</option>
+                    <option value="Cartão">💳 Cartão</option>
+                  </select>
+                </div>
+                <div id="secao-troco-admin">
+                  <label style="display:block; font-size: 0.75rem; font-weight: bold; color: #64748b;">RECEBIDO (R$):</label>
+                  <input type="number" id="fechamento-recebido-admin" step="0.50" oninput="recalcularTotalFechamentoAdmin()" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e0; border-radius: 8px; font-weight: bold; color: #27ae60; font-size: 1rem;">
+                </div>
+              </div>
+
+              <div id="secao-troco-valor-admin" style="margin-top: 10px; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 10px;">
+                <span style="font-size: 0.85rem; font-weight: bold; color: #64748b;">TROCO:</span>
+                <span id="fechamento-troco-admin" style="font-size: 1.1rem; font-weight: 900; color: #27ae60;">0.00</span>
+              </div>
             </div>
+
           </div>
-
-          <!-- Barra de Progresso de Pagamento da Mesa -->
-          <div style="padding: 0 5px; margin-bottom: 15px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: bold; color: #d35400; margin-bottom: 8px;">
-              <span id="txt-progresso-divisao">Progresso da Mesa</span>
-              <span id="perc-progresso-divisao">0%</span>
-            </div>
-            <div style="width: 100%; height: 14px; background: #ffe0b2; border-radius: 7px; overflow: hidden; border: 1px solid #ffcc80; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
-              <div id="barra-progresso-divisao" style="width: 0%; height: 100%; background: linear-gradient(90deg, #e67e22, #f39c12); transition: 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></div>
-            </div>
-          </div>
-
-          <!-- VISUALIZAÇÃO INDIVIDUAL (P1, P2, P3...) -->
-          <div id="fechamento-grid-assentos" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 10px; border: 1px dashed #ffcc80;">
-            <!-- Avatares injetados via JS -->
-          </div>
-        </div>
-
-        <div style="margin-bottom: 15px;">
-          <label style="display:block; font-size:0.75rem; font-weight:bold; color:#7f8c8d; margin-bottom:3px;">Forma de Pagamento:</label>
-          <select id="fechamento-forma-admin" onchange="recalcularTotalFechamentoAdmin()" style="width:100%; padding:10px; border-radius:5px; border:1px solid #ddd; font-size:1rem;">
-            <option value="Dinheiro">Dinheiro</option>
-            <option value="Pix">Pix</option>
-            <option value="Cartão">Cartão</option>
-          </select>
-        </div>
-
-        <div id="secao-troco-admin" style="margin-bottom: 15px; border-top:1px dashed #ddd; padding-top:10px;">
-          <label style="display:block; font-size:0.75rem; font-weight:bold; color:#7f8c8d; margin-bottom:3px;">Valor Recebido (R$):</label>
-          <input type="number" id="fechamento-recebido-admin" placeholder="0,00" step="0.50" oninput="recalcularTotalFechamentoAdmin()" style="width:100%; padding:10px; border-radius:5px; border:1px solid #ddd; font-size:1.1rem; font-weight:bold; color:#27ae60;">
-          <p style="margin: 5px 0 0 0; color: #27ae60; font-weight:bold;">Troco: R$ <span id="fechamento-troco-admin">0,00</span></p>
         </div>
       </div>
-      <div class="modal-footer" style="flex-direction: column; gap: 10px;">
-        <div id="container-botoes-fechamento-dinamico" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;">
-          <!-- Botão para pagar apenas uma cota (visível se num_pessoas > 1) -->
-          <button id="btn-pagar-cota-admin" onclick="confirmarPagamentoAdmin('cota')" style="display:none; background:#e67e22; color:white; padding:15px 10px; font-weight:bold; font-size:0.9rem; border:none; border-radius:12px; cursor:pointer; box-shadow: 0 4px 0 #d35400;">💳 PAGAR 1 COTA<br><small id="lbl-valor-cota-btn">R$ 0,00</small></button>
-          
-          <!-- Botão para fechar tudo -->
-          <button id="btn-pagar-tudo-admin" onclick="confirmarPagamentoAdmin('tudo')" style="background:#27ae60; color:white; padding:15px 10px; font-weight:bold; font-size:0.9rem; border:none; border-radius:12px; cursor:pointer; box-shadow: 0 4px 0 #219150;">💰 FECHAR TUDO<br><small id="lbl-valor-tudo-btn">R$ 0,00</small></button>
+      
+      <div class="modal-footer" style="padding: 15px 20px; background: #f1f5f9; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px;">
+          <button onclick="confirmarCancelamentoDesdeFechamento()" style="background: #fff; color: #e74c3c; border: 1px solid #feb2b2; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 0.85rem; border: 1px solid #feb2b2; cursor: pointer;">🗑️ CANCELAR PEDIDO</button>
+          <button onclick="irParaEdicaoDestePedido()" style="background: #fff; color: #34495e; border: 1px solid #cbd5e0; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 0.85rem; border: 1px solid #cbd5e0; cursor: pointer;">✏️ EDITAR ITENS</button>
         </div>
-
-        <!-- NOVO: BOTÃO CANCELAR PEDIDO CENTRALIZADO -->
-        <button onclick="confirmarCancelamentoDesdeFechamento()" style="background: #e74c3c; color: white; padding: 12px; font-weight: bold; font-size: 0.85rem; width: 100%; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 0 #c0392b; margin-top: 5px;">⚠️ CANCELAR ESTE PEDIDO INTEIRO</button>
         
-        <button onclick="confirmarPagamentoAdmin('imprimir')" style="background:#3498db; color:white; padding:10px; font-weight:bold; font-size:0.85rem; width:100%; border:none; border-radius:10px; cursor:pointer; margin-top: 5px;">📄 APENAS IMPRIMIR PRÉ-CONTA (MESA CONTINUA ABERTA)</button>
+        <div id="container-botoes-fechamento-dinamico" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; max-width: 450px;">
+          <button id="btn-pagar-cota-admin" onclick="confirmarPagamentoAdmin('cota')" style="background: #3498db; color: white; padding: 12px; border-radius: 10px; font-weight: 900; border: none; cursor: pointer; box-shadow: 0 4px 0 #2980b9; display: flex; flex-direction: column; align-items: center;">
+            <span style="font-size: 0.7rem; opacity: 0.8; text-transform: uppercase;">PAGAR 1 COTA</span>
+            <span id="lbl-valor-cota-btn" style="font-size: 1rem;">R$ 0,00</span>
+          </button>
+          <button id="btn-pagar-tudo-admin" onclick="confirmarPagamentoAdmin('tudo')" style="background: #27ae60; color: white; padding: 12px; border-radius: 10px; font-weight: 900; border: none; cursor: pointer; box-shadow: 0 4px 0 #219150; display: flex; flex-direction: column; align-items: center;">
+            <span style="font-size: 0.7rem; opacity: 0.8; text-transform: uppercase;">FINALIZAR TUDO</span>
+            <span id="lbl-valor-tudo-btn" style="font-size: 1rem;">R$ 0,00</span>
+          </button>
+        </div>
+        
+        <button onclick="confirmarPagamentoAdmin('imprimir')" style="background: #2c3e50; color: white; padding: 12px 20px; border-radius: 10px; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 4px 0 #1a252f;">🖨️ PRÉ-CONTA</button>
       </div>
     </div>
   </div>

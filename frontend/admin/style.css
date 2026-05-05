@@ -888,6 +888,45 @@ button.btn-entregue { background-color: #95a5a6; }
   }
 }
 
+/* --- Barra de Filtros --- */
+.filters-bar {
+  margin-bottom: 1.2rem;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  background: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 135px; /* Abaixo do header (77px) + tabs (~58px) */
+  z-index: 950;
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .filters-bar {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 10px !important;
+    top: 180px; /* Ajuste para mobile onde os botões empilham */
+  }
+  .filters-bar select {
+    min-width: 100% !important;
+  }
+}
+
+.hide-mobile {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
 /* Toggle Switch Estilo Moderno */
 .switch {
   position: relative;
@@ -983,5 +1022,5 @@ input:checked + .slider:before {
   opacity: 0.8;
 }
 
-#ativos-section h2 { margin: 50px 0 !important; }
+#ativos-section h2 { margin: 20px 0 10px 0 !important; }
 #pedidos-list { margin-top: 10px; }

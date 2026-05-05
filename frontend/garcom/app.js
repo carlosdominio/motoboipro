@@ -271,9 +271,13 @@ async function carregarMesas() {
 
 function calcularMinutos(dataIso) {
   if (!dataIso) return 0;
-  // Trata formato YYYY-MM-DD HH:MM:SS para ISO
-  const isoStr = dataIso.replace(' ', 'T');
-  const data = new Date(isoStr);
+  let d = dataIso;
+  // Se for string no formato YYYY-MM-DD HH:MM:SS (padrão do backend)
+  // Adicionamos 'Z' para que o navegador trate como UTC e converta para o fuso local
+  if (typeof d === 'string' && d.includes('-') && d.includes(':') && !d.includes('Z') && !d.includes('+')) {
+    d = d.replace(' ', 'T') + 'Z';
+  }
+  const data = new Date(d);
   const agora = new Date();
   const diffMs = agora - data;
   return Math.floor(diffMs / 60000);
