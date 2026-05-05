@@ -93,6 +93,11 @@ function toggleTipoDesconto(isPorcentagem) {
 function switchSubTab(sub) {
   subAbaAtiva = sub;
   
+  // Limpa o filtro de seleção ao trocar de aba para evitar estados inconsistentes
+  filtroSelectMesa = '';
+  const select = document.getElementById('select-mesas-ativas');
+  if (select) select.value = '';
+
   // Limpa estados de todos os botões
   document.querySelectorAll('.sub-tab-btn').forEach(btn => {
     btn.classList.remove('active');
@@ -113,7 +118,9 @@ function switchSubTab(sub) {
   const targetGroup = document.getElementById(`group-${sub}`);
   if (targetGroup) targetGroup.classList.remove('hidden');
 
-  // Re-aplica filtros visuais se houver algo digitado
+  // Atualiza o seletor de mesas para a nova aba
+  atualizarSelectMesasAtivas();
+  // Re-aplica filtros visuais
   aplicarFiltrosVisuais();
 }
 let caixaAtual = null;
@@ -314,10 +321,10 @@ function switchTab(tab) {
   
   // BLOQUEIO DE SCROLL GLOBAL: Apenas na aba de lançamento para facilitar o uso do carrinho
   if (tab === 'lancar') {
-      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
       window.scrollTo(0, 0); 
   } else {
-      document.body.style.overflow = 'auto'; // Garante que NUNCA trave nos ativos
+      document.body.classList.remove('modal-open'); // Garante que NUNCA trave nos ativos
   }
 
   // Remove classe active de todos os botões
@@ -679,14 +686,17 @@ async function enviarPedidoLoteAdmin() {
       // MOSTRA MODAL DE DECISÃO
       const modalDecisao = document.getElementById('modal-decisao-pos-lancar');
       modalDecisao.style.display = 'flex';
+      document.body.classList.add('modal-open');
 
       document.getElementById('btn-decisao-fechar').onclick = () => {
         modalDecisao.style.display = 'none';
+        document.body.classList.remove('modal-open');
         aprovarFechamento(novoPedidoId, mesaId, nomeMesa);
       };
 
       document.getElementById('btn-decisao-manter').onclick = () => {
         modalDecisao.style.display = 'none';
+        document.body.classList.remove('modal-open');
         mostrarToast("⏳ Pedido mantido nos Ativos!");
         switchTab('ativos');
       };
@@ -1291,7 +1301,7 @@ function aplicarFiltrosVisuais() {
   const cards = document.querySelectorAll('.pedido-card');
   const counts = {
     garcom: { pendentes: 0, servidos: 0, fechamento: 0 },
-    balcao: { pendentes: 0, servidos: 0, fechamento: 0 }
+    balcao: { pendentes: 0, servidos: 0 }
   };
 
   cards.forEach(card => {
@@ -1341,7 +1351,14 @@ function atualizarSelectMesasAtivas() {
   if (!select) return;
   
   const valorAtual = select.value;
-  const nomesMesas = [...new Set(pedidos.map(p => p.mesa_numero ? `Mesa ${p.mesa_numero}` : 'BALCÃO'))].sort((a, b) => {
+
+  // Filtra os pedidos baseado na aba ativa (Garçom ou Balcão)
+  const pedidosFiltrados = pedidos.filter(p => {
+    const isBalcao = (p.garcom_id === 'ADMIN');
+    return subAbaAtiva === 'balcao' ? isBalcao : !isBalcao;
+  });
+
+  const nomesMesas = [...new Set(pedidosFiltrados.map(p => p.mesa_numero ? `Mesa ${p.mesa_numero}` : 'BALCÃO'))].sort((a, b) => {
     if (a === 'BALCÃO') return -1;
     if (b === 'BALCÃO') return 1;
     return a.localeCompare(b, undefined, {numeric: true});
@@ -1353,7 +1370,7 @@ function atualizarSelectMesasAtivas() {
   });
   
   select.innerHTML = html;
-  // Restaura a seleção se a mesa ainda estiver ativa
+  // Restaura a seleção se a mesa ainda estiver ativa na lista filtrada
   if (nomesMesas.includes(valorAtual)) {
     select.value = valorAtual;
   } else {
@@ -1373,8 +1390,7 @@ async function exibirPedidos() {
     },
     balcao: {
       pendentes: document.getElementById('list-pendentes-balcao'),
-      servidos: document.getElementById('list-servidos-balcao'),
-      fechamento: document.getElementById('list-fechamento-balcao')
+      servidos: document.getElementById('list-servidos-balcao')
     }
   };
 
@@ -1389,7 +1405,7 @@ async function exibirPedidos() {
 
   const counts = {
     garcom: { pendentes: 0, servidos: 0, fechamento: 0 },
-    balcao: { pendentes: 0, servidos: 0, fechamento: 0 }
+    balcao: { pendentes: 0, servidos: 0 }
   };
 
   // ORDENAÇÃO: Mais antigos primeiro, priorizando quem já pediu a conta (aguardando_fechamento)
@@ -1545,6 +1561,9 @@ async function exibirPedidos() {
       if (isAguardando) targetCol = 'fechamento';
       else if (statusGeral === 'servido') targetCol = 'servidos';
 
+      // SE FOR BALCÃO E ESTIVER EM FECHAMENTO, MOVE PARA SERVIDOS (JÁ QUE NÃO TEM COLUNA DE FECHAMENTO NO BALCÃO)
+      if (group === 'balcao' && targetCol === 'fechamento') targetCol = 'servidos';
+
       lists[group][targetCol].appendChild(card);
       counts[group][targetCol]++;
     }
@@ -1561,7 +1580,7 @@ async function exibirPedidos() {
     const bGarcom = document.getElementById('badge-sub-garcom');
     const bBalcao = document.getElementById('badge-sub-balcao');
     if (bGarcom) bGarcom.textContent = counts.garcom.pendentes + counts.garcom.servidos + counts.garcom.fechamento;
-    if (bBalcao) bBalcao.textContent = counts.balcao.pendentes + counts.balcao.servidos + counts.balcao.fechamento;
+    if (bBalcao) bBalcao.textContent = counts.balcao.pendentes + counts.balcao.servidos;
 
     // Estados vazios por coluna se necessário
     const checkEmpty = (group, col, icon, text) => {
@@ -1580,7 +1599,6 @@ async function exibirPedidos() {
     checkEmpty('garcom', 'fechamento', '💰', 'Sem fechamentos');
     checkEmpty('balcao', 'pendentes', '🔥', 'Sem pedidos pendentes');
     checkEmpty('balcao', 'servidos', '🍽️', 'Ninguém consumindo');
-    checkEmpty('balcao', 'fechamento', '💰', 'Sem fechamentos');
 
     // RE-APLICA OS FILTROS APÓS RENDERIZAR TUDO
     aplicarFiltrosVisuais();
@@ -1809,7 +1827,7 @@ function abrirModalEdicao(pedido, itens) {
   document.getElementById('modal-edicao').style.display = 'flex';
   
   // TRAVA DE SCROLL: Congela o fundo
-  document.body.style.overflow = 'hidden';
+  document.body.classList.add('modal-open');
 }
 
 function fecharModal() {
@@ -1818,7 +1836,7 @@ function fecharModal() {
   itensEmEdicao = [];
   
   // LIBERA O SCROLL SEMPRE: Volta ao normal ao fechar
-  document.body.style.overflow = 'auto';
+  document.body.classList.remove('modal-open');
 }
 
 function renderizarItensEdicao() {
@@ -2147,7 +2165,7 @@ async function aprovarFechamento(idPedido, idMesa, mesaNomeForcado = null) {
 
   renderizarAssentosFechamento();
   document.getElementById('modal-fechamento-admin').style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+  document.body.classList.add('modal-open');
 }
 
 function renderizarListaItensFechamento() {
@@ -2721,10 +2739,13 @@ function imprimirCupomParcialItens(pedido, itensPagos, totalPago, cobrarTaxa) {
 
 function fecharModalFechamentoAdmin() { 
   document.getElementById('modal-fechamento-admin').style.display = 'none'; 
-  document.body.style.overflow = 'auto';
+  document.body.classList.remove('modal-open');
 }
 
-function fecharModalMultiPagamento() { document.getElementById('modal-multi-pagamento').style.display = 'none'; }
+function fecharModalMultiPagamento() { 
+  document.getElementById('modal-multi-pagamento').style.display = 'none'; 
+  document.body.classList.remove('modal-open');
+}
 
 function mostrarModalMultiPagamento(numPessoas, valorPorPessoa) {
   return new Promise(resolve => {
@@ -2766,6 +2787,7 @@ function mostrarModalMultiPagamento(numPessoas, valorPorPessoa) {
 
     const modal = document.getElementById('modal-multi-pagamento');
     modal.style.display = 'flex';
+    document.body.classList.add('modal-open');
 
     // Garante que o botão de confirmar capture os dados exatos da tela
     const btnFinalizar = document.getElementById('btn-confirmar-multi-pagamento');
@@ -2799,6 +2821,7 @@ function mostrarModalMultiPagamento(numPessoas, valorPorPessoa) {
       
       console.log("✅ Dados capturados para o cupom:", pagamentosDetalhados);
       fecharModalMultiPagamento();
+      document.body.classList.remove('modal-open');
       resolve(pagamentosDetalhados);
     };
   });
@@ -2997,9 +3020,11 @@ function mostrarAlerta(msg, titulo = "Aviso") {
     
     const modal = document.getElementById('modal-sistema');
     modal.style.display = 'flex';
+    document.body.classList.add('modal-open');
     
     document.getElementById('btn-sistema-confirmar').onclick = () => {
       modal.style.display = 'none';
+      document.body.classList.remove('modal-open');
       resolve(true);
     };
   });
@@ -3016,14 +3041,17 @@ function mostrarConfirmacao(msg, titulo = "Confirmação", txtConfirmar = "Confi
     
     const modal = document.getElementById('modal-sistema');
     modal.style.display = 'flex';
+    document.body.classList.add('modal-open');
     
     document.getElementById('btn-sistema-confirmar').onclick = () => {
       modal.style.display = 'none';
+      document.body.classList.remove('modal-open');
       resolve(true);
     };
     
     document.getElementById('btn-sistema-cancelar').onclick = () => {
       modal.style.display = 'none';
+      document.body.classList.remove('modal-open');
       resolve(false);
     };
   });
