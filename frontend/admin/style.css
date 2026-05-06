@@ -1105,5 +1105,23 @@ input:checked + .slider:before {
   opacity: 0.8;
 }
 
-#ativos-section h2 { margin: 20px 0 10px 0 !important; }
-#pedidos-list { margin-top: 10px; }
+#historico-list {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+#historico-finalizados, #historico-cancelados {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  #historico-list {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  #historico-finalizados, #historico-cancelados {
+    width: 100%;
+  }
+}
