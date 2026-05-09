@@ -896,7 +896,7 @@ button.btn-entregue { background-color: #95a5a6; }
   font-size: 1rem;
   text-transform: uppercase;
   color: #64748b;
-  margin-bottom: 0.5rem;
+  margin-bottom: 2px; /* Reduzido para aproximar as mesas */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -911,8 +911,8 @@ button.btn-entregue { background-color: #95a5a6; }
 .pedidos-list {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  height: calc(100vh - 280px); /* Altura calculada para preencher a tela sem scroll na página */
+  gap: 0.5rem; /* Reduzido de 1.2rem para aproximar as mesas */
+  height: calc(100vh - 275px); /* Ajuste leve na altura */
   overflow-y: auto; /* Scroll apenas aqui */
   padding-right: 5px;
   
@@ -935,8 +935,8 @@ button.btn-entregue { background-color: #95a5a6; }
 
 /* Ajustes no card */
 .pedido-card {
-  padding: 1.2rem;
-  margin-bottom: 5px;
+  padding: 1rem; /* Reduzido levemente o padding interno */
+  margin-bottom: 2px; /* Reduzido de 5px */
   border-width: 0 0 0 8px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   display: flex;
