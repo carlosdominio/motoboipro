@@ -1537,22 +1537,14 @@ async function exibirPedidos() {
       card.dataset.pedidoId = pedido.id;
       card.dataset.mesa = mesaNomeExibicao; // Adicionado para facilitar o filtro exato
 
-      // Toggle minimização ao clicar em qualquer lugar do card (exceto botões/inputs)
+      // Abrir modal de opções ao clicar em qualquer lugar do card (exceto botões/inputs)
       card.addEventListener('click', (e) => {
         if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('label') || e.target.closest('.slider')) {
           return;
         }
-        
-        const id = card.dataset.pedidoId;
-        if (card.classList.contains('minimized')) {
-          card.classList.remove('minimized');
-          expandedPedidoIds.add(id);
-        } else {
-          card.classList.add('minimized');
-          expandedPedidoIds.delete(id);
-        }
-      });
 
+        abrirModalOpcoes(pedido.id);
+      });
       card.innerHTML = `
         <div class="pedido-header">
           <div>
@@ -3517,4 +3509,117 @@ async function imprimirRelatorioCaixa() {
 
   container.innerHTML = html;
   setTimeout(() => { window.print(); }, 250);
+}
+
+// --- LOGICA DO NOVO MODAL DE OPÇÕES DA MESA ---
+let pedidoEmOpcoes = null;
+
+async function abrirModalOpcoes(pedidoId) {
+  const pedido = pedidos.find(p => p.id == pedidoId);
+  if (!pedido) return;
+  
+  pedidoEmOpcoes = pedido;
+  const mesaNome = pedido.mesa_numero ? 'Mesa ' + pedido.mesa_numero : 'Balcão';
+  const mesaId = pedido.mesa_id;
+  
+  // 1. DADOS BÁSICOS E CORES
+  document.getElementById('modal-opcoes-titulo').innerText = mesaNome;
+  document.getElementById('modal-opcoes-info').innerText = `Pedido #${pedido.id} | Garçom: ${pedido.garcom_id || 'Admin'}`;
+  
+  const headerBg = document.getElementById('modal-opcoes-header-bg');
+  const itens = await fetch(`/api/pedidos/${pedidoId}/itens`).then(res => res.json());
+  const hasPend = itens.some(i => i.status === 'pendente');
+  const isAguardando = pedido.status === 'aguardando_fechamento';
+  
+  // Cores dinâmicas conforme status
+  if (isAguardando) headerBg.style.background = '#f1c40f'; // Amarelo Atenção
+  else if (hasPend) headerBg.style.background = '#e74c3c'; // Vermelho Pendente
+  else headerBg.style.background = '#27ae60'; // Verde Servido
+
+  // 2. TOTAIS E TAXA
+  const cobrarTaxaNoPedido = (pedidosStatusTaxa[pedidoId] !== undefined) ? pedidosStatusTaxa[pedidoId] : (pedido.cobrar_taxa || true);
+  const subtotal = itens.reduce((sum, i) => sum + (i.preco * i.quantidade), 0);
+  const taxaServico = cobrarTaxaNoPedido ? (subtotal * 0.10) : 0;
+  const pagoParcial = pedido.pago_parcial || 0;
+  const totalExibicao = (pedido.status === 'aguardando_fechamento' ? pedido.total : (subtotal + taxaServico - pagoParcial)) || 0;
+
+  document.getElementById('modal-opcoes-valores').innerHTML = `
+    <div style="font-size: 1.4rem; font-weight: 900; color: #166534;">R$ ${totalExibicao.toFixed(2)}</div>
+    <div style="font-size: 0.75rem; color: #64748b; font-weight: bold;">SUB: R$ ${subtotal.toFixed(2)} | TAXA: R$ ${taxaServico.toFixed(2)}</div>
+  `;
+
+  // 3. CONFIGURAÇÃO DOS BOTÕES LATERAIS (IMPRIMIR, EDITAR, TAXA)
+  document.getElementById('btn-modal-imprimir').onclick = () => { fecharModalOpcoes(); imprimirParcialMesaRapido(pedidoId); };
+  document.getElementById('btn-modal-editar').onclick = () => { fecharModalOpcoes(); abrirModalEdicao(pedido, itens); };
+  
+  const checkboxTaxa = document.getElementById('modal-taxa-checkbox');
+  checkboxTaxa.checked = cobrarTaxaNoPedido;
+  checkboxTaxa.onchange = (e) => {
+     alternarTaxaPedido(pedidoId, e.target);
+     // Recarrega o modal para atualizar valores
+     setTimeout(() => abrirModalOpcoes(pedidoId), 300);
+  };
+
+  // 4. LISTA DE ITENS
+  const itensPendentes = itens.filter(i => i.status === 'pendente');
+  const itensEntregues = itens.filter(i => i.status === 'entregue');
+  
+  let htmlItens = '';
+  if (itensPendentes.length > 0) {
+    htmlItens += `<small style="color: #e74c3c; font-weight: 900; display:block; margin-bottom:5px;">⏳ PENDENTES:</small>`;
+    itensPendentes.forEach(i => {
+      htmlItens += `
+        <div style="border-left:4px solid #e74c3c; background:white; border-radius:8px; padding:8px 12px; margin-bottom:6px; border:1px solid #fee2e2; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-weight: 700; font-size: 0.9rem;">${i.quantidade}x ${i.nome}</span>
+          <span style="font-size: 0.8rem; font-weight: 900; color: #e74c3c;">R$ ${(i.preco * i.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)}</span>
+        </div>
+      `;
+    });
+  }
+  if (itensEntregues.length > 0) {
+    htmlItens += `<small style="color: #27ae60; font-weight: 900; display:block; margin: 10px 0 5px 0;">✅ NA MESA:</small>`;
+    itensEntregues.forEach(i => {
+      htmlItens += `
+        <div style="border-left:4px solid #27ae60; background:white; border-radius:8px; padding:8px 12px; margin-bottom:6px; border:1px solid #dcfce7; display:flex; justify-content:space-between; align-items:center; opacity: 0.7;">
+          <span style="font-size: 0.85rem;">${i.quantidade}x ${i.nome}</span>
+          <span style="font-size: 0.75rem; font-weight: bold; color: #27ae60;">R$ ${(i.preco * i.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)}</span>
+        </div>
+      `;
+    });
+  }
+  document.getElementById('modal-opcoes-itens-lista').innerHTML = htmlItens || '<p style="text-align:center; opacity:0.5;">Nenhum item.</p>';
+
+  // 5. FOOTER DE AÇÕES (ENTREGAR / LIBERAR / FECHAR)
+  let htmlFooter = '';
+  if (isAguardando) {
+    htmlFooter = `
+      <button onclick="fecharModalOpcoes(); aprovarFechamento(${pedidoId}, ${mesaId})" style="background:#27ae60; color:white; border:none; padding: 1.2rem; width: 100%; border-radius:12px; font-weight: 900; font-size: 1.1rem; box-shadow:0 5px 0 #219150; cursor:pointer;">
+        💰 CONFIRMAR PAGAMENTO E LIBERAR
+      </button>
+    `;
+  } else {
+    htmlFooter = `
+      <div style="display:flex; gap:10px;">
+        ${hasPend ? `<button onclick="fecharModalOpcoes(); marcarPedidoEntregue(${pedidoId})" style="background:#e67e22; flex: 1.5; color:white; border:none; padding:15px; font-weight:bold; border-radius:10px; box-shadow:0 4px 0 #d35400; cursor:pointer;">🚚 ENTREGAR TUDO</button>` : ''}
+        <button onclick="fecharModalOpcoes(); aprovarFechamento(${pedidoId}, ${mesaId})" style="background:#7f8c8d; flex: 1; color:white; border:none; padding:15px; font-weight:bold; border-radius:10px; box-shadow:0 4px 0 #707b7c; cursor:pointer; font-size:0.8rem;">🔓 LIBERAR MESA</button>
+      </div>
+    `;
+  }
+  document.getElementById('modal-opcoes-footer-acoes').innerHTML = htmlFooter;
+
+  document.getElementById('modal-opcoes-mesa').style.display = 'flex';
+  document.body.classList.add('modal-open');
+}
+
+function fecharModalOpcoes() {
+  document.getElementById('modal-opcoes-mesa').style.display = 'none';
+  pedidoEmOpcoes = null;
+  if (abaAtiva !== 'lancar' && abaAtiva !== 'ativos') {
+      document.body.classList.remove('modal-open');
+  }
+}
+
+async function acaoOpcoesMesa(acao) {
+  // Mantido para compatibilidade se houver algum listener direto, mas o abrirModalOpcoes agora é autossuficiente
+  fecharModalOpcoes();
 }

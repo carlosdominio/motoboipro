@@ -680,6 +680,54 @@
     </div>
   </div>
 
+  <!-- Modal de Opções da Mesa (Completo) -->
+  <div id="modal-opcoes-mesa" class="modal">
+    <div class="modal-content" style="max-width: 500px; padding: 0; border-radius: 15px; overflow: hidden;">
+      <!-- Header do Modal -->
+      <div id="modal-opcoes-header-bg" style="padding: 1.5rem; color: white; display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h2 id="modal-opcoes-titulo" style="margin: 0; font-size: 1.8rem; font-weight: 900;">Mesa</h2>
+          <p id="modal-opcoes-info" style="margin: 5px 0 0 0; opacity: 0.9; font-size: 0.9rem; font-weight: bold;"></p>
+        </div>
+        <span class="close" onclick="fecharModalOpcoes()" style="color: white; opacity: 0.8; font-size: 2rem;">&times;</span>
+      </div>
+
+      <div style="padding: 1.2rem; background: #f8fafc;">
+        <!-- Seção de Totais e Impressão -->
+        <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <div id="modal-opcoes-valores">
+            <!-- Injetado via JS -->
+          </div>
+          <button id="btn-modal-imprimir" style="background: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            🖨️ NOTA
+          </button>
+        </div>
+
+        <!-- Lista de Itens (Scroll Interno) -->
+        <div id="modal-opcoes-itens-lista" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;">
+           <!-- Injetado via JS -->
+        </div>
+
+        <!-- Grid de Ações -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+           <button id="btn-modal-editar" style="background: #34495e; color: white; padding: 12px; border-radius: 10px; font-weight: bold; border: none; cursor: pointer;">✏️ EDITAR ITENS</button>
+           <div id="modal-taxa-container" style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; display: flex; align-items: center; justify-content: space-around; padding: 0 10px;">
+              <span style="font-size: 0.7rem; font-weight: 900; color: #64748b;">10% TAXA</span>
+              <label class="switch" id="modal-taxa-switch-label">
+                <input type="checkbox" id="modal-taxa-checkbox">
+                <span class="slider"></span>
+              </label>
+           </div>
+        </div>
+
+        <!-- Botões de Ação Principal (Footer) -->
+        <div id="modal-opcoes-footer-acoes" style="margin-top: 15px;">
+           <!-- Injetado via JS (Entregar Tudo / Fechar Conta) -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="cupom-impressao"></div>
 
   <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
