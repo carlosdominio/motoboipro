@@ -387,12 +387,28 @@
         <!-- Gerenciamento de Garçons -->
         <div class="config-card">
           <h3>Gerenciar Garçons</h3>
-          <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
-            <input type="text" id="garcom-nome" placeholder="Nome do Garçom">
-            <input type="text" id="garcom-usuario" placeholder="Usuário (ex: joao123)">
-            <input type="text" id="garcom-telefone" placeholder="Telefone (ex: 5511999999999)">
-            <input type="password" id="garcom-senha" placeholder="Senha">
-            <button id="btn-acao-garcom" onclick="processarAcaoGarcom()">Cadastrar</button>
+          <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.5rem; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 0.75rem; font-weight: 900; color: #64748b; text-transform: uppercase;">Nome Completo</label>
+              <input type="text" id="garcom-nome" placeholder="Nome do Garçom">
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 0.75rem; font-weight: 900; color: #64748b; text-transform: uppercase;">Usuário (Login)</label>
+              <input type="text" id="garcom-usuario" placeholder="Usuário (ex: joao123)">
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 0.75rem; font-weight: 900; color: #64748b; text-transform: uppercase;">WhatsApp / Telefone</label>
+              <input type="text" id="garcom-telefone" placeholder="Telefone (ex: 5511999999999)">
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label id="label-senha-garcom" style="font-size: 0.75rem; font-weight: 900; color: #64748b; text-transform: uppercase;">Senha de Acesso</label>
+              <input type="password" id="garcom-senha" placeholder="Senha">
+            </div>
+
+            <button id="btn-acao-garcom" onclick="processarAcaoGarcom()" style="margin-top: 5px;">Cadastrar</button>
             <button id="btn-cancelar-garcom" class="hidden" onclick="cancelarEdicaoGarcom()" style="background-color: #95a5a6;">Cancelar</button>
           </div>
           <div id="lista-garcons-config"></div>
