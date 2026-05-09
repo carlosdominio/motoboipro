@@ -464,6 +464,28 @@ button.btn-entregue { background-color: #95a5a6; }
 .modal-btn-outline { background-color: #fff !important; color: #64748b !important; border: 2px solid #e2e8f0 !important; box-shadow: none !important; }
 .modal-btn-danger { background-color: #e74c3c !important; color: white !important; box-shadow: 0 4px 0 #c0392b !important; }
 
+/* Chips de Filtro */
+.chip {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  padding: 6px 15px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: #64748b;
+  cursor: pointer;
+  transition: 0.2s;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.chip:hover { border-color: #3498db; color: #3498db; }
+.chip.active {
+  background: #3498db;
+  color: white;
+  border-color: #3498db;
+  box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+}
+
 /* Modal Styles - ISOLADOS PARA NÃO QUEBRAR LAYOUT */
 .modal {
   display: none;

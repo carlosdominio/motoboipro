@@ -345,18 +345,19 @@
       <!-- Barra de Busca Fixa do Histórico -->
       <div class="filters-bar" style="position: sticky; top: 135px; z-index: 100; background: white; margin-bottom: 2rem; border-bottom: 3px solid #3498db; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
           <div style="font-weight: 900; color: #2c3e50; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 1.2rem;">🔍</span> BUSCAR:
+            <span style="font-size: 1.2rem;">🔍</span> FILTRAR MESA:
           </div>
 
           <div style="flex: 2;">
-            <input type="text" id="filtro-historico" placeholder="Digite o número da mesa ou nome do garçom..." 
-                   oninput="filtrarHistorico(this.value)"
-                   style="width: 100%; padding: 12px 15px; border-radius: 10px; border: 2.5px solid #e2e8f0; font-size: 1rem; font-weight: bold; outline: none; transition: 0.3s; box-sizing: border-box;">
+            <select id="filtro-historico-select" onchange="filtrarHistorico(this.value)"
+                    style="width: 100%; padding: 12px 15px; border-radius: 10px; border: 2.5px solid #e2e8f0; font-size: 1rem; font-weight: bold; outline: none; transition: 0.3s; box-sizing: border-box; background: white; cursor: pointer; color: #2c3e50;">
+              <option value="">Todas as Mesas / Todos os Garçons</option>
+            </select>
           </div>
           
-          <button onclick="document.getElementById('filtro-historico').value=''; filtrarHistorico('');" 
+          <button onclick="document.getElementById('filtro-historico-select').value=''; filtrarHistorico('');" 
                   class="modal-btn modal-btn-outline" style="padding: 10px 20px !important; font-size: 0.8rem !important;">
-            LIMPAR BUSCA
+            VER TUDO
           </button>
       </div>
 
@@ -758,30 +759,31 @@
   <!-- Modal de Opções da Mesa (Completo) -->
   <div id="modal-opcoes-mesa" class="modal">
     <div class="modal-content" style="max-width: 500px; max-height: 90vh; display: flex; flex-direction: column;">
-      <!-- Header do Modal Fixo -->
-      <div id="modal-opcoes-header-bg" style="padding: 1.5rem; color: white; display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0;">
-        <div>
-          <h2 id="modal-opcoes-titulo" style="margin: 0; font-size: 1.8rem; font-weight: 900;">Mesa</h2>
-          <p id="modal-opcoes-info" style="margin: 5px 0 0 0; opacity: 0.9; font-size: 0.9rem; font-weight: bold;"></p>
+      <!-- Header do Modal Fixo (Agora com Controles) -->
+      <div id="modal-opcoes-header-bg" style="padding: 1.2rem 1.5rem; color: white; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h2 id="modal-opcoes-titulo" style="margin: 0; font-size: 1.8rem; font-weight: 900;">Mesa</h2>
+            <p id="modal-opcoes-info" style="margin: 5px 0 0 0; opacity: 0.9; font-size: 0.9rem; font-weight: bold;"></p>
+          </div>
+          <span class="close" onclick="fecharModalOpcoes()" style="color: white; opacity: 0.8; font-size: 2rem;">&times;</span>
         </div>
-        <span class="close" onclick="fecharModalOpcoes()" style="color: white; opacity: 0.8; font-size: 2rem;">&times;</span>
-      </div>
 
-      <!-- Corpo do Modal com Scroll -->
-      <div style="padding: 1.2rem; background: #f8fafc; overflow-y: auto; flex: 1;">
-        
-        <!-- Grid de Ações Superiores (Edit e Taxa) -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-           <button id="btn-modal-editar" style="background: #34495e; color: white; padding: 12px; border-radius: 10px; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">✏️ EDITAR ITENS</button>
-           <div id="modal-taxa-container" style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; display: flex; align-items: center; justify-content: space-around; padding: 0 10px;">
-              <span style="font-size: 0.7rem; font-weight: 900; color: #64748b;">10% TAXA</span>
-              <label class="switch" id="modal-taxa-switch-label">
+        <!-- Botões de Configuração no Topo -->
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 10px;">
+           <button id="btn-modal-editar" style="background: rgba(255,255,255,0.2); color: white; border: 1.5px solid rgba(255,255,255,0.4); padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem;">✏️ EDITAR ITENS</button>
+           <div style="background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.3); border-radius: 10px; display: flex; align-items: center; justify-content: space-around; padding: 0 8px;">
+              <span style="font-size: 0.65rem; font-weight: 900; color: white; opacity: 0.9;">10% TAXA</span>
+              <label class="switch" id="modal-taxa-switch-label" style="transform: scale(0.8);">
                 <input type="checkbox" id="modal-taxa-checkbox">
                 <span class="slider"></span>
               </label>
            </div>
         </div>
+      </div>
 
+      <!-- Corpo do Modal com Scroll -->
+      <div style="padding: 1.2rem; background: #f8fafc; overflow-y: auto; flex: 1;">
         <!-- Seção de Totais e Impressão -->
         <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
           <div id="modal-opcoes-valores">

@@ -1182,28 +1182,61 @@ async function exibirHistorico() {
       containerCancelados.innerHTML = '<p style="text-align:center; padding: 1rem; opacity: 0.5;">Nenhum pedido cancelado.</p>';
   }
 
-  document.getElementById('faturamento-total-dia').innerText = `Faturamento Concluído: R$ ${faturamentoTotal.toFixed(2)}`;
-  
+  document.getElementById('faturamento-total-dia').innerText = `R$ ${faturamentoTotal.toFixed(2)}`;
+
   // ATUALIZA O DROPDOWN DE FILTRO DO HISTÓRICO
   const selectFiltro = document.getElementById('filtro-historico-select');
   if (selectFiltro) {
-      const valorAtual = selectFiltro.value;
-      const opcoes = new Set();
-      historico.forEach(p => {
-          opcoes.add(p.mesa_numero ? `Mesa ${p.mesa_numero}` : 'BALCÃO');
-          if (p.garcom_nome) opcoes.add(p.garcom_nome);
-      });
+    const valorAtual = selectFiltro.value;
+    const opcoes = new Set();
+    historico.forEach(p => {
+      if (p.mesa_numero) opcoes.add(`Mesa ${p.mesa_numero}`);
+      else opcoes.add('BALCÃO');
+      if (p.garcom_nome) opcoes.add(p.garcom_nome);
+    });
 
-      let htmlOpcoes = '<option value="">Todas as Mesas / Todos os Garçons</option>';
-      Array.from(opcoes).sort().forEach(opt => {
-          htmlOpcoes += `<option value="${opt}">${opt}</option>`;
-      });
-      selectFiltro.innerHTML = htmlOpcoes;
-      selectFiltro.value = valorAtual; // Mantém a seleção
-      
-      if (valorAtual) filtrarHistorico(valorAtual);
+    let htmlOpcoes = '<option value="">Todas as Mesas / Todos os Garçons</option>';
+    Array.from(opcoes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).forEach(opt => {
+      htmlOpcoes += `<option value="${opt}">${opt}</option>`;
+    });
+    selectFiltro.innerHTML = htmlOpcoes;
+    selectFiltro.value = valorAtual; // Mantém a seleção
+
+    if (valorAtual) filtrarHistorico(valorAtual);
   }
 }
+
+function filtrarHistorico(valor) {
+  const busca = valor.toLowerCase().trim();
+  const listContainer = document.getElementById('historico-list');
+  if (!listContainer) return;
+
+  const cards = listContainer.querySelectorAll('.pedido-card');
+
+  let finalizadosVisiveis = 0;
+  let canceladosVisiveis = 0;
+
+  cards.forEach(card => {
+    const h3 = card.querySelector('h3');
+    const mesaTexto = h3 ? h3.innerText.toLowerCase() : '';
+    const textoGeral = card.innerText.toLowerCase();
+    const matches = !busca || mesaTexto.includes(busca) || textoGeral.includes(busca);
+
+    if (matches) {
+      card.style.display = 'block';
+      if (card.classList.contains('status-cancelado')) canceladosVisiveis++;
+      else finalizadosVisiveis++;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+
+  const msgFin = document.getElementById('lista-finalizados').querySelector('p');
+  const msgCan = document.getElementById('lista-cancelados').querySelector('p');
+  if (msgFin) msgFin.style.display = (finalizadosVisiveis === 0) ? 'block' : 'none';
+  if (msgCan) msgCan.style.display = (canceladosVisiveis === 0) ? 'block' : 'none';
+}
+
 async function limparHistoricoTotal() {
   if (historico.length === 0) return await mostrarAlerta("O histórico já está vazio!", "Aviso");
 
