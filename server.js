@@ -863,6 +863,17 @@ app.post('/api/menu', async (req, res) => {
 });
 app.delete('/api/menu/:id', async (req, res) => { try { await query('DELETE FROM menu WHERE id = ?', [req.params.id]); res.json({ success: true }); } catch (error) { res.status(500).json({ error: error.message }); } });
 
+app.delete('/api/menu/categoria/:categoria', async (req, res) => {
+  const { categoria } = req.params;
+  try {
+    // Usamos UPPER para garantir que pegue variações de caixa se houver (ex: Bebidas vs bebidas)
+    await query('DELETE FROM menu WHERE UPPER(categoria) = UPPER(?)', [categoria]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/garcons', ensureDbInitialized, async (req, res) => {
   try {
     const result = await query('SELECT id, nome, usuario, telefone FROM garcons ORDER BY nome');

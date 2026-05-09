@@ -1034,8 +1034,13 @@ async function exibirMenuConfig() {
     htmlFinal += `
       <div class="categoria-config-section" style="width: 100%; grid-column: 1 / -1; margin-top: 2rem;">
         <h2 style="background: #2c3e50; color: white; padding: 10px 20px; border-radius: 8px; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;">
-          <span>📂 ${cat}</span>
-          <small style="font-size: 0.8rem; opacity: 0.8;">${itensDaCat.length} itens</small>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span>📂 ${cat}</span>
+            <small style="font-size: 0.8rem; opacity: 0.8;">${itensDaCat.length} itens</small>
+          </div>
+          <button onclick="excluirCategoria('${cat}')" style="background: #e74c3c; border: none; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 5px;" onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'">
+            🗑️ Excluir Categoria
+          </button>
         </h2>
         <div class="menu-config-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
           ${itensDaCat.map(m => {
@@ -1092,6 +1097,19 @@ async function exibirMenuConfig() {
 
 async function excluirDoMenu(id) {
   if (await mostrarConfirmacao("Excluir item do cardápio?", "Configuração")) { await fetch(`/api/menu/${id}`, { method: 'DELETE' }); carregarCardapio(); }
+}
+
+async function excluirCategoria(categoria) {
+  if (await mostrarConfirmacao(`⚠️ ATENÇÃO: Deseja realmente EXCLUIR TODOS os itens da categoria "${categoria}"?\n\nEsta ação não pode ser desfeita.`, "Excluir Categoria")) {
+    const res = await fetch(`/api/menu/categoria/${encodeURIComponent(categoria)}`, { method: 'DELETE' });
+    if (res.ok) {
+      mostrarToast(`✅ Categoria "${categoria}" e seus itens foram removidos.`);
+      carregarCardapio();
+    } else {
+      const err = await res.json();
+      mostrarAlerta("Erro ao excluir categoria: " + (err.error || "Erro desconhecido"), "Erro");
+    }
+  }
 }
 
 async function carregarHistorico() {
