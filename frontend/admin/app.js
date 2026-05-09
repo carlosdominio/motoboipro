@@ -1407,9 +1407,8 @@ function aplicarFiltrosVisuais() {
       const info = document.getElementById(`page-info-${col}-${group}`);
       
       if (nav && info) {
-        // SEMPRE VISÍVEL nas colunas Pedidos e Fechamento (pedido do usuário)
-        // Para 'servidos', mantém visível apenas se houver mais que ITENS_POR_PAGINA_ATIVOS
-        const sempreVisivel = (col === 'pendentes' || col === 'fechamento');
+        // SEMPRE VISÍVEL em todas as colunas de pedidos ativos (pedido do usuário)
+        const sempreVisivel = (col === 'pendentes' || col === 'servidos' || col === 'fechamento');
         
         if (sempreVisivel || totalItens > ITENS_POR_PAGINA_ATIVOS) {
           nav.style.display = 'flex';
@@ -1603,8 +1602,6 @@ async function exibirPedidos() {
             </div>
           </div>
         </div>
-        
-        ${infoPagamento}
         
         <div class="pedido-itens" style="margin-top:12px;">
           ${itensPendentes.length > 0 ? `
@@ -3580,9 +3577,30 @@ async function abrirModalOpcoes(pedidoId) {
   const pagoParcial = pedido.pago_parcial || 0;
   const totalExibicao = (pedido.status === 'aguardando_fechamento' ? pedido.total : (subtotal + taxaServico - pagoParcial)) || 0;
 
+  // DETALHES DA SOLICITAÇÃO DE CONTA
+  let htmlPagamentoModal = '';
+  if (isAguardando && pedido.forma_pagamento) {
+    htmlPagamentoModal = `
+      <div style="background:#fff9db; padding:12px; border-radius:10px; margin-top:10px; font-size:0.9rem; border:2px solid #d4af37; color:#854d0e;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+           <strong>💰 SOLICITAÇÃO DE CONTA</strong>
+           <span style="background:#d4af37; color:white; padding:2px 8px; border-radius:5px; font-size:0.7rem; font-weight:900;">${pedido.forma_pagamento.toUpperCase()}</span>
+        </div>
+        ${(pedido.forma_pagamento === 'Dinheiro') ? `<div><strong>Recebido:</strong> R$ ${(pedido.valor_recebido || 0).toFixed(2)} | <strong>Troco:</strong> R$ ${(pedido.troco || 0).toFixed(2)}</div>` : ''}
+        ${(pedido.desconto > 0) ? `<div style="color:#e74c3c;"><strong>Desconto:</strong> - R$ ${pedido.desconto.toFixed(2)}</div>` : ''}
+        ${(pedido.acrescimo > 0) ? `<div style="color:#27ae60;"><strong>Acréscimo:</strong> + R$ ${pedido.acrescimo.toFixed(2)}</div>` : ''}
+      </div>
+    `;
+  }
+
   document.getElementById('modal-opcoes-valores').innerHTML = `
-    <div style="font-size: 1.4rem; font-weight: 900; color: #166534;">R$ ${totalExibicao.toFixed(2)}</div>
-    <div style="font-size: 0.75rem; color: #64748b; font-weight: bold;">SUB: R$ ${subtotal.toFixed(2)} | TAXA: R$ ${taxaServico.toFixed(2)}</div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div style="font-size: 1.6rem; font-weight: 900; color: #166534;">R$ ${totalExibicao.toFixed(2)}</div>
+        <div style="font-size: 0.75rem; color: #64748b; font-weight: bold;">SUB: R$ ${subtotal.toFixed(2)} | TAXA: R$ ${taxaServico.toFixed(2)}</div>
+      </div>
+    </div>
+    ${htmlPagamentoModal}
   `;
 
   // 3. CONFIGURAÇÃO DOS BOTÕES LATERAIS (IMPRIMIR, EDITAR, TAXA)
