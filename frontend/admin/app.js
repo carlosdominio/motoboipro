@@ -322,9 +322,11 @@ function switchTab(tab) {
   // BLOQUEIO DE SCROLL GLOBAL: Na aba de ativos e lançamento para manter o app fixo
   if (tab === 'lancar' || tab === 'ativos') {
       document.body.classList.add('modal-open');
-      window.scrollTo(0, 0); 
+      window.scrollTo({ top: 0, behavior: 'instant' }); 
+      document.documentElement.style.overflow = 'hidden'; // Força trava extra no HTML
   } else {
-      document.body.classList.remove('modal-open'); // Permite scroll no histórico/config
+      document.body.classList.remove('modal-open'); 
+      document.documentElement.style.overflow = ''; // Libera para histórico/config
   }
 
   // Remove classe active de todos os botões
