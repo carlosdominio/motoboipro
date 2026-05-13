@@ -257,6 +257,10 @@ async function mudarQtdItem(index, qtd) {
   }
 
   if (novaQtd > 0) {
+    // Se a quantidade aumentou, resetamos para 'pendente' para que a cozinha prepare as novas unidades
+    if (novaQtd > itemNoPedido.quantidade) {
+        itemNoPedido.status = 'pendente';
+    }
     itensEmEdicao[index].quantidade = novaQtd; 
     renderizarItensEdicao(); 
     renderizarMenuEdicao(); // Re-renderiza cardápio para atualizar estoque disponível
