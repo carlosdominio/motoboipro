@@ -611,9 +611,17 @@ app.delete('/api/pedidos/itens/:id', async (req, res) => {
     await query("DELETE FROM pedido_itens WHERE id = ?", [id]);
     const itensRestantes = (await query("SELECT status FROM pedido_itens WHERE pedido_id = ?", [item.pedido_id])).rows;
     if (itensRestantes.length === 0) {
-      const pedido = (await query("SELECT mesa_id FROM pedidos WHERE id = ?", [item.pedido_id])).rows[0];
+      const pedido = (await query("SELECT mesa_id, m.numero FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [item.pedido_id])).rows[0];
       await query("DELETE FROM pedidos WHERE id = ?", [item.pedido_id]);
       if (pedido && pedido.mesa_id) await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [pedido.mesa_id]);
+      
+      const mesaNum = pedido ? pedido.numero || 'BALCÃO' : 'BALCÃO';
+      await safePusherTrigger('garconnexpress', 'pedido-cancelado', { 
+        pedido_id: item.pedido_id, 
+        mesa_numero: mesaNum,
+        mensagem: `🚨 O Pedido #${item.pedido_id} (Mesa ${mesaNum}) foi CANCELADO.` 
+      });
+
       await notifyStatus(item.pedido_id, pedido ? pedido.mesa_id : null, 'cancelado');
     } else {
       const temPendente = itensRestantes.some(i => i.status === 'pendente');
@@ -628,12 +636,24 @@ app.delete('/api/pedidos/itens/:id', async (req, res) => {
 app.delete('/api/pedidos/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const pedido = (await query("SELECT mesa_id, status FROM pedidos WHERE id = ?", [id])).rows[0];
+    const pedido = (await query("SELECT p.mesa_id, p.status, m.numero FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [id])).rows[0];
     const itens = (await query("SELECT menu_id, quantidade FROM pedido_itens WHERE pedido_id = ?", [id])).rows;
     for (const item of itens) await query("UPDATE menu SET estoque = CASE WHEN estoque = -1 THEN -1 ELSE estoque + ? END WHERE id = ?", [item.quantidade, item.menu_id]);
     await query("DELETE FROM pedido_itens WHERE pedido_id = ?", [id]);
     await query("DELETE FROM pedidos WHERE id = ?", [id]);
-    if (pedido && pedido.status !== 'entregue' && pedido.status !== 'cancelado' && pedido.mesa_id) await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [pedido.mesa_id]);
+    
+    if (pedido) {
+      if (pedido.status !== 'entregue' && pedido.status !== 'cancelado' && pedido.mesa_id) {
+        await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [pedido.mesa_id]);
+      }
+      const mesaNum = pedido.numero || 'BALCÃO';
+      await safePusherTrigger('garconnexpress', 'pedido-cancelado', { 
+        pedido_id: id, 
+        mesa_numero: mesaNum,
+        mensagem: `🚨 O Pedido #${id} (Mesa ${mesaNum}) foi REMOVIDO pelo Admin.` 
+      });
+    }
+
     await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }

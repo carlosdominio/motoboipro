@@ -139,6 +139,19 @@ async function configurarPusher() {
             carregarPedidos();
         });
 
+        canal.bind('pedido-cancelado', (data) => {
+            console.log('Pedido cancelado:', data);
+            // Mostra um alerta visual simples ou recarrega
+            if (data.mensagem) {
+                const toast = document.createElement('div');
+                toast.className = 'cancel-toast';
+                toast.innerText = data.mensagem;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 5000);
+            }
+            carregarPedidos();
+        });
+
         canal.bind('menu-atualizado', () => carregarPedidos());
         canal.bind('status-atualizado', () => carregarPedidos());
 
