@@ -560,40 +560,48 @@ app.get('/api/pedidos', ensureDbInitialized, async (req, res) => {
 });
 
 app.get('/api/pedidos/cozinha', ensureDbInitialized, async (req, res) => {
+  res.setHeader('X-Debug-Version', '1.0.2');
   try {
     // Busca as categorias configuradas para a cozinha
     const config = await query("SELECT valor FROM sistema_config WHERE chave = 'categorias_cozinha'");
     const categoriasCozinha = config.rows[0]?.valor ? JSON.parse(config.rows[0].valor) : [];
 
-    let whereClause = `pi.status = 'pendente' AND (
-      m.enviar_cozinha = ${isPostgres ? 'TRUE' : '1'} 
-      OR m.enviar_cozinha IS NULL`;
+    // Lógica super restrita: SÓ mostra o que for recebido ou aguardando fechamento
+    // Isso exclui automaticamente cancelados, entregues, prontos, etc.
+    let whereClause = `LOWER(pi.status) = 'pendente' AND LOWER(p.status) IN ('recebido', 'aguardando_fechamento')`;
 
-    if (categoriasCozinha.length > 0) {
-      // Adiciona filtro por categoria se houver categorias configuradas
-      const catList = categoriasCozinha.map(c => `'${c.replace(/'/g, "''")}'`).join(',');
-      whereClause += ` OR m.categoria IN (${catList})`;
-    }
+    // Filtro por configuração de envio para cozinha ou por categoria
+    let filterCozinha = `(m.enviar_cozinha = ${isPostgres ? 'TRUE' : '1'} OR m.enviar_cozinha IS NULL)`;
     
-    whereClause += `)`;
+    if (categoriasCozinha.length > 0) {
+      const catList = categoriasCozinha.map(c => `'${c.replace(/'/g, "''")}'`).join(',');
+      filterCozinha = `(${filterCozinha} OR m.categoria IN (${catList}))`;
+    }
 
     const result = await query(`
       SELECT 
         pi.id as item_id, 
         pi.quantidade, 
         pi.observacao, 
+        pi.status as item_status,
         m.nome as item_nome, 
         m.categoria, 
         p.id as pedido_id, 
+        p.status as pedido_status,
         p.created_at, 
         mes.numero as mesa_numero 
       FROM pedido_itens pi 
       JOIN menu m ON pi.menu_id = m.id 
       JOIN pedidos p ON pi.pedido_id = p.id 
       LEFT JOIN mesas mes ON p.mesa_id = mes.id 
-      WHERE ${whereClause}
+      WHERE (${whereClause}) AND ${filterCozinha}
       ORDER BY p.created_at ASC
     `);
+    
+    if (result.rows.length > 0) {
+      console.log(`🍳 [Cozinha] Enviando ${result.rows.length} itens. IDs de pedidos:`, [...new Set(result.rows.map(r => r.pedido_id))]);
+    }
+    
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -983,18 +991,27 @@ app.put('/api/pedidos/:id/status', async (req, res) => {
       }
     }
     await query('UPDATE pedidos SET status = ? WHERE id = ?', [status, id]);
-    const pm = (await query("SELECT p.mesa_id, m.numero FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [id])).rows[0];
     
     if (status === 'cancelado') {
-      const mesaNum = pm ? pm.numero || 'BALCÃO' : 'BALCÃO';
+      await query("UPDATE pedido_itens SET status = 'cancelado' WHERE pedido_id = ?", [id]);
+    }
+    const pm = (await query("SELECT p.mesa_id, m.numero FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [id])).rows[0];
+    const mesaNum = pm ? pm.numero || 'BALCÃO' : 'BALCÃO';
+
+    if (status === 'cancelado') {
+      console.log(`❌ Pedido ${id} cancelado pelo Admin. Notificando...`);
       await safePusherTrigger('garconnexpress', 'pedido-cancelado', { 
+        id: id,
         pedido_id: id, 
         mesa_numero: mesaNum,
         mensagem: `🚨 O Pedido #${id} (Mesa ${mesaNum}) foi CANCELADO pelo Admin.` 
       });
     }
 
-    if ((status === 'cancelado' || status === 'entregue') && pm && pm.mesa_id) await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [pm.mesa_id]);
+    if ((status === 'cancelado' || status === 'entregue') && pm && pm.mesa_id) {
+        await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [pm.mesa_id]);
+    }
+    
     await notifyStatus(id, null, status);
     await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
     res.json({ success: true });

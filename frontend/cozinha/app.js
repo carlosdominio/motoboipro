@@ -1,5 +1,6 @@
 let pusher;
 let canal;
+let timeoutPusher;
 const container = document.getElementById('pedidos-container');
 const audioNotificacao = document.getElementById('audio-notificacao');
 const statusConexao = document.getElementById('status-conexao');
@@ -7,25 +8,40 @@ const statusConexao = document.getElementById('status-conexao');
 async function carregarPedidos() {
     try {
         const res = await fetch('/api/pedidos/cozinha');
+        if (!res.ok) throw new Error('Erro na resposta da API');
         const itens = await res.json();
         renderizarPedidos(itens);
     } catch (e) {
-        console.error('Erro ao carregar pedidos:', e);
-        container.innerHTML = '<div class="loading">Erro ao carregar pedidos. Tentando novamente...</div>';
+        console.error('❌ Erro ao carregar pedidos:', e);
         setTimeout(carregarPedidos, 5000);
     }
 }
 
 function renderizarPedidos(itens) {
-    if (!itens || itens.length === 0) {
+    // FILTRO DE SEGURANÇA REFORÇADO
+    const itensValidos = itens.filter(item => {
+        const pStatus = (item.pedido_status || '').toLowerCase();
+        const iStatus = (item.item_status || '').toLowerCase();
+        
+        // Se for cancelado em qualquer nível, remove
+        if (pStatus === 'cancelado' || iStatus === 'cancelado') return false;
+        
+        // Se o pedido não estiver em um status ativo para cozinha, remove
+        if (pStatus && !['recebido', 'aguardando_fechamento'].includes(pStatus)) return false;
+        
+        return true;
+    });
+
+    if (!itensValidos || itensValidos.length === 0) {
         container.innerHTML = '<div class="sem-pedidos"><h2>🍳 Nenhum pedido pendente</h2></div>';
         return;
     }
 
     // Agrupar itens por pedido_id
     const pedidosMap = {};
-    itens.forEach(item => {
+    itensValidos.forEach(item => {
         if (!pedidosMap[item.pedido_id]) {
+            console.log(`📦 [Render] Agrupando Pedido #${item.pedido_id}`);
             pedidosMap[item.pedido_id] = {
                 id: item.pedido_id,
                 mesa: item.mesa_numero || 'BALCÃO',
@@ -42,6 +58,7 @@ function renderizarPedidos(itens) {
     pedidosSorted.forEach(pedido => {
         const card = document.createElement('div');
         card.className = 'card-pedido';
+        card.id = `pedido-card-${pedido.id}`;
         
         card.innerHTML = `
             <div class="card-header">
@@ -125,6 +142,45 @@ async function marcarComoPronto(pedidoId, btn) {
     }
 }
 
+function mostrarNotificacaoCancelamento(mensagem, pedidoId) {
+    console.log(`🗑️ Removendo pedido ${pedidoId} da UI...`);
+    
+    // REMOÇÃO IMEDIATA E AGRESSIVA DO DOM
+    if (pedidoId) {
+        // Tenta encontrar pelo ID do card
+        const card = document.getElementById(`pedido-card-${pedidoId}`);
+        if (card) {
+            card.remove(); // Remove completamente do DOM na hora
+        }
+        
+        // Reforço: Procura qualquer elemento que mencione o ID do pedido se o card não foi achado pelo ID fixo
+        const todosCards = document.querySelectorAll('.card-pedido');
+        todosCards.forEach(c => {
+            if (c.innerText.includes(`#${pedidoId}`)) {
+                c.remove();
+            }
+        });
+    }
+
+    // Exibe o modal
+    const modal = document.getElementById('modal-cancelamento');
+    const modalMsg = document.getElementById('modal-mensagem');
+    
+    if (modal && modalMsg) {
+        modalMsg.innerText = mensagem;
+        modal.classList.add('active');
+        audioNotificacao.play().catch(e => console.log('Erro ao tocar áudio:', e));
+    }
+}
+
+function fecharModalCancelamento() {
+    const modal = document.getElementById('modal-cancelamento');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    carregarPedidos();
+}
+
 async function configurarPusher() {
     try {
         const res = await fetch('/api/pusher-config');
@@ -136,24 +192,36 @@ async function configurarPusher() {
         canal.bind('novo-pedido', (data) => {
             console.log('Novo pedido recebido!', data);
             audioNotificacao.play().catch(e => console.log('Erro ao tocar áudio:', e));
-            carregarPedidos();
+            
+            clearTimeout(timeoutPusher);
+            timeoutPusher = setTimeout(carregarPedidos, 500);
         });
 
         canal.bind('pedido-cancelado', (data) => {
-            console.log('Pedido cancelado:', data);
-            // Mostra um alerta visual simples ou recarrega
-            if (data.mensagem) {
-                const toast = document.createElement('div');
-                toast.className = 'cancel-toast';
-                toast.innerText = data.mensagem;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 5000);
+            console.log('📢 Pedido cancelado recebido:', data);
+            const idParaCancelar = data.id || data.pedido_id;
+            if (idParaCancelar) {
+                mostrarNotificacaoCancelamento(data.mensagem || `Pedido #${idParaCancelar} cancelado`, idParaCancelar);
             }
-            carregarPedidos();
+            
+            clearTimeout(timeoutPusher);
+            timeoutPusher = setTimeout(carregarPedidos, 500);
         });
 
-        canal.bind('menu-atualizado', () => carregarPedidos());
-        canal.bind('status-atualizado', () => carregarPedidos());
+        canal.bind('menu-atualizado', () => {
+            clearTimeout(timeoutPusher);
+            timeoutPusher = setTimeout(carregarPedidos, 500);
+        });
+
+        canal.bind('status-atualizado', (data) => {
+            console.log('📢 Status atualizado recebido:', data);
+            if (data && data.status === 'cancelado') {
+                const idParaCancelar = data.pedido_id || data.id;
+                mostrarNotificacaoCancelamento(data.mensagem || `Pedido #${idParaCancelar} CANCELADO pelo Admin`, idParaCancelar);
+            }
+            clearTimeout(timeoutPusher);
+            timeoutPusher = setTimeout(carregarPedidos, 500);
+        });
 
         pusher.connection.bind('connected', () => {
             statusConexao.innerText = 'Online';
