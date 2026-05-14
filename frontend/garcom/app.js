@@ -187,6 +187,28 @@ async function atualizarStatusCaixa() {
 }
 
 let timeoutPusher = null;
+let somAtivo = localStorage.getItem('garcom_som_ativo') !== 'false';
+
+function atualizarIconeSom() {
+  const btn = document.getElementById('btn-toggle-som');
+  if (btn) {
+    btn.innerHTML = somAtivo ? '🔔' : '🔕';
+    btn.style.opacity = somAtivo ? '1' : '0.5';
+  }
+}
+
+function alternarSom() {
+  somAtivo = !somAtivo;
+  localStorage.setItem('garcom_som_ativo', somAtivo);
+  atualizarIconeSom();
+}
+
+function tocarCampainha() {
+  if (!somAtivo) return;
+  const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/594/594-preview.mp3');
+  audio.play().catch(e => console.log('Erro som:', e));
+}
+
 async function configurarPusher() {
   try {
     const configRes = await fetch('/api/pusher-config');
@@ -199,6 +221,7 @@ async function configurarPusher() {
     });    
     pusher.connection.bind('connected', () => {
       console.log('✅ Conectado ao Pusher com sucesso!');
+      atualizarIconeSom(); // Garante que o ícone carregue no estado correto
     });
 
     pusher.connection.bind('error', function(err) {
@@ -210,9 +233,7 @@ async function configurarPusher() {
   
   channel.bind('pedido-pronto', (data) => {
     console.log('📢 Evento recebido: pedido-pronto', data);
-    // Tenta tocar som se possível
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/594/594-preview.mp3');
-    audio.play().catch(e => console.log('Erro som:', e));
+    tocarCampainha();
     
     // Mostra apenas alerta informativo (sem o botão de entregar agora no modal)
     mostrarAlerta(data.mensagem, "👨‍🍳 COZINHA: PEDIDO PRONTO!");
@@ -223,9 +244,19 @@ async function configurarPusher() {
 
   channel.bind('novo-pedido', (data) => {
     console.log('📢 Evento recebido: novo-pedido', data);
+    tocarCampainha();
     clearTimeout(timeoutPusher);
     timeoutPusher = setTimeout(() => carregarMesas(), 500);
   });
+
+  // Desbloqueia áudio no primeiro clique do usuário
+  document.addEventListener('click', () => {
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/594/594-preview.mp3');
+    audio.muted = true;
+    audio.play().then(() => {
+      console.log('🔊 Áudio desbloqueado!');
+    }).catch(e => console.log('Erro ao desbloquear áudio:', e));
+  }, { once: true });
 
   channel.bind('status-caixa-atualizado', (data) => {
     console.log('📢 Evento recebido: status-caixa-atualizado', data);

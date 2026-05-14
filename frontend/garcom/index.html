@@ -28,7 +28,10 @@
           <span id="caixa-status-badge" class="badge-caixa" style="display:none;"></span>
         </div>
       </div>
-      <button onclick="logout()" style="width: auto; background: transparent; color: #fff; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.3);">SAIR</button>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button id="btn-toggle-som" onclick="alternarSom()" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;" title="Ativar/Desativar Som">🔔</button>
+        <button onclick="logout()" style="width: auto; background: transparent; color: #fff; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.3);">SAIR</button>
+      </div>
     </div>
   </header>
 

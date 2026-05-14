@@ -5,6 +5,28 @@ const container = document.getElementById('pedidos-container');
 const audioNotificacao = document.getElementById('audio-notificacao');
 const statusConexao = document.getElementById('status-conexao');
 
+let somAtivo = localStorage.getItem('cozinha_som_ativo') !== 'false';
+
+function atualizarIconeSom() {
+    const btn = document.getElementById('btn-toggle-som');
+    if (btn) {
+        btn.innerHTML = somAtivo ? '🔔' : '🔕';
+        btn.style.opacity = somAtivo ? '1' : '0.5';
+    }
+}
+
+function alternarSom() {
+    somAtivo = !somAtivo;
+    localStorage.setItem('cozinha_som_ativo', somAtivo);
+    atualizarIconeSom();
+}
+
+function tocarCampainha() {
+    if (!somAtivo) return;
+    audioNotificacao.currentTime = 0;
+    audioNotificacao.play().catch(e => console.log('Erro ao tocar áudio:', e));
+}
+
 async function carregarPedidos() {
     try {
         const res = await fetch('/api/pedidos/cozinha');
@@ -171,7 +193,7 @@ function mostrarNotificacaoCancelamento(mensagem, pedidoId) {
     if (modal && modalMsg) {
         modalMsg.innerText = mensagem;
         modal.classList.add('active');
-        audioNotificacao.play().catch(e => console.log('Erro ao tocar áudio:', e));
+        tocarCampainha();
     }
 }
 
@@ -193,7 +215,7 @@ async function configurarPusher() {
 
         canal.bind('novo-pedido', (data) => {
             console.log('Novo pedido recebido!', data);
-            audioNotificacao.play().catch(e => console.log('Erro ao tocar áudio:', e));
+            tocarCampainha();
             
             clearTimeout(timeoutPusher);
             timeoutPusher = setTimeout(carregarPedidos, 500);
@@ -249,3 +271,12 @@ setInterval(atualizarCronometros, 1000);
 
 // Recarregar lista completa a cada minuto para garantir sincronia
 setInterval(carregarPedidos, 60000);
+
+// Desbloqueia áudio no primeiro clique do usuário
+document.addEventListener('click', () => {
+    audioNotificacao.muted = true;
+    audioNotificacao.play().then(() => {
+        console.log('🔊 Áudio desbloqueado!');
+        audioNotificacao.muted = false;
+    }).catch(e => console.log('Erro ao desbloquear áudio:', e));
+}, { once: true });
