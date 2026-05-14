@@ -389,24 +389,41 @@ async function verItensDaMesa() {
     const resItens = await fetch(`/api/pedidos/${pedidoAbertoNaMesa.id}/itens`);
     const itens = await resItens.json();
     
-    const pendentes = itens.filter(i => i.status === 'pendente');
+    // Agora consideramos 'pendente' e 'pronto' como pendentes de entrega
+    const pendentes = itens.filter(i => i.status === 'pendente' || i.status === 'pronto');
     const entregues = itens.filter(i => i.status === 'entregue');
 
     let html = '';
     if (pendentes.length > 0) {
       html += `<h4 style="color:#e74c3c; margin-bottom:10px; border-bottom:2px solid #e74c3c;">⏳ PARA ENTREGAR AGORA</h4>`;
-      html += pendentes.map(item => `
-        <div style="border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; background:#fff5f5;">
-          <div style="flex-grow: 1; text-align: left;">
-            <p><strong>${item.quantidade}x ${item.nome}</strong></p>
-            ${item.observacao ? `<small style="color:#e67e22;" id="obs-${item.id}"></small>` : ''}
+      html += pendentes.map(item => {
+        const isPronto = item.status === 'pronto';
+        const emPreparo = item.status === 'pendente' && item.enviar_cozinha;
+        
+        let bgColor = '#fff5f5';
+        let statusLabel = '';
+        
+        if (isPronto) {
+          bgColor = '#e8f8f5'; // Verde claro para pronto
+          statusLabel = '<span style="background:#2ecc71; color:white; padding:2px 6px; border-radius:4px; font-size:10px; margin-left:5px;">PRONTO</span>';
+        } else if (emPreparo) {
+          bgColor = '#fff9f0'; // Laranja muito claro para preparo
+          statusLabel = '<span style="background:#f39c12; color:white; padding:2px 6px; border-radius:4px; font-size:10px; margin-left:5px;">EM PREPARO</span>';
+        }
+
+        return `
+          <div style="border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; background:${bgColor};">
+            <div style="flex-grow: 1; text-align: left;">
+              <p><strong>${item.quantidade}x ${item.nome}</strong> ${statusLabel}</p>
+              ${item.observacao ? `<small style="color:#e67e22;" id="obs-${item.id}"></small>` : ''}
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+              <p style="white-space: nowrap; font-weight: bold;">R$ ${(item.preco * item.quantidade).toFixed(2)}</p>
+              <button onclick="removerItemDoPedido(${item.id})" style="background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; width: auto !important; margin: 0 !important;">🗑️</button>
+            </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
-            <p style="white-space: nowrap; font-weight: bold;">R$ ${(item.preco * item.quantidade).toFixed(2)}</p>
-            <button onclick="removerItemDoPedido(${item.id})" style="background: #e74c3c; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; width: auto !important; margin: 0 !important;">🗑️</button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
       html += `<button class="btn-opcoes" onclick="marcarComoServido(${pedidoAbertoNaMesa.id})" style="background-color: #27ae60; margin: 1rem 0;">🚚 ENTREGUEI ESTES ITENS</button>`;
     }
 
@@ -473,15 +490,59 @@ async function removerItemDoPedido(itemId) {
 }
 
 async function marcarComoServido(idPedido) {
-  if (!await mostrarConfirmacao("Confirmar entrega dos itens pendentes?", "Entregar Itens")) return;
   try {
-    const res = await fetch(`/api/pedidos/${idPedido}/marcar-entregue`, { method: 'PUT' });
+    // Busca itens atuais para saber se tem algo em preparo
+    const resItens = await fetch(`/api/pedidos/${idPedido}/itens`);
+    const itens = await resItens.json();
+    
+    const emPreparo = itens.filter(i => i.status === 'pendente' && i.enviar_cozinha);
+    let apenasProntos = false;
+
+    if (emPreparo.length > 0) {
+      const confirmParcial = await mostrarConfirmacao(
+        `Atenção: Existem ${emPreparo.length} item(ns) ainda EM PREPARO na cozinha. Deseja confirmar APENAS a entrega dos itens que já estão prontos?`,
+        "Entrega Parcial",
+        "Sim, apenas prontos",
+        "Não, ver outras opções"
+      );
+      
+      if (confirmParcial) {
+        apenasProntos = true;
+      } else {
+        const confirmTudo = await mostrarConfirmacao(
+          "Deseja confirmar a entrega de TODOS os itens do pedido, inclusive os que ainda estão em preparo na cozinha?",
+          "Entregar Tudo",
+          "Sim, entregar tudo",
+          "Cancelar"
+        );
+        if (confirmTudo) {
+          apenasProntos = false;
+        } else {
+          return; // Cancelou a operação
+        }
+      }
+    } else {
+      if (!await mostrarConfirmacao("Confirmar entrega dos itens pendentes?", "Entregar Itens")) return;
+    }
+
+    const res = await fetch(`/api/pedidos/${idPedido}/marcar-entregue`, { 
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apenasProntos })
+    });
+    
     if (res.ok) {
-      await mostrarAlerta("Sucesso! O Admin foi notificado.", "Sucesso");
-      document.getElementById('modal-resumo-mesa').style.display = 'none';
+      const data = await res.json();
+      if (data.entregueTudo) {
+        await mostrarAlerta("Sucesso! Todos os itens foram entregues.", "Sucesso");
+        document.getElementById('modal-resumo-mesa').style.display = 'none';
+      } else {
+        await mostrarAlerta("Itens prontos entregues! Os itens em preparo continuam aguardando na cozinha.", "Entrega Parcial");
+        verItensDaMesa(); // Recarrega a lista para mostrar o que sobrou
+      }
       carregarMesas();
     }
-  } catch (error) { await mostrarAlerta("Erro ao atualizar.", "Erro"); }
+  } catch (error) { await mostrarAlerta("Erro ao atualizar status de entrega.", "Erro"); }
 }
 
 function fecharResumoMesa() {

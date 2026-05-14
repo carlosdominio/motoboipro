@@ -454,13 +454,24 @@ app.put('/api/pedidos/:id/cozinha-pronto', async (req, res) => {
 
 app.put('/api/pedidos/:id/marcar-entregue', async (req, res) => {
   const { id } = req.params;
+  const { apenasProntos } = req.body;
   try {
-    await query("UPDATE pedido_itens SET status = 'entregue' WHERE pedido_id = ?", [id]);
+    if (apenasProntos) {
+      // Marca como entregue apenas os itens que já estão PRONTOS ou que NÃO vão para a cozinha (bebidas etc)
+      await query(`
+        UPDATE pedido_itens 
+        SET status = 'entregue' 
+        WHERE pedido_id = ? 
+        AND (status = 'pronto' OR (status = 'pendente' AND menu_id IN (SELECT id FROM menu WHERE enviar_cozinha = ${isPostgres ? 'FALSE' : '0'})))
+      `, [id]);
+    } else {
+      await query("UPDATE pedido_itens SET status = 'entregue' WHERE pedido_id = ?", [id]);
+    }
     
     // Consolidação de itens duplicados (mesmo menu_id e observação)
-    const itens = (await query("SELECT id, menu_id, quantidade, observacao FROM pedido_itens WHERE pedido_id = ? AND status = 'entregue'", [id])).rows;
+    const itensEntregues = (await query("SELECT id, menu_id, quantidade, observacao FROM pedido_itens WHERE pedido_id = ? AND status = 'entregue'", [id])).rows;
     const vistos = {};
-    for (const item of itens) {
+    for (const item of itensEntregues) {
       const chave = `${item.menu_id}_${item.observacao || ''}`;
       if (vistos[chave]) {
         // Soma quantidade ao primeiro visto e remove o atual
@@ -471,10 +482,18 @@ app.put('/api/pedidos/:id/marcar-entregue', async (req, res) => {
       }
     }
 
-    await query("UPDATE pedidos SET status = 'servido' WHERE id = ?", [id]);
-    await notifyStatus(id, null, 'servido');
+    // Só muda status do pedido para 'servido' se TODOS os itens foram entregues
+    const pendentesCount = (await query("SELECT COUNT(*) as total FROM pedido_itens WHERE pedido_id = ? AND status IN ('pendente', 'pronto')", [id])).rows[0].total;
+    
+    if (parseInt(pendentesCount) === 0) {
+      await query("UPDATE pedidos SET status = 'servido' WHERE id = ?", [id]);
+      await notifyStatus(id, null, 'servido');
+    } else {
+      await notifyStatus(id, null, 'itens_atualizados');
+    }
+    
     await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
-    res.json({ success: true });
+    res.json({ success: true, entregueTudo: parseInt(pendentesCount) === 0 });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -635,7 +654,7 @@ app.delete('/api/pedidos/limpar', async (req, res) => {
 });
 
 app.get('/api/pedidos/:id/itens', async (req, res) => { 
-  res.json((await query(`SELECT pi.*, m.nome, m.preco FROM pedido_itens pi JOIN menu m ON pi.menu_id = m.id WHERE pi.pedido_id = ? ORDER BY pi.status DESC, pi.id ASC`, [req.params.id])).rows); 
+  res.json((await query(`SELECT pi.*, m.nome, m.preco, m.enviar_cozinha FROM pedido_itens pi JOIN menu m ON pi.menu_id = m.id WHERE pi.pedido_id = ? ORDER BY pi.status DESC, pi.id ASC`, [req.params.id])).rows); 
 });
 
 app.delete('/api/pedidos/itens/:id', async (req, res) => {
