@@ -211,7 +211,7 @@ async function configurarPusher() {
   channel.bind('pedido-pronto', (data) => {
     console.log('📢 Evento recebido: pedido-pronto', data);
     // Tenta tocar som se possível
-    const audio = new Audio('/notificacao.mp3');
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/594/594-preview.mp3');
     audio.play().catch(e => console.log('Erro som:', e));
     
     // Mostra apenas alerta informativo (sem o botão de entregar agora no modal)

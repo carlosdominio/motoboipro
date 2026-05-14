@@ -125,7 +125,7 @@ function switchSubTab(sub) {
 }
 let caixaAtual = null;
 
-const audioNotificacao = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+const audioNotificacao = new Audio('https://assets.mixkit.co/active_storage/sfx/594/594-preview.mp3');
 let audioDesbloqueado = false;
 let intervalPiscaTitulo = null;
 const tituloOriginal = "Admin - GarçomExpress";
