@@ -955,6 +955,3 @@ function configurarEventos() {
     });
   }
 }
-);
-  }
-}
