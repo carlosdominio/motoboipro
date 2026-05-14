@@ -18,6 +18,8 @@ function atualizarIconeSom() {
         label.innerText = somAtivo ? '🔔 SOM' : '🔕 MUDO';
         label.style.color = somAtivo ? '#2ecc71' : '#bdc3c7';
     }
+    // Sincroniza o mudo do objeto de áudio
+    audioNotificacao.muted = !somAtivo;
 }
 
 function alternarSom() {
@@ -177,14 +179,17 @@ async function marcarComoPronto(pedidoId, btn) {
 }
 
 function mostrarNotificacaoCancelamento(mensagem, pedidoId) {
-    console.log(`🗑️ Removendo pedido ${pedidoId} da UI...`);
+    console.log(`🗑️ Verificando cancelamento do pedido ${pedidoId}...`);
     
+    let estavaNaTela = false;
+
     // REMOÇÃO IMEDIATA E AGRESSIVA DO DOM
     if (pedidoId) {
         // Tenta encontrar pelo ID do card
         const card = document.getElementById(`pedido-card-${pedidoId}`);
         if (card) {
             card.remove(); // Remove completamente do DOM na hora
+            estavaNaTela = true;
         }
         
         // Reforço: Procura qualquer elemento que mencione o ID do pedido se o card não foi achado pelo ID fixo
@@ -192,18 +197,21 @@ function mostrarNotificacaoCancelamento(mensagem, pedidoId) {
         todosCards.forEach(c => {
             if (c.innerText.includes(`#${pedidoId}`)) {
                 c.remove();
+                estavaNaTela = true;
             }
         });
     }
 
-    // Exibe o modal
-    const modal = document.getElementById('modal-cancelamento');
-    const modalMsg = document.getElementById('modal-mensagem');
-    
-    if (modal && modalMsg) {
-        modalMsg.innerText = mensagem;
-        modal.classList.add('active');
-        tocarCampainha();
+    // SÓ EXIBE O MODAL E TOCA SOM SE O PEDIDO ESTAVA REALMENTE NA TELA DA COZINHA
+    if (estavaNaTela) {
+        const modal = document.getElementById('modal-cancelamento');
+        const modalMsg = document.getElementById('modal-mensagem');
+        
+        if (modal && modalMsg) {
+            modalMsg.innerText = mensagem;
+            modal.classList.add('active');
+            tocarCampainha();
+        }
     }
 }
 
@@ -285,9 +293,17 @@ setInterval(carregarPedidos, 60000);
 
 // Desbloqueia áudio no primeiro clique do usuário
 document.addEventListener('click', () => {
+    if (audioDesbloqueado) return;
+    audioDesbloqueado = true;
+    
     audioNotificacao.muted = true;
     audioNotificacao.play().then(() => {
-        console.log('🔊 Áudio desbloqueado!');
-        audioNotificacao.muted = false;
-    }).catch(e => console.log('Erro ao desbloquear áudio:', e));
+        audioNotificacao.pause();
+        audioNotificacao.currentTime = 0;
+        // Só desmuda se o som estiver ativo
+        if (somAtivo) {
+            audioNotificacao.muted = false;
+        }
+        console.log('🔊 Áudio preparado!');
+    }).catch(e => console.log('Erro ao preparar áudio:', e));
 }, { once: true });
