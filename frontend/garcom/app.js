@@ -571,6 +571,7 @@ function abrirCardapio() {
   document.getElementById('mesas').classList.add('hidden');
   document.getElementById('pedido').classList.remove('hidden');
   pedidoAtual = [];
+  window.pedidoObservacaoGeral = ''; // Reset observação geral
   exibirResumoPedido();
   exibirMenu('todas');
 }
@@ -797,6 +798,28 @@ function exibirResumoPedido() {
   `).join('');
   const total = pedidoAtual.reduce((sum, item) => sum + (item.preco * item.quantidade), 0);
   document.getElementById('total-pedido').textContent = `Total: R$ ${total.toFixed(2)}`;
+
+  // Campo de Observação Geral do Pedido
+  let containerObs = document.getElementById('container-obs-geral');
+  if (!containerObs) {
+    const totalEl = document.getElementById('total-pedido');
+    const obsHtml = `
+      <div id="container-obs-geral" style="margin-top:15px; background:#fdf9f3; padding:12px; border-radius:10px; border:1px solid #f3e5ab;">
+        <label style="display:block; font-size:0.9rem; font-weight:bold; color:#d35400; margin-bottom:6px;">📝 Observação p/ Cozinha (Geral):</label>
+        <textarea id="obs-geral-pedido" 
+                  placeholder="Ex: Capricha no tempero, cliente com pressa..." 
+                  style="width:100%; border:1px solid #f3e5ab; border-radius:8px; padding:10px; font-size:0.95rem; font-family:inherit; min-height:60px; resize:none;"
+                  oninput="window.pedidoObservacaoGeral = this.value"></textarea>
+      </div>
+    `;
+    totalEl.insertAdjacentHTML('afterend', obsHtml);
+    containerObs = document.getElementById('container-obs-geral');
+  }
+  
+  const textareaObs = document.getElementById('obs-geral-pedido');
+  if (textareaObs) {
+    textareaObs.value = window.pedidoObservacaoGeral || '';
+  }
 }
 
 async function alterarQuantidadeItem(index, delta) {
@@ -839,15 +862,22 @@ async function enviarPedido() {
     btnEnviar.style.cursor = "not-allowed";
 
     const mesa_id = mesaAtual ? mesaAtual.id : null;
-    const url = pedidoAbertoNaMesa ? `/api/pedidos/${pedidoAbertoNaMesa.id}/adicionar` : '/api/pedidos';
+    let url = '/api/pedidos';
+    let method = 'POST';
+
+    if (pedidoAbertoNaMesa) {
+       url = `/api/pedidos/${pedidoAbertoNaMesa.id}/adicionar`;
+       method = 'PUT';
+    }
     
     const res = await fetch(url, {
-      method: pedidoAbertoNaMesa ? 'PUT' : 'POST',
+      method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         mesa_id: mesa_id, 
         garcom_id: (garcomLogado && garcomLogado.nome) ? garcomLogado.nome : 'garcom-desconhecido', 
-        itens: pedidoAtual 
+        itens: pedidoAtual,
+        observacao: window.pedidoObservacaoGeral || ''
       })
     });
     

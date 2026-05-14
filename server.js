@@ -811,7 +811,7 @@ app.put('/api/pedidos/:id/atualizar-itens', async (req, res) => {
 
 app.put('/api/pedidos/:id/adicionar', async (req, res) => {
   const { id } = req.params;
-  const { itens, cobrar_taxa } = req.body;
+  const { itens, cobrar_taxa, observacao } = req.body;
   try {
     const pOrig = (await query("SELECT cobrar_taxa FROM pedidos WHERE id = ?", [id])).rows[0];
     const deveTaxa = cobrar_taxa !== undefined ? cobrar_taxa : (pOrig ? pOrig.cobrar_taxa : true);
@@ -827,7 +827,7 @@ app.put('/api/pedidos/:id/adicionar', async (req, res) => {
     const agora = new Date().toISOString();
     
     // Atualiza o total e reinicia o cronômetro (created_at) para os novos itens adicionados
-    await query("UPDATE pedidos SET total = ?, cobrar_taxa = ?, status = 'recebido', created_at = ? WHERE id = ?", [tot, isPostgres ? deveTaxa : (deveTaxa?1:0), agora, id]);
+    await query("UPDATE pedidos SET total = ?, cobrar_taxa = ?, status = 'recebido', created_at = ?, observacao = ? WHERE id = ?", [tot, isPostgres ? deveTaxa : (deveTaxa?1:0), agora, observacao || '', id]);
     const pMesa = (await query("SELECT mesa_id, m.numero FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [id])).rows[0];
     if (pMesa && pMesa.mesa_id) await query("UPDATE mesas SET status = 'ocupada' WHERE id = ?", [pMesa.mesa_id]);
     

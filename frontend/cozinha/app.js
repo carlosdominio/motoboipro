@@ -46,6 +46,7 @@ function renderizarPedidos(itens) {
                 id: item.pedido_id,
                 mesa: item.mesa_numero || 'BALCÃO',
                 created_at: item.created_at,
+                pedido_observacao: item.pedido_observacao,
                 itens: []
             };
         }
@@ -66,11 +67,12 @@ function renderizarPedidos(itens) {
                 <span class="pedido-id">#${pedido.id} - <span class="pedido-tempo" data-created-at="${pedido.created_at}">${calcularTempo(pedido.created_at)}</span></span>
             </div>
             <div class="card-body">
+                ${pedido.pedido_observacao ? `<div class="pedido-obs-global" style="margin-bottom:10px; padding:8px; background:#fff3e0; border-left:4px solid #ff9800; border-radius:4px; font-size:0.95rem; color:#d35400;"><strong>OBS:</strong> ${pedido.pedido_observacao}</div>` : ''}
                 ${pedido.itens.map(item => `
                     <div class="item-pedido">
                         <div class="item-info">
                             <div class="item-nome">${item.item_nome}</div>
-                            ${item.observacao ? `<div class="item-obs">"${item.observacao}"</div>` : ''}
+                            ${item.observacao && item.observacao.trim() !== '' ? `<div class="item-obs" style="color:#e67e22; font-style:italic; font-size:0.9rem; margin-top:2px;">"${item.observacao}"</div>` : ''}
                         </div>
                         <div class="item-qtd">${item.quantidade}</div>
                     </div>

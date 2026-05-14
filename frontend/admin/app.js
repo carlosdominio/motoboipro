@@ -600,6 +600,15 @@ function renderizarCarrinhoLancar() {
           <button onclick="removerDoCarrinhoLancar(${index})" style="width: 32px; height: 32px; border-radius: 50%; border: none; background: #fff1f2; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; transition: 0.2s; border: 1px solid #fecaca;">✕</button>
         </div>
         
+        <!-- OBSERVAÇÃO -->
+        <div style="margin: 2px 0;">
+          <input type="text" 
+                 placeholder="📝 Observação..." 
+                 value="${item.observacao || ''}" 
+                 oninput="carrinhoLancar[${index}].observacao = this.value"
+                 style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #edf2f7; font-size: 0.8rem; background: #fdfdfd;">
+        </div>
+
         <!-- LINHA 2: CONTROLES + SUBTOTAL DA LINHA -->
         <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 5px; border-top: 1px solid #f1f5f9;">
           <div style="display: flex; align-items: center; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff; height: 32px;">
@@ -2289,7 +2298,7 @@ function renderizarItensEdicao() {
   container.innerHTML = itensEmEdicao.map((item, index) => {
     const isEntregue = item.status === 'entregue';
     return `
-    <div class="item-edicao" style="${isEntregue ? 'background: #f0fff4; border-left: 4px solid #27ae60;' : 'border-left: 4px solid #e67e22;'} padding: 12px; margin-bottom: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #edf2f7; display: flex; flex-direction: column; gap: 10px;">
+    <div class="item-edicao" style="${isEntregue ? 'background: #f0fff4; border-left: 4px solid #27ae60;' : (item.status === 'pronto' ? 'background: #e8f8f5; border-left: 4px solid #2ecc71;' : 'border-left: 4px solid #e67e22;')} padding: 12px; margin-bottom: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #edf2f7; display: flex; flex-direction: column; gap: 10px;">
       
       <!-- LINHA 1: CHECKBOX + NOME + STATUS -->
       <div style="display: flex; align-items: flex-start; gap: 10px;">
@@ -2297,10 +2306,19 @@ function renderizarItensEdicao() {
         
         <div style="flex: 1; min-width: 0;">
           <div style="font-size: 1rem; color: #1e293b; font-weight: 800; line-height: 1.3; margin-bottom: 2px;">${item.nome}</div>
-          <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; background: ${isEntregue ? '#dcfce7' : '#fef3c7'}; color: ${isEntregue ? '#166534' : '#92400e'};">
-            ${isEntregue ? '✅ Entregue' : '⏳ Pendente'}
+          <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; background: ${isEntregue ? '#dcfce7' : (item.status === 'pronto' ? '#e8f8f5' : '#fef3c7')}; color: ${isEntregue ? '#166534' : (item.status === 'pronto' ? '#27ae60' : '#92400e')};">
+            ${isEntregue ? '✅ Entregue' : (item.status === 'pronto' ? '🔥 Pronto' : '⏳ Pendente')}
           </span>
         </div>
+      </div>
+
+      <!-- OBSERVAÇÃO -->
+      <div style="margin: 0;">
+        <input type="text" 
+               placeholder="📝 Observação..." 
+               value="${item.observacao || ''}" 
+               oninput="itensEmEdicao[${index}].observacao = this.value"
+               style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #edf2f7; font-size: 0.85rem; background: #f8fafc;">
       </div>
 
       <!-- LINHA 2: CONTROLES + PREÇO TOTAL -->
