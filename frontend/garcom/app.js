@@ -251,7 +251,7 @@ async function configurarPusher() {
 
   // Desbloqueia áudio no primeiro clique do usuário
   document.addEventListener('click', () => {
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/594/594-preview.mp3');
+    const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-home-standard-ding-dong-109.mp3');
     audio.muted = true;
     audio.play().then(() => {
       console.log('🔊 Áudio desbloqueado!');
