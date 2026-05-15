@@ -1235,10 +1235,29 @@ app.post('/api/config/categorias-cozinha', async (req, res) => {
   const { categorias } = req.body;
   try {
     const valor = JSON.stringify(categorias);
-    await query("INSERT INTO sistema_config (chave, valor) VALUES ('categorias_cozinha', ?) ON CONFLICT(chave) DO UPDATE SET valor = EXCLUDED.valor", [valor]);
-    // Fallback para SQLite que não suporta ON CONFLICT da mesma forma se não for versão recente
-    if (!isPostgres) {
-       await query("INSERT OR REPLACE INTO sistema_config (chave, valor) VALUES ('categorias_cozinha', ?)", [valor]);
+    if (isPostgres) {
+      await query("INSERT INTO sistema_config (chave, valor) VALUES ('categorias_cozinha', ?) ON CONFLICT(chave) DO UPDATE SET valor = EXCLUDED.valor", [valor]);
+      // Sincroniza itens: marca como enviar_cozinha=true se a categoria estiver na lista
+      if (categorias && categorias.length > 0) {
+        // Marcamos todos na lista como 1
+        const placeholders = categorias.map((_, i) => `$${i + 1}`).join(',');
+        await query(`UPDATE menu SET enviar_cozinha = 1 WHERE UPPER(TRIM(categoria)) IN (${placeholders})`, categorias.map(c => c.trim().toUpperCase()));
+        // Marcamos todos fora da lista como 0
+        await query(`UPDATE menu SET enviar_cozinha = 0 WHERE UPPER(TRIM(categoria)) NOT IN (${placeholders})`, categorias.map(c => c.trim().toUpperCase()));
+      } else {
+        // Se a lista for vazia, ninguém envia para a cozinha por padrão
+        await query("UPDATE menu SET enviar_cozinha = 0");
+      }
+    } else {
+      await query("INSERT OR REPLACE INTO sistema_config (chave, valor) VALUES ('categorias_cozinha', ?)", [valor]);
+      // Sincroniza itens no SQLite
+      if (categorias && categorias.length > 0) {
+        const placeholders = categorias.map(() => '?').join(',');
+        await query(`UPDATE menu SET enviar_cozinha = 1 WHERE UPPER(TRIM(categoria)) IN (${placeholders})`, categorias.map(c => c.trim().toUpperCase()));
+        await query(`UPDATE menu SET enviar_cozinha = 0 WHERE UPPER(TRIM(categoria)) NOT IN (${placeholders})`, categorias.map(c => c.trim().toUpperCase()));
+      } else {
+        await query("UPDATE menu SET enviar_cozinha = 0");
+      }
     }
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }

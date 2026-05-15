@@ -67,6 +67,20 @@ let itensEmEdicao = [];
 let abaAtiva = 'ativos';
 let subAbaAtiva = 'garcom';
 let adminLogado = null;
+let configCozinhaCategorias = []; // Estado global das categorias da cozinha
+
+// Busca as categorias configuradas para a cozinha e salva no estado global
+async function carregarConfigCategoriasCozinha() {
+  try {
+    const resConfig = await fetch('/api/config/categorias-cozinha');
+    if (resConfig.ok) {
+      const configuradas = await resConfig.json();
+      configCozinhaCategorias = (configuradas || []).map(c => String(c).trim().toUpperCase());
+    }
+  } catch (e) {
+    console.error('Erro ao buscar config de cozinha:', e);
+  }
+}
 let tipoDescontoAdmin = 'porcentagem'; // Ativado por padrão como porcentagem
 let veioDoFechamento = false; 
 
@@ -202,7 +216,7 @@ function inicializarConfiguracaoImpressao() {
   };
 }
 
-function iniciarPainelAdmin() {
+async function iniciarPainelAdmin() {
   inicializarConfiguracaoImpressao();
   inicializarConfiguracaoSom(); 
   solicitarPermissaoNotificacao();
@@ -213,6 +227,7 @@ function iniciarPainelAdmin() {
   switchTab('ativos'); 
   switchSubTab('garcom');
 
+  await carregarConfigCategoriasCozinha(); // Carrega config de cozinha imediatamente
   carregarPedidos();
   carregarCardapio();
   carregarStatusCaixa();
@@ -884,11 +899,11 @@ async function exibirConfigCategoriasCozinha() {
     // Busca todas as categorias existentes no menu
     const resMenu = await fetch('/api/menu');
     const menu = await resMenu.json();
-    const categorias = [...new Set(menu.map(item => item.categoria))].sort();
+    const categorias = [...new Set(menu.map(item => item.categoria.trim().toUpperCase()))].sort();
 
     // Busca as categorias configuradas para a cozinha
-    const resConfig = await fetch('/api/config/categorias-cozinha');
-    const configuradas = await resConfig.json();
+    await carregarConfigCategoriasCozinha();
+    const configuradas = configCozinhaCategorias;
 
     if (categorias.length === 0) {
       container.innerHTML = '<p style="text-align:center; opacity:0.5; padding:10px;">Nenhuma categoria encontrada no cardápio.</p>';
@@ -909,7 +924,7 @@ async function exibirConfigCategoriasCozinha() {
 
 async function salvarConfigCategoriasCozinha() {
   const checks = document.querySelectorAll('.check-cat-cozinha:checked');
-  const categorias = Array.from(checks).map(c => c.value);
+  const categorias = Array.from(checks).map(c => c.value.trim().toUpperCase());
 
   try {
     const res = await fetch('/api/config/categorias-cozinha', {
@@ -919,7 +934,9 @@ async function salvarConfigCategoriasCozinha() {
     });
 
     if (res.ok) {
-      await mostrarAlerta("✅ Configuração de cozinha salva com sucesso!", "Sucesso");
+      configCozinhaCategorias = categorias; // Atualiza localmente
+      await carregarCardapio(); // RECARREGA O CARDÁPIO PARA SINCRONIZAR OS ITENS
+      await mostrarAlerta("✅ Configuração de cozinha salva com sucesso! Todos os itens do cardápio foram sincronizados automaticamente.", "Sucesso");
     } else {
       throw new Error('Falha ao salvar');
     }
@@ -1043,13 +1060,46 @@ let idItemEdicaoMenu = null;
 
 function alternarNovaCategoria(valor) {
   const inputNovo = document.getElementById('menu-cat-novo');
+  const checkCozinha = document.getElementById('menu-enviar-cozinha');
+  
+  const valNorm = (valor || "").trim().toUpperCase();
+  console.log("🔍 [AUTO-CHECK] Selecionado:", valNorm);
+  console.log("📋 [AUTO-CHECK] Categorias da Cozinha:", configCozinhaCategorias);
+
   if (valor === 'NOVA_CATEGORIA') {
     inputNovo.classList.remove('hidden');
     inputNovo.focus();
+    if (checkCozinha) checkCozinha.checked = false; // Reset para nova categoria
   } else {
     inputNovo.classList.add('hidden');
+    
+    // AUTO-CHECK: Se a categoria selecionada estiver na lista da cozinha, marca o checkbox
+    if (checkCozinha && valor) {
+        if (configCozinhaCategorias.includes(valNorm)) {
+            console.log("✅ [AUTO-CHECK] Match encontrado! Marcando...");
+            checkCozinha.checked = true;
+        } else {
+            console.log("ℹ️ [AUTO-CHECK] Sem match.");
+            checkCozinha.checked = false;
+        }
+    }
   }
 }
+window.alternarNovaCategoria = alternarNovaCategoria;
+
+// Listener para o input de nova categoria também
+document.addEventListener('DOMContentLoaded', () => {
+    const inputNovo = document.getElementById('menu-cat-novo');
+    if (inputNovo) {
+        inputNovo.addEventListener('input', (e) => {
+            const valor = e.target.value.trim().toUpperCase();
+            const checkCozinha = document.getElementById('menu-enviar-cozinha');
+            if (checkCozinha && valor && configCozinhaCategorias.includes(valor)) {
+                checkCozinha.checked = true;
+            }
+        });
+    }
+});
 
 async function abrirModalItemMenu(item = null) {
   idItemEdicaoMenu = item ? item.id : null;
