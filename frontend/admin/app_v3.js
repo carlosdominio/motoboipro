@@ -1608,7 +1608,7 @@ async function imprimirResumoDiario() {
 
 async function carregarPedidos() {
   try {
-    const res = await fetch('/api/pedidos');
+    const res = await fetch('/api/pedidos/ativos-detalhado');
     if (!res.ok) return;
     pedidos = await res.json();
     

@@ -603,6 +603,45 @@ app.post('/api/caixa/fechar', async (req, res) => {
   } catch (error) { res.status(500).json({ error: 'Erro ao fechar caixa' }); }
 });
 
+app.get('/api/pedidos/ativos-detalhado', ensureDbInitialized, async (req, res) => {
+  try {
+    const pedidosRes = await query(`
+      SELECT p.*, m.numero as mesa_numero, g.nome as garcom_nome 
+      FROM pedidos p 
+      LEFT JOIN mesas m ON p.mesa_id = m.id 
+      LEFT JOIN garcons g ON p.garcom_id = g.usuario 
+      WHERE p.status NOT IN ('entregue', 'cancelado') 
+      ORDER BY p.created_at DESC
+    `);
+    
+    const pedidos = pedidosRes.rows;
+    if (pedidos.length === 0) return res.json([]);
+
+    const pedidoIds = pedidos.map(p => p.id).join(',');
+    const itensRes = await query(`
+      SELECT pi.*, m.nome, m.preco, m.categoria, m.enviar_cozinha
+      FROM pedido_itens pi
+      JOIN menu m ON pi.menu_id = m.id
+      WHERE pi.pedido_id IN (${pedidoIds})
+    `);
+
+    const itensMap = {};
+    itensRes.rows.forEach(item => {
+      if (!itensMap[item.pedido_id]) itensMap[item.pedido_id] = [];
+      itensMap[item.pedido_id].push(item);
+    });
+
+    const resultado = pedidos.map(p => ({
+      ...p,
+      itens: itensMap[p.id] || []
+    }));
+
+    res.json(resultado);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/pedidos', ensureDbInitialized, async (req, res) => {
   try {
     const result = await query(`SELECT p.*, m.numero as mesa_numero, g.nome as garcom_nome FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id LEFT JOIN garcons g ON p.garcom_id = g.usuario WHERE p.status NOT IN ('entregue', 'cancelado') ORDER BY p.created_at DESC`);
