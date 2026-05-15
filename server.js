@@ -223,9 +223,10 @@ let dbInitError = null;
 async function initDb() {
   const tables = [
     `CREATE TABLE IF NOT EXISTS mesas (id SERIAL PRIMARY KEY, numero INTEGER NOT NULL, status TEXT DEFAULT 'livre')`,
-    `CREATE TABLE IF NOT EXISTS menu (id SERIAL PRIMARY KEY, nome TEXT NOT NULL, categoria TEXT NOT NULL, preco REAL NOT NULL, imagem TEXT, estoque INTEGER DEFAULT -1, validade DATE)`,
+    `CREATE TABLE IF NOT EXISTS menu (id SERIAL PRIMARY KEY, nome TEXT NOT NULL, categoria TEXT NOT NULL, preco REAL NOT NULL, imagem TEXT, estoque INTEGER DEFAULT -1, validade DATE, enviar_cozinha BOOLEAN DEFAULT TRUE)`,
     `CREATE TABLE IF NOT EXISTS pedidos (id SERIAL PRIMARY KEY, mesa_id INTEGER, garcom_id TEXT, status TEXT DEFAULT 'recebido', total REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, forma_pagamento TEXT, desconto REAL DEFAULT 0, acrescimo REAL DEFAULT 0, valor_recebido REAL DEFAULT 0, troco REAL DEFAULT 0, cobrar_taxa BOOLEAN DEFAULT TRUE, num_pessoas INTEGER DEFAULT 1, valor_por_pessoa REAL, observacao TEXT, pago_parcial REAL DEFAULT 0)`,
     `CREATE TABLE IF NOT EXISTS pedido_itens (id SERIAL PRIMARY KEY, pedido_id INTEGER, menu_id INTEGER, quantidade INTEGER, observacao TEXT, status TEXT DEFAULT 'pendente')`,
+    `CREATE TABLE IF NOT EXISTS pagamentos (id SERIAL PRIMARY KEY, pedido_id INTEGER, valor REAL, forma_pagamento TEXT, recebido REAL, troco REAL, data TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS garcons (id SERIAL PRIMARY KEY, nome TEXT NOT NULL, usuario TEXT UNIQUE NOT NULL, senha TEXT NOT NULL DEFAULT '123', telefone TEXT)`,
     `CREATE TABLE IF NOT EXISTS usuarios_admin (id SERIAL PRIMARY KEY, usuario TEXT UNIQUE NOT NULL, senha TEXT NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS sistema_config (chave TEXT PRIMARY KEY, valor TEXT)`,
@@ -263,35 +264,36 @@ async function initDb() {
     const addCol = async (t, c, type) => { 
       try { 
         if (isPostgres) await db.query(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS ${c} ${type}`); 
-        else db.prepare(`ALTER TABLE ${t} ADD COLUMN ${c} ${type}`).run(); 
+        else {
+          // Verifica se a coluna já existe no SQLite antes de adicionar
+          const info = db.prepare(`PRAGMA table_info(${t})`).all();
+          if (!info.some(col => col.name === c)) {
+            db.prepare(`ALTER TABLE ${t} ADD COLUMN ${c} ${type}`).run();
+          }
+        }
       } catch (e) {
-        // Ignora erro se coluna já existe
+        console.warn(`Aviso ao adicionar coluna ${c} em ${t}:`, e.message);
       } 
     };
     
-    // Otimização: Só roda migrações se não for Postgres (ou se for e estiver forçado)
-    // No Vercel, assume que o esquema é estável para evitar 10+ queries no boot
-    if (!isPostgres) {
-      // Executa migrações sequencialmente
-      await addCol('pedidos', 'forma_pagamento', 'TEXT');
-      await addCol('pedidos', 'desconto', 'REAL DEFAULT 0');
-      await addCol('pedidos', 'acrescimo', 'REAL DEFAULT 0');
-      await addCol('pedidos', 'valor_recebido', 'REAL DEFAULT 0');
-      await addCol('pedidos', 'troco', 'REAL DEFAULT 0');
-      await addCol('pedidos', 'cobrar_taxa', 'BOOLEAN DEFAULT TRUE');
-      await addCol('pedidos', 'num_pessoas', 'INTEGER DEFAULT 1');
-      await addCol('pedidos', 'valor_por_pessoa', 'REAL');
-      await addCol('menu', 'estoque', 'INTEGER DEFAULT -1');
-      await addCol('menu', 'validade', 'DATE');
-      await addCol('menu', 'enviar_cozinha', 'BOOLEAN DEFAULT TRUE');
-      await addCol('garcons', 'telefone', 'TEXT');
-
-      await addCol('pagamentos', 'recebido', 'REAL DEFAULT 0');
-      await addCol('pagamentos', 'troco', 'REAL DEFAULT 0');
-    }
+    // Migrações garantidas para todos os bancos
+    await addCol('pedidos', 'forma_pagamento', 'TEXT');
+    await addCol('pedidos', 'desconto', 'REAL DEFAULT 0');
+    await addCol('pedidos', 'acrescimo', 'REAL DEFAULT 0');
+    await addCol('pedidos', 'valor_recebido', 'REAL DEFAULT 0');
+    await addCol('pedidos', 'troco', 'REAL DEFAULT 0');
+    await addCol('pedidos', 'cobrar_taxa', 'BOOLEAN DEFAULT TRUE');
+    await addCol('pedidos', 'num_pessoas', 'INTEGER DEFAULT 1');
+    await addCol('pedidos', 'valor_por_pessoa', 'REAL');
+    await addCol('menu', 'estoque', 'INTEGER DEFAULT -1');
+    await addCol('menu', 'validade', 'DATE');
+    await addCol('menu', 'enviar_cozinha', 'BOOLEAN DEFAULT TRUE');
+    await addCol('garcons', 'telefone', 'TEXT');
     await addCol('pedidos', 'observacao', 'TEXT');
     await addCol('pedidos', 'pago_parcial', 'REAL DEFAULT 0');
-    await addCol('pagamentos', 'recebido', 'REAL DEFAULT 0'); // Repete fora do !isPostgres para garantir no Vercel também se necessário
+    
+    // Garante que a tabela pagamentos tenha as colunas necessárias
+    await addCol('pagamentos', 'recebido', 'REAL DEFAULT 0');
     await addCol('pagamentos', 'troco', 'REAL DEFAULT 0');
   } catch (e) { 
     console.error('Erro na migração:', e);
