@@ -3458,7 +3458,7 @@ async function configurarPusher() {
     // Mostra apenas alerta informativo (sem o botão de entregar agora no modal)
     mostrarAlerta(data.mensagem, "👨‍🍳 Cozinha");
 
-    clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 500);
+    clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 50);
   });
 
   channel.bind('novo-pedido', (data) => {
@@ -3466,7 +3466,7 @@ async function configurarPusher() {
     tocarNotificacao(); iniciarPiscarTitulo();
     exibirNotificacaoNativa('🚀 NOVO PEDIDO', `Mesa ${data.pedido.mesa_numero} acabou de fazer um pedido.`, `mesa-${data.pedido.mesa_id}`);
     mostrarToast(`🚀 NOVO PEDIDO: Mesa ${data.pedido.mesa_numero}`);
-    clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 500);
+    clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 50);
   });
 
   channel.bind('status-atualizado', (data) => {
@@ -3482,7 +3482,7 @@ async function configurarPusher() {
         tocarNotificacao();
         exibirNotificacaoNativa('✅ Mesa Liberada', `${nMesa} está livre para o próximo cliente.`, tagMesa);
         mostrarToast(`✅ ${nMesa} liberada`);
-        clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 500);
+        clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 50);
         return;
     }
 
@@ -3491,7 +3491,7 @@ async function configurarPusher() {
         exibirNotificacaoNativa('📝 Novos itens!', `${nMesa} adicionou novos produtos ao pedido.`, tagMesa);
         mostrarToast(`📝 ${nMesa} adicionou itens`);
         pedidoAtualizadoId = data.pedido_id;
-        clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 500);
+        clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 50);
         return;
     }
 
@@ -3519,7 +3519,7 @@ async function configurarPusher() {
     exibirNotificacaoNativa(tit, msg, tagMesa);
     mostrarToast(tit);
     tocarNotificacao(); // Toca som para qualquer atualização de status
-    clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 500);
+    clearTimeout(timeoutPusher); timeoutPusher = setTimeout(() => carregarPedidos(), 50);
   });
 
   channel.bind('status-caixa-atualizado', (data) => {

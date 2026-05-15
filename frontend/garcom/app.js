@@ -256,14 +256,14 @@ async function configurarPusher() {
     mostrarAlerta(data.mensagem, "👨‍🍳 COZINHA: PEDIDO PRONTO!");
 
     clearTimeout(timeoutPusher);
-    timeoutPusher = setTimeout(() => carregarMesas(), 500);
+    timeoutPusher = setTimeout(() => carregarMesas(), 50);
   });
 
   channel.bind('novo-pedido', (data) => {
     console.log('📢 Evento recebido: novo-pedido', data);
     // Removemos tocarCampainha() daqui pois o som de novo pedido deve tocar no ADM
     clearTimeout(timeoutPusher);
-    timeoutPusher = setTimeout(() => carregarMesas(), 500);
+    timeoutPusher = setTimeout(() => carregarMesas(), 50);
   });
 
   // Desbloqueia áudio no primeiro clique do usuário

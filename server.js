@@ -37,12 +37,30 @@ if (process.env.WHATSAPP_BOT_URL) {
   whatsappSocket.on('disconnect', () => console.log('⚠️ Desconectado do Bot WhatsApp'));
 }
 
-async function sendWhatsAppMessage(text) {
+// Cache simples para configurações
+let configCache = {
+  whatsapp_enabled: null,
+  lastUpdate: 0
+};
+
+async function isWhatsAppEnabled() {
+  const now = Date.now();
+  if (configCache.whatsapp_enabled !== null && (now - configCache.lastUpdate < 60000)) {
+    return configCache.whatsapp_enabled;
+  }
   try {
     const config = await query("SELECT valor FROM sistema_config WHERE chave = 'whatsapp_enabled'");
-    const isEnabled = config.rows[0]?.valor === 'true';
+    configCache.whatsapp_enabled = config.rows[0]?.valor === 'true';
+    configCache.lastUpdate = now;
+    return configCache.whatsapp_enabled;
+  } catch (e) {
+    return true; // Default
+  }
+}
 
-    if (!isEnabled) {
+async function sendWhatsAppMessage(text) {
+  try {
+    if (!await isWhatsAppEnabled()) {
       console.log('🚫 [WhatsApp] Automação desativada pelo usuário');
       return;
     }
@@ -193,28 +211,34 @@ async function safePusherTrigger(channel, event, data) {
   }
 }
 
-async function notifyStatus(pedidoId, mesaDbId, status) {
+async function notifyStatus(pedidoId, mesaDbId, status, mesaNumPredefined = null) {
   try {
-    let mesaNum = 'BALCÃO';
-    if (mesaDbId) {
-      const res = await query("SELECT numero FROM mesas WHERE id = ?", [mesaDbId]);
-      mesaNum = res.rows[0] ? res.rows[0].numero : 'BALCÃO';
-    } else if (pedidoId) {
-      const res = await query("SELECT m.numero FROM pedidos p JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [pedidoId]);
-      mesaNum = res.rows[0] ? res.rows[0].numero : 'BALCÃO';
+    let mesaNum = mesaNumPredefined || 'BALCÃO';
+    if (!mesaNumPredefined) {
+      if (mesaDbId) {
+        const res = await query("SELECT numero FROM mesas WHERE id = ?", [mesaDbId]);
+        mesaNum = res.rows[0] ? res.rows[0].numero : 'BALCÃO';
+      } else if (pedidoId) {
+        const res = await query("SELECT m.numero FROM pedidos p JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [pedidoId]);
+        mesaNum = res.rows[0] ? res.rows[0].numero : 'BALCÃO';
+      }
     }
     const payload = { pedido_id: pedidoId, mesa_id: mesaNum, mesa_numero: mesaNum, status: status };
     console.log(`🔔 Notificando status: Mesa ${mesaNum}, Status ${status}`);
-    await safePusherTrigger('garconnexpress', 'status-atualizado', payload);
-    await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
+    
+    const promises = [
+      safePusherTrigger('garconnexpress', 'status-atualizado', payload),
+      safePusherTrigger('garconnexpress', 'menu-atualizado', {})
+    ];
 
-    // NOTIFICAÇÃO WHATSAPP
+    // NOTIFICAÇÃO WHATSAPP (Não bloqueia o fluxo principal mas entra no Promise.all)
     if (status === 'aguardando_fechamento') {
-      await sendWhatsAppMessage(`🛎️ *SOLICITAÇÃO DE FECHAMENTO*\n📍 Mesa: ${mesaNum}\n💰 O cliente solicitou a conta.`);
+      promises.push(sendWhatsAppMessage(`🛎️ *SOLICITAÇÃO DE FECHAMENTO*\n📍 Mesa: ${mesaNum}\n💰 O cliente solicitou a conta.`));
     } else if (status === 'cancelado') {
-      await sendWhatsAppMessage(`❌ *PEDIDO CANCELADO*\n📍 Mesa: ${mesaNum}\n🗑️ O pedido foi removido do sistema.`);
+      promises.push(sendWhatsAppMessage(`❌ *PEDIDO CANCELADO*\n📍 Mesa: ${mesaNum}\n🗑️ O pedido foi removido do sistema.`));
     }
 
+    await Promise.all(promises);
   } catch (e) { console.error('Erro notificar:', e.message); }
 }
 
@@ -761,9 +785,11 @@ app.post('/api/pedidos', async (req, res) => {
       await query('INSERT INTO pedido_itens (pedido_id, menu_id, quantidade, observacao, status) VALUES (?, ?, ?, ?, ?)', [pedidoId, item.menu_id, item.quantidade, item.observacao || '', 'pendente']);
       await query("UPDATE menu SET estoque = CASE WHEN estoque = -1 THEN -1 ELSE estoque - ? END WHERE id = ?", [item.quantidade, item.menu_id]);
     }
-    await notifyStatus(pedidoId, mesa_id, 'recebido');
     let mesaNum = 'BALCÃO';
-    if (mesa_id) { const rm = await query("SELECT numero FROM mesas WHERE id = ?", [mesa_id]); mesaNum = rm.rows[0] ? rm.rows[0].numero : 'BALCÃO'; }
+    if (mesa_id) { 
+      const rm = await query("SELECT numero FROM mesas WHERE id = ?", [mesa_id]); 
+      mesaNum = rm.rows[0] ? rm.rows[0].numero : 'BALCÃO'; 
+    }
 
     // NOTIFICAÇÃO WHATSAPP DETALHADA
     const itensNomes = [];
@@ -772,10 +798,14 @@ app.post('/api/pedidos', async (req, res) => {
       itensNomes.push(`${item.quantidade}x ${p ? p.nome : 'Item'}`);
     }
     const msgWpp = `🚀 *NOVO PEDIDO #${pedidoId}*\n📍 Mesa: ${mesaNum}\n📝 Itens:\n${itensNomes.join('\n')}\n💰 Total: R$ ${total.toFixed(2)}`;
-    await sendWhatsAppMessage(msgWpp);
 
-    await safePusherTrigger('garconnexpress', 'novo-pedido', { pedido: { id: pedidoId, mesa_id, mesa_numero: mesaNum, status: 'recebido' } });
-    await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
+    // Dispara notificações em paralelo
+    await Promise.all([
+      notifyStatus(pedidoId, mesa_id, 'recebido', mesaNum),
+      safePusherTrigger('garconnexpress', 'novo-pedido', { pedido: { id: pedidoId, mesa_id, mesa_numero: mesaNum, status: 'recebido' } }),
+      sendWhatsAppMessage(msgWpp)
+    ]);
+
     res.json({ id: pedidoId, success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -815,16 +845,18 @@ app.put('/api/pedidos/:id/atualizar-itens', async (req, res) => {
     if (temPendente) {
       await query("UPDATE pedidos SET total = ?, status = ?, created_at = ?, observacao = ? WHERE id = ?", [total, novoStatusPedido, agora, observacao || '', id]);
       
-      // Notifica a cozinha que há novos itens para preparar (com som)
       const resMesa = await query("SELECT m.numero FROM pedidos p JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [id]);
       const mesaNum = resMesa.rows[0] ? resMesa.rows[0].numero : 'BALCÃO';
-      await safePusherTrigger('garconnexpress', 'novo-pedido', { pedido: { id: id, mesa_numero: mesaNum, status: 'recebido' } });
+      
+      // Notifica em paralelo
+      await Promise.all([
+        notifyStatus(id, null, 'itens_atualizados'),
+        safePusherTrigger('garconnexpress', 'novo-pedido', { pedido: { id: id, mesa_numero: mesaNum, status: 'recebido' } })
+      ]);
     } else {
       await query("UPDATE pedidos SET total = ?, status = ?, observacao = ? WHERE id = ?", [total, novoStatusPedido, observacao || '', id]);
+      await notifyStatus(id, null, 'itens_atualizados');
     }
-    
-    await notifyStatus(id, null, 'itens_atualizados');
-    await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -853,10 +885,13 @@ app.put('/api/pedidos/:id/adicionar', async (req, res) => {
     
     // Notifica a cozinha que há novos itens para preparar (com som)
     const mesaNum = pMesa ? pMesa.numero || 'BALCÃO' : 'BALCÃO';
-    await safePusherTrigger('garconnexpress', 'novo-pedido', { pedido: { id: id, mesa_numero: mesaNum, status: 'recebido' } });
+    
+    // Notifica em paralelo
+    await Promise.all([
+      notifyStatus(id, null, 'itens_adicionados'),
+      safePusherTrigger('garconnexpress', 'novo-pedido', { pedido: { id: id, mesa_numero: mesaNum, status: 'recebido' } })
+    ]);
 
-    await notifyStatus(id, null, 'itens_adicionados');
-    await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });

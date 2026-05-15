@@ -236,7 +236,7 @@ async function configurarPusher() {
             tocarCampainha();
             
             clearTimeout(timeoutPusher);
-            timeoutPusher = setTimeout(carregarPedidos, 500);
+            timeoutPusher = setTimeout(carregarPedidos, 50);
         });
 
         canal.bind('pedido-cancelado', (data) => {
@@ -247,12 +247,12 @@ async function configurarPusher() {
             }
             
             clearTimeout(timeoutPusher);
-            timeoutPusher = setTimeout(carregarPedidos, 500);
+            timeoutPusher = setTimeout(carregarPedidos, 50);
         });
 
         canal.bind('menu-atualizado', () => {
             clearTimeout(timeoutPusher);
-            timeoutPusher = setTimeout(carregarPedidos, 500);
+            timeoutPusher = setTimeout(carregarPedidos, 50);
         });
 
         canal.bind('status-atualizado', (data) => {
@@ -269,7 +269,7 @@ async function configurarPusher() {
                 }
             }
             clearTimeout(timeoutPusher);
-            timeoutPusher = setTimeout(carregarPedidos, 500);
+            timeoutPusher = setTimeout(carregarPedidos, 50);
         });
 
         pusher.connection.bind('connected', () => {
