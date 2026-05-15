@@ -29,21 +29,12 @@
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
-        <div class="toggle-container" style="display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);">
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 0.65rem; font-weight: bold; color: #fff;">🔔 CAMPANHA</span>
-            <label class="switch" style="width: 32px; height: 16px;">
-              <input type="checkbox" id="check-som-mp3" onchange="alternarSomMP3()">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 0.65rem; font-weight: bold; color: #fff;">🔊 WIN</span>
-            <label class="switch" style="width: 32px; height: 16px;">
-              <input type="checkbox" id="check-som-windows" onchange="alternarSomWindows()">
-              <span class="slider"></span>
-            </label>
-          </div>
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);">
+          <span id="label-som" style="color: white; font-size: 0.75rem; font-weight: bold;">SOM</span>
+          <label class="switch">
+            <input type="checkbox" id="check-som" onchange="alternarSom()">
+            <span class="slider"></span>
+          </label>
         </div>
 
         <button onclick="logout()" style="width: auto; background: transparent; color: #fff; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.3); padding: 6px 12px; border-radius: 6px;">SAIR</button>

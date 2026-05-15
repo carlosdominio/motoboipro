@@ -3623,7 +3623,7 @@ function tocarNotificacao(tipo = 'ambos') {
   }
 }
 function inicializarConfiguracaoSom() {
-  atualizarIconeSomAdmin();
+  atualizarIconesSom();
 }
 
 function atualizarIconeSomAdmin() {
@@ -3644,7 +3644,7 @@ function alternarSomMP3() {
   const check = document.getElementById('check-som-mp3');
   const ativo = check ? check.checked : true;
   localStorage.setItem('admin_som_mp3_ativo', ativo);
-  atualizarIconeSomAdmin();
+  atualizarIconesSom();
   if (ativo) tocarNotificacao(); // Som de teste
 }
 
@@ -3652,7 +3652,7 @@ function alternarSomWindows() {
   const check = document.getElementById('check-som-windows');
   const ativo = check ? check.checked : false;
   localStorage.setItem('admin_som_windows', ativo);
-  atualizarIconeSomAdmin();
+  atualizarIconesSom();
   if (ativo) {
     exibirNotificacaoNativa("🔊 TESTE DE SOM", "O som do Windows está agora ativado para notificações.");
   }

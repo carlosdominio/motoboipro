@@ -5,38 +5,31 @@ const container = document.getElementById('pedidos-container');
 const audioNotificacao = new Audio('/notificacao.mp3');
 const statusConexao = document.getElementById('status-conexao');
 
-let somMP3Ativo = localStorage.getItem('cozinha_som_mp3_ativo') !== 'false';
-let somWindowsAtivo = localStorage.getItem('cozinha_som_windows_ativo') !== 'false';
+let somAtivo = localStorage.getItem('cozinha_som_ativo') !== 'false';
 let audioDesbloqueado = false;
 
-function atualizarIconesSom() {
-    const checkMP3 = document.getElementById('check-som-mp3');
-    const checkWin = document.getElementById('check-som-windows');
-    if (checkMP3) checkMP3.checked = somMP3Ativo;
-    if (checkWin) checkWin.checked = somWindowsAtivo;
-    if (audioNotificacao) audioNotificacao.muted = !somMP3Ativo;
+function atualizarIconeSom() {
+    const check = document.getElementById('check-som');
+    const label = document.getElementById('label-som');
+    if (check) check.checked = somAtivo;
+    if (label) {
+        label.innerText = somAtivo ? '🔔 SOM' : '🔕 MUDO';
+        label.style.color = somAtivo ? '#2ecc71' : '#bdc3c7';
+    }
+    if (audioNotificacao) audioNotificacao.muted = !somAtivo;
 }
 
-function alternarSomMP3() {
-    somMP3Ativo = document.getElementById('check-som-mp3').checked;
-    localStorage.setItem('cozinha_som_mp3_ativo', somMP3Ativo);
-    if (audioNotificacao) audioNotificacao.muted = !somMP3Ativo;
-    if (somMP3Ativo) tocarSomNotificacao('campainha');
+function alternarSom() {
+    const check = document.getElementById('check-som');
+    somAtivo = check ? check.checked : !somAtivo;
+    localStorage.setItem('cozinha_som_ativo', somAtivo);
+    atualizarIconeSom();
 }
 
-function alternarSomWindows() {
-    somWindowsAtivo = document.getElementById('check-som-windows').checked;
-    localStorage.setItem('cozinha_som_windows_ativo', somWindowsAtivo);
-    if (somWindowsAtivo) tocarSomNotificacao('windows');
-}
-
-function tocarSomNotificacao(tipo = 'campainha') {
-    if (tipo === 'campainha' && somMP3Ativo && audioDesbloqueado) {
+function tocarCampainha() {
+    if (somAtivo && audioDesbloqueado) {
         audioNotificacao.currentTime = 0;
-        audioNotificacao.play().catch(e => console.warn('Erro ao tocar campainha:', e));
-    } else if (tipo === 'windows' && somWindowsAtivo) {
-        const winAudio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-        winAudio.play().catch(e => console.warn('Erro ao tocar som Windows:', e));
+        audioNotificacao.play().catch(e => console.warn('Erro ao tocar áudio:', e));
     }
 }
 
@@ -211,7 +204,7 @@ function mostrarNotificacaoCancelamento(mensagem, pedidoId) {
         if (modal && modalMsg) {
             modalMsg.innerText = mensagem;
             modal.classList.add('active');
-            tocarCampainha();
+            tocarSomNotificacao('campainha');
         }
     }
 }
@@ -296,7 +289,7 @@ async function configurarPusher() {
 // Inicialização
 carregarPedidos();
 configurarPusher();
-atualizarIconeSom();
+atualizarIconesSom();
 
 // Atualizar tempos a cada segundo para o efeito de cronômetro
 setInterval(atualizarCronometros, 1000);
@@ -314,7 +307,7 @@ document.addEventListener('click', () => {
         audioNotificacao.pause();
         audioNotificacao.currentTime = 0;
         // Só desmuda se o som estiver ativo
-        if (somAtivo) {
+        if (somMP3Ativo) {
             audioNotificacao.muted = false;
         }
         console.log('🔊 Áudio preparado!');
