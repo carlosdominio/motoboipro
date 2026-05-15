@@ -2276,12 +2276,47 @@ async function atualizarStatus(id, status) {
 }
 
 async function marcarPedidoEntregue(id) {
-  if (await mostrarConfirmacao("Marcar todos os itens como entregues?", "Entregar Tudo")) {
-    const res = await fetch(`/api/pedidos/${id}/marcar-entregue`, { method: 'PUT' });
-    if (res.ok) {
-      mostrarToast("Pedido marcado como entregue!");
-      carregarPedidos();
+  try {
+    const resItens = await fetch(`/api/pedidos/${id}/itens`);
+    const itens = await resItens.json();
+    
+    const emPreparo = itens.filter(i => i.status === 'pendente' && i.enviar_cozinha);
+    
+    if (emPreparo.length > 0) {
+      const confirm = await mostrarConfirmacao(
+        `⚠️ ATENÇÃO: Existem ${emPreparo.length} itens ainda EM PREPARO na cozinha.\n\n` +
+        `Deseja confirmar apenas a entrega dos itens que NÃO estão na cozinha (bebidas e itens já prontos)?\n\n` +
+        `O cronômetro da mesa continuará rodando para os itens que ficarem.`,
+        "Itens na Cozinha",
+        "Sim, entregar prontos",
+        "Não, cancelar"
+      );
+      
+      if (!confirm) return;
+
+      const res = await fetch(`/api/pedidos/${id}/marcar-entregue`, { 
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apenasProntos: true })
+      });
+      
+      if (res.ok) {
+        mostrarToast("✅ Itens prontos entregues!");
+        carregarPedidos();
+      }
+      return;
     }
+
+    if (await mostrarConfirmacao("Confirmar a entrega de todos os itens deste pedido?", "Entregar Tudo")) {
+      const res = await fetch(`/api/pedidos/${id}/marcar-entregue`, { method: 'PUT' });
+      if (res.ok) {
+        mostrarToast("✅ Pedido entregue!");
+        carregarPedidos();
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    mostrarAlerta("Erro ao processar entrega.");
   }
 }
 

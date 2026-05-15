@@ -551,57 +551,51 @@ async function marcarComoServido(idPedido) {
     // Busca itens atuais para saber se tem algo em preparo
     const resItens = await fetch(`/api/pedidos/${idPedido}/itens`);
     const itens = await resItens.json();
-    
+
     const emPreparo = itens.filter(i => i.status === 'pendente' && i.enviar_cozinha);
-    let apenasProntos = false;
 
     if (emPreparo.length > 0) {
       const confirmParcial = await mostrarConfirmacao(
-        `Atenção: Existem ${emPreparo.length} item(ns) ainda EM PREPARO na cozinha. Deseja confirmar APENAS a entrega dos itens que já estão prontos?`,
+        `⚠️ Atenção: Existem ${emPreparo.length} item(ns) ainda EM PREPARO na cozinha.\n\nDeseja confirmar APENAS a entrega dos itens que já estão prontos (bebidas e outros)?\n\nOs itens em preparo continuarão aguardando confirmação da cozinha.`,
         "Entrega Parcial",
-        "Sim, apenas prontos",
-        "Não, ver outras opções"
+        "Sim, entregar prontos",
+        "Cancelar"
       );
-      
-      if (confirmParcial) {
-        apenasProntos = true;
-      } else {
-        const confirmTudo = await mostrarConfirmacao(
-          "Deseja confirmar a entrega de TODOS os itens do pedido, inclusive os que ainda estão em preparo na cozinha?",
-          "Entregar Tudo",
-          "Sim, entregar tudo",
-          "Cancelar"
-        );
-        if (confirmTudo) {
-          apenasProntos = false;
-        } else {
-          return; // Cancelou a operação
-        }
+
+      if (!confirmParcial) return;
+
+      const res = await fetch(`/api/pedidos/${idPedido}/marcar-entregue`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apenasProntos: true })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        await mostrarAlerta("Itens prontos entregues! Os itens em preparo continuam aguardando na cozinha.", "Entrega Parcial");
+        verItensDaMesa();
+        carregarMesas();
       }
-    } else {
-      if (!await mostrarConfirmacao("Confirmar entrega dos itens pendentes?", "Entregar Itens")) return;
+      return;
     }
 
-    const res = await fetch(`/api/pedidos/${idPedido}/marcar-entregue`, { 
+    // Se não tem nada em preparo, confirmação normal
+    if (!await mostrarConfirmacao("Deseja marcar todos os itens como entregues?", "Entregar Pedido")) return;
+
+    const res = await fetch(`/api/pedidos/${idPedido}/marcar-entregue`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apenasProntos })
+      body: JSON.stringify({ apenasProntos: false })
     });
-    
+
     if (res.ok) {
       const data = await res.json();
-      if (data.entregueTudo) {
-        await mostrarAlerta("Sucesso! Todos os itens foram entregues.", "Sucesso");
-        document.getElementById('modal-resumo-mesa').style.display = 'none';
-      } else {
-        await mostrarAlerta("Itens prontos entregues! Os itens em preparo continuam aguardando na cozinha.", "Entrega Parcial");
-        verItensDaMesa(); // Recarrega a lista para mostrar o que sobrou
-      }
+      await mostrarAlerta("Sucesso! Todos os itens foram entregues.", "Sucesso");
+      document.getElementById('modal-resumo-mesa').style.display = 'none';
       carregarMesas();
     }
   } catch (error) { await mostrarAlerta("Erro ao atualizar status de entrega.", "Erro"); }
 }
-
 function fecharResumoMesa() {
   document.getElementById('modal-resumo-mesa').style.display = 'none';
   document.getElementById('modal-opcoes').style.display = 'block';
