@@ -3422,38 +3422,6 @@ function calcularTrocoMultiPag(index, valorCota) {
   }
 }
 
-let somMP3Ativo = localStorage.getItem('admin_som_mp3_ativo') !== 'false';
-let somWindowsAtivo = localStorage.getItem('admin_som_windows_ativo') !== 'false';
-
-function atualizarIconesSom() {
-  const checkMP3 = document.getElementById('check-som-mp3');
-  const checkWin = document.getElementById('check-som-windows');
-  if (checkMP3) checkMP3.checked = somMP3Ativo;
-  if (checkWin) checkWin.checked = somWindowsAtivo;
-}
-
-function alternarSomMP3() {
-  somMP3Ativo = document.getElementById('check-som-mp3').checked;
-  localStorage.setItem('admin_som_mp3_ativo', somMP3Ativo);
-  if (audioNotificacao) audioNotificacao.muted = !somMP3Ativo;
-}
-
-function alternarSomWindows() {
-  somWindowsAtivo = document.getElementById('check-som-windows').checked;
-  localStorage.setItem('admin_som_windows_ativo', somWindowsAtivo);
-}
-
-function tocarSomNotificacao(tipo = 'campainha') {
-  if (tipo === 'campainha' && somMP3Ativo) {
-    audioNotificacao.currentTime = 0;
-    audioNotificacao.play().catch(e => console.warn('Erro ao tocar campainha:', e));
-  } else if (tipo === 'windows' && somWindowsAtivo) {
-    // Som nativo curto ou bleep para representar o Windows
-    const winAudio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-    winAudio.play().catch(e => console.warn('Erro ao tocar som Windows:', e));
-  }
-}
-
 async function carregarCardapio() {
   const res = await fetch('/api/menu');
   cardapio = await res.json();
@@ -3626,7 +3594,7 @@ function inicializarConfiguracaoSom() {
   atualizarIconesSom();
 }
 
-function atualizarIconeSomAdmin() {
+function atualizarIconesSom() {
   const checkMP3 = document.getElementById('check-som-mp3');
   const checkWin = document.getElementById('check-som-windows');
   
@@ -3637,7 +3605,7 @@ function atualizarIconeSomAdmin() {
   if (checkWin) checkWin.checked = somWin;
 
   // Sincroniza o mudo do objeto de áudio principal
-  audioNotificacao.muted = !somMP3;
+  if (audioNotificacao) audioNotificacao.muted = !somMP3;
 }
 
 function alternarSomMP3() {
@@ -3645,7 +3613,7 @@ function alternarSomMP3() {
   const ativo = check ? check.checked : true;
   localStorage.setItem('admin_som_mp3_ativo', ativo);
   atualizarIconesSom();
-  if (ativo) tocarNotificacao(); // Som de teste
+  if (ativo) tocarNotificacao('campainha'); // Som de teste
 }
 
 function alternarSomWindows() {
@@ -3654,6 +3622,7 @@ function alternarSomWindows() {
   localStorage.setItem('admin_som_windows', ativo);
   atualizarIconesSom();
   if (ativo) {
+    tocarNotificacao('windows'); // Som de teste
     exibirNotificacaoNativa("🔊 TESTE DE SOM", "O som do Windows está agora ativado para notificações.");
   }
 }
