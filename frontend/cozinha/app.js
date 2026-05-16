@@ -33,6 +33,15 @@ function tocarCampainha() {
     }
 }
 
+function tocarSomNotificacao(tipo = 'campainha') {
+    if (tipo === 'campainha') {
+        tocarCampainha();
+    } else if (tipo === 'windows') {
+        const winAudio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+        winAudio.play().catch(e => console.warn('Erro ao tocar som Windows:', e));
+    }
+}
+
 async function carregarPedidos() {
     try {
         const res = await fetch('/api/pedidos/cozinha');
@@ -307,7 +316,7 @@ document.addEventListener('click', () => {
         audioNotificacao.pause();
         audioNotificacao.currentTime = 0;
         // Só desmuda se o som estiver ativo
-        if (somMP3Ativo) {
+        if (somAtivo) {
             audioNotificacao.muted = false;
         }
         console.log('🔊 Áudio preparado!');
