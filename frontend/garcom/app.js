@@ -1,5 +1,6 @@
 let menu = [];
 let mesas = [];
+let timeoutPusher = null;
 
 // --- SUPRESSÃO DE ERROS DE WEBSOCKET (Pusher/Socket.io) ---
 window.onerror = function(msg, url, line) {
