@@ -28,6 +28,12 @@ header {
     margin: 0 auto;
 }
 
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
 .status-badge {
     padding: 0.5rem 1rem;
     border-radius: 20px;
