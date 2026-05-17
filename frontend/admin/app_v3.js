@@ -485,6 +485,17 @@ async function carregarStatusWhatsApp() {
 
     if (toggle) toggle.checked = status.enabled;
     numberEl.textContent = status.number || 'Não configurado';
+
+    // Atualiza o iframe dinamicamente para o bot configurado
+    const iframe = document.getElementById('whatsapp-iframe');
+    if (iframe && status.botUrl) {
+      const currentUrl = new URL(iframe.src).origin;
+      const targetUrl = new URL(status.botUrl).origin;
+      if (currentUrl !== targetUrl) {
+        console.log('🔄 Atualizando URL do robô WhatsApp:', targetUrl);
+        iframe.src = status.botUrl;
+      }
+    }
   } catch (e) {
     badge.textContent = 'ERRO';
     badge.style.background = '#fee2e2';

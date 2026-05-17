@@ -1384,7 +1384,8 @@ app.get('/api/whatsapp-status', async (req, res) => {
       configured: !!process.env.WHATSAPP_BOT_URL,
       connected: whatsappSocket ? whatsappSocket.connected : false,
       enabled: isEnabled,
-      number: process.env.WHATSAPP_NOTIFY_NUMBER || 'Não configurado'
+      number: process.env.WHATSAPP_NOTIFY_NUMBER || 'Não configurado',
+      botUrl: process.env.WHATSAPP_BOT_URL || ''
     });
   } catch (error) {
     console.error('❌ Erro ao buscar status do WhatsApp:', error.message);
