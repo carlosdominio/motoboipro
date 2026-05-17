@@ -359,27 +359,25 @@ function calcularMinutos(dataIso) {
 let pedidosAtrasadosNotificados = new Set();
 
 function atualizarCronometrosPedidos() {
-  if (abaAtiva !== 'ativos') return;
-  
   // Busca todos os cronômetros presentes na página (independente do container)
   const spans = document.querySelectorAll('.pedido-cronometro');
   
   spans.forEach((span) => {
     const card = span.closest('.pedido-card');
+    if (!card) return;
+
     const createdAt = span.dataset.createdAt;
     // Pega o ID do pedido para o controle de som
-    const pedidoId = (card && card.id) ? card.id.replace('pedido-card-', '') : null;
+    const pedidoId = card.dataset.pedidoId || (card.id ? card.id.replace('pedido-card-', '') : null);
     
-    // SÓ ATUALIZA se o card existir e o status for 'recebido' (cor verde)
-    // Pedidos já servidos (EM ANDAMENTO) ou finalizados não precisam de cronômetro ativo
-    const isRecebido = !!card && card.classList.contains('status-recebido');
+    // ATUALIZA se o card existir e o status for 'recebido' (verde) ou 'fechamento' (amarelo)
+    const isRecebido = card.classList.contains('status-recebido');
+    const isFechamento = card.classList.contains('alerta-fechamento');
 
-    if (!isRecebido || !createdAt) {
+    if ((!isRecebido && !isFechamento) || !createdAt) {
       span.style.display = 'none';
-      if (card) {
-        card.classList.remove('alerta-borda-pisca');
-        if (pedidoId) pedidosAtrasadosNotificados.delete(pedidoId);
-      }
+      card.classList.remove('alerta-borda-pisca');
+      if (pedidoId) pedidosAtrasadosNotificados.delete(pedidoId);
       return;
     }
 
@@ -391,10 +389,15 @@ function atualizarCronometrosPedidos() {
     if (minutos >= 10) {
       card.classList.add('alerta-borda-pisca');
       
-      // Toca som apenas uma vez por pedido quando atinge o atraso
+      // Toca som e mostra notificação apenas uma vez por pedido quando atinge o atraso
       if (pedidoId && !pedidosAtrasadosNotificados.has(pedidoId)) {
         console.log(`🚨 ALERTA: Pedido #${pedidoId} esperando há ${minutos} min!`);
         tocarNotificacao('windows'); // Som de alerta curto
+        
+        const mesaNome = card.dataset.mesa || `Pedido #${pedidoId}`;
+        const motivo = isFechamento ? 'SOLICITOU CONTA' : 'PEDIDO PENDENTE';
+        exibirNotificacaoNativa(`⚠️ ATRASO: ${mesaNome}`, `${motivo} há ${minutos} minutos!`, `atraso-${pedidoId}`);
+
         pedidosAtrasadosNotificados.add(pedidoId);
       }
     } else {
@@ -1945,10 +1948,13 @@ async function exibirPedidos() {
       
       const hasPend = (itensPendentes.length > 0 || itensProntos.length > 0);
       const statusGeral = hasPend ? 'recebido' : 'servido';
+      const isAguardando = pedido.status === 'aguardando_fechamento';
 
       let minutosCronometro = null;
       let classeAlertaAtraso = '';
-      if (statusGeral === 'recebido' && pedido.created_at) {
+
+      // ALERTA DE ATRASO: Para pedidos recebidos ou mesas aguardando fechamento (pendências)
+      if ((statusGeral === 'recebido' || isAguardando) && pedido.created_at) {
         minutosCronometro = calcularMinutos(pedido.created_at);
         if (minutosCronometro >= 10) classeAlertaAtraso = 'alerta-borda-pisca';
       }
@@ -1957,9 +1963,9 @@ async function exibirPedidos() {
       const taxaServico = cobrarTaxaNoPedido ? (subtotal * 0.10) : 0;
       const pagoParcial = pedido.pago_parcial || 0;
       const totalConsumo = (subtotal + taxaServico);
-      const totalExibicao = (pedido.status === 'aguardando_fechamento' ? pedido.total : (totalConsumo - pagoParcial)) || 0;
+      const totalExibicao = (isAguardando ? pedido.total : (totalConsumo - pagoParcial)) || 0;
       
-      const infoPagamento = (pedido.status === 'aguardando_fechamento' && pedido.forma_pagamento) ? `
+      const infoPagamento = (isAguardando && pedido.forma_pagamento) ? `
         <div style="background:#fff9db; padding:8px; border-radius:8px; margin-top:8px; font-size:0.85rem; border:2px solid #f1c40f;">
           <strong style="color: #d35400;">💰 SOLICITAÇÃO DE CONTA</strong><br>
           <strong>Forma:</strong> ${pedido.forma_pagamento}<br>
@@ -1969,7 +1975,7 @@ async function exibirPedidos() {
         </div>` : '';
 
       const card = document.createElement('div');
-      const isAguardando = pedido.status === 'aguardando_fechamento';
+      card.id = `pedido-card-${pedido.id}`;
       const isPronto = pedido.status === 'pronto';
       const pedidoIdStr = String(pedido.id);
       const isExpanded = expandedPedidoIds.has(pedidoIdStr);
@@ -3444,12 +3450,16 @@ function solicitarPermissaoNotificacao() { if ("Notification" in window) Notific
 function exibirNotificacaoNativa(tit, msg, tagId = 'geral') { 
   const somWindows = localStorage.getItem('admin_som_windows') === 'true';
   if ("Notification" in window && Notification.permission === "granted") {
-    new Notification(tit, { 
+    const n = new Notification(tit, { 
       body: msg,
       tag: tagId, // Evita empilhamento: nova notificação da mesma tag substitui a antiga
       renotify: true,
       silent: !somWindows 
-    }); 
+    });
+    n.onclick = () => {
+      window.focus();
+      if (typeof switchTab === 'function') switchTab('ativos');
+    };
   } 
 }
 
