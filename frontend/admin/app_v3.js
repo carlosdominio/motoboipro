@@ -3633,12 +3633,23 @@ function inicializarConfiguracaoSom() {
 function atualizarIconesSom() {
   const checkMP3 = document.getElementById('check-som-mp3');
   const checkWin = document.getElementById('check-som-windows');
+  const labelMP3 = document.getElementById('label-som-mp3');
+  const labelWin = document.getElementById('label-som-win');
   
   const somMP3 = localStorage.getItem('admin_som_mp3_ativo') !== 'false';
   const somWin = localStorage.getItem('admin_som_windows') === 'true';
 
   if (checkMP3) checkMP3.checked = somMP3;
   if (checkWin) checkWin.checked = somWin;
+
+  if (labelMP3) {
+    labelMP3.innerText = somMP3 ? '🔔 CAMPANHA' : '🔕 MUDO';
+    labelMP3.style.color = somMP3 ? '#fff' : '#bdc3c7';
+  }
+  if (labelWin) {
+    labelWin.innerText = somWin ? '🔊 WIN' : '🔇 MUDO';
+    labelWin.style.color = somWin ? '#fff' : '#bdc3c7';
+  }
 
   // Sincroniza o mudo do objeto de áudio principal
   if (audioNotificacao) audioNotificacao.muted = !somMP3;
@@ -3649,7 +3660,12 @@ function alternarSomMP3() {
   const ativo = check ? check.checked : true;
   localStorage.setItem('admin_som_mp3_ativo', ativo);
   atualizarIconesSom();
-  if (ativo) tocarNotificacao('campainha'); // Som de teste
+  if (ativo) {
+    tocarNotificacao('campainha'); // Som de teste
+    mostrarToast("🔔 Som de Campainha ATIVADO");
+  } else {
+    mostrarToast("🔕 Som de Campainha DESATIVADO");
+  }
 }
 
 function alternarSomWindows() {
@@ -3660,9 +3676,11 @@ function alternarSomWindows() {
   if (ativo) {
     tocarNotificacao('windows'); // Som de teste
     exibirNotificacaoNativa("🔊 TESTE DE SOM", "O som do Windows está agora ativado para notificações.");
+    mostrarToast("🔊 Som do Windows ATIVADO");
+  } else {
+    mostrarToast("🔇 Som do Windows DESATIVADO");
   }
 }
-
 function mostrarToast(msg) {
   const old = document.querySelector('.toast-notificacao'); if (old) old.remove();
   const t = document.createElement('div'); 
