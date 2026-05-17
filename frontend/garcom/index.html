@@ -20,16 +20,16 @@
   </div>
 
   <header>
-    <div style="display:flex; justify-content: space-between; align-items: center; width: 100%;">
-      <div>
+    <div class="header-content" style="display:flex; justify-content: space-between; align-items: center; width: 100%;">
+      <div class="header-info">
         <h1>GarçomExpress</h1>
         <div style="display:flex; align-items:center; gap:8px;">
           <p id="garcom-nome-exibicao">Aguardando Login...</p>
           <span id="caixa-status-badge" class="badge-caixa" style="display:none;"></span>
         </div>
       </div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);">
+      <div class="header-controls" style="display:flex; align-items:center; gap:10px;">
+        <div class="toggle-container" style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);">
           <span id="label-som" style="color: white; font-size: 0.75rem; font-weight: bold;">SOM</span>
           <label class="switch">
             <input type="checkbox" id="check-som" onchange="alternarSom()">
@@ -37,7 +37,7 @@
           </label>
         </div>
 
-        <button onclick="logout()" style="width: auto; background: transparent; color: #fff; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.3); padding: 6px 12px; border-radius: 6px;">SAIR</button>
+        <button onclick="logout()" style="width: auto; background: transparent; color: #fff; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.3); padding: 6px 12px; border-radius: 6px; margin-bottom: 0;">SAIR</button>
       </div>
     </div>
   </header>

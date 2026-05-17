@@ -130,26 +130,36 @@ main {
     padding: 1.5rem;
   }
   
-  header > div {
-    flex-direction: column;
-    align-items: flex-start !important;
-    gap: 10px;
-  }
-
-  header > div > div {
-    width: 100%;
-  }
-
-  header > div > button {
-    width: 100% !important;
-  }
-
   header {
+    padding: 0.8rem 1rem;
     text-align: left;
   }
 
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .header-info {
+    width: 100%;
+  }
+
+  .header-controls {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+
   header h1 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+  }
+
+  #garcom-nome-exibicao {
+    font-size: 0.8rem;
   }
 
   main {
