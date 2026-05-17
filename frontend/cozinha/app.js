@@ -37,6 +37,25 @@ function tocarCampainha() {
     }
 }
 
+let pedidosAtrasadosNotificados = new Set();
+
+function solicitarPermissaoNotificacao() {
+    if ("Notification" in window) Notification.requestPermission();
+}
+
+function exibirNotificacaoNativa(tit, msg, tagId = 'geral') {
+    if ("Notification" in window && Notification.permission === "granted") {
+        const n = new Notification(tit, {
+            body: msg,
+            tag: tagId,
+            renotify: true
+        });
+        n.onclick = () => {
+            window.focus();
+        };
+    }
+}
+
 function tocarSomNotificacao(tipo = 'campainha') {
     // Para simplificar e evitar erros de rede/cache com links externos, 
     // usamos o mesmo som para tudo na cozinha por enquanto
@@ -45,12 +64,12 @@ function tocarSomNotificacao(tipo = 'campainha') {
 
 async function carregarPedidos() {
     try {
-        const res = await fetch('/api/pedidos/cozinha');
+        const res = await fetch('/api/pedidos/cozinha');        
         if (!res.ok) throw new Error('Erro na resposta da API');
         const itens = await res.json();
         renderizarPedidos(itens);
     } catch (e) {
-        console.error('❌ Erro ao carregar pedidos:', e);
+        console.error('❌ Erro ao carregar pedidos:', e);        
         setTimeout(carregarPedidos, 5000);
     }
 }
@@ -60,13 +79,13 @@ function renderizarPedidos(itens) {
     const itensValidos = itens.filter(item => {
         const pStatus = (item.pedido_status || '').toLowerCase();
         const iStatus = (item.item_status || '').toLowerCase();
-        
+
         // Se for cancelado em qualquer nível, remove
         if (pStatus === 'cancelado' || iStatus === 'cancelado') return false;
-        
+
         // Se o pedido não estiver em um status ativo para cozinha, remove
         if (pStatus && !['recebido', 'aguardando_fechamento'].includes(pStatus)) return false;
-        
+
         return true;
     });
 
@@ -98,7 +117,9 @@ function renderizarPedidos(itens) {
         const card = document.createElement('div');
         card.className = 'card-pedido';
         card.id = `pedido-card-${pedido.id}`;
-        
+        card.dataset.id = pedido.id;
+        card.dataset.mesa = pedido.mesa;
+
         card.innerHTML = `
             <div class="card-header">
                 <span class="mesa-num">Mesa ${pedido.mesa}</span>
@@ -127,35 +148,47 @@ function renderizarPedidos(itens) {
 function calcularTempo(createdAt) {
     const diff = Math.floor((new Date() - new Date(createdAt)) / 1000);
     if (diff < 0) return '00:00';
-    
+
     const min = Math.floor(diff / 60);
     const seg = diff % 60;
-    
+
     return `${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}`;
 }
 
 function atualizarCronometros() {
     document.querySelectorAll('.pedido-tempo').forEach(span => {
         const createdAt = span.getAttribute('data-created-at');
+        const card = span.closest('.card-pedido');
+        const pedidoId = card ? card.dataset.id : null;
+        const mesa = card ? card.dataset.mesa : '';
+
         if (createdAt) {
             span.innerText = calcularTempo(createdAt);
-            
+
             // Adicionar cor de alerta se passar de 10 ou 15 min
             const diffMin = Math.floor((new Date() - new Date(createdAt)) / 60000);
+
             if (diffMin >= 15) {
                 span.style.color = '#e74c3c'; // Vermelho
                 span.style.fontWeight = 'bold';
+
+                // NOTIFICAÇÃO DE ATRASO CRÍTICO (15 MIN)
+                if (pedidoId && !pedidosAtrasadosNotificados.has(pedidoId)) {
+                    tocarSomNotificacao();
+                    exibirNotificacaoNativa(`⚠️ ATRASO NA COZINHA`, `Mesa ${mesa} está esperando há ${diffMin} min!`, `atraso-cozinha-${pedidoId}`);
+                    pedidosAtrasadosNotificados.add(pedidoId);
+                }
             } else if (diffMin >= 10) {
                 span.style.color = '#f39c12'; // Laranja
                 span.style.fontWeight = 'bold';
             } else {
                 span.style.color = '#2ecc71'; // Verde (Padrão)
                 span.style.fontWeight = 'bold';
+                if (pedidoId) pedidosAtrasadosNotificados.delete(pedidoId);
             }
         }
     });
 }
-
 async function marcarComoPronto(pedidoId, btn) {
     const originalText = btn.innerText;
     btn.innerText = 'CONCLUINDO...';
@@ -297,6 +330,7 @@ async function configurarPusher() {
 }
 
 // Inicialização
+solicitarPermissaoNotificacao();
 carregarPedidos();
 configurarPusher();
 atualizarIconeSom();
