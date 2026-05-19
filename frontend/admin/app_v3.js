@@ -674,7 +674,7 @@ function renderizarCarrinhoLancar() {
             <span style="font-size: 0.8rem; color: #64748b; font-weight: bold;">R$ ${item.preco.toFixed(2)} un.</span>
           </div>
 
-          <button onclick="removerDoCarrinhoLancar(${index})" style="width: 32px; height: 32px; border-radius: 50%; border: none; background: #fff1f2; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; transition: 0.2s; border: 1px solid #fecaca;">✕</button>
+          <button onclick="removerDoCarrinhoLancar(${index})" style="width: 28px; height: 28px; border-radius: 6px; border: none; background: #fef2f2; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; transition: all 0.2s ease; flex-shrink: 0;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">✕</button>
         </div>
         
         <!-- OBSERVAÇÃO -->
