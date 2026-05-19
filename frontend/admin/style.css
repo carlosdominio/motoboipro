@@ -962,26 +962,26 @@ button.btn-entregue { background-color: #95a5a6; }
 
 .item-menu-mini img {
   width: 100% !important;
-  height: 110px !important;
+  height: 80px !important;
   object-fit: cover !important;
   border-bottom: 1px solid #f0f0f0 !important;
 }
 
 .item-menu-mini h4 {
   font-size: 0.85rem !important;
-  padding: 8px 8px 2px 8px !important;
+  padding: 6px 8px 2px 8px !important;
   color: #2c3e50 !important;
   font-weight: 700 !important;
   margin: 0 !important;
   text-align: left !important;
   display: -webkit-box !important;
-  -webkit-line-clamp: 3 !important; /* Aumentado para 3 linhas */
+  -webkit-line-clamp: 2 !important; /* Reduzido para 2 linhas */
   -webkit-box-orient: vertical !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: normal !important;
   line-height: 1.1 !important;
-  min-height: 2.8rem !important; /* Espaço para as 3 linhas */
+  min-height: 1.8rem !important; /* Espaço reduzido para 2 linhas */
 }
 
 .item-menu-mini p {

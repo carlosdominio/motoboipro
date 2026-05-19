@@ -599,27 +599,20 @@ function exibirMenuLancar(categoria) {
     const temEstoqueDefinido = estoqueNum !== -1;
 
     return `
-    <div class="item-menu-mini" onclick="adicionarAoCarrinhoLancar(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${disponivelReal === 0 ? '0.6' : '1'}; min-height: 240px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-      <!-- Badge de Preço em destaque -->
-      <div style="position: absolute; top: 6px; right: 6px; background: #27ae60; color: white; padding: 2px 6px; border-radius: 20px; font-weight: 900; font-size: 0.75rem; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">R$ ${item.preco.toFixed(2)}</div>
+    <div class="item-menu-mini" onclick="adicionarAoCarrinhoLancar(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${disponivelReal === 0 ? '0.6' : '1'}; min-height: 160px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+      <!-- Badge de Preço -->
+      <div style="position: absolute; top: 6px; right: 6px; background: #27ae60; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.7rem; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">R$ ${item.preco.toFixed(2)}</div>
+      
+      <!-- Badge de ESTOQUE (Super Visível) -->
+      <div style="position: absolute; top: 6px; left: 6px; background: ${disponivelReal <= 0 ? '#e74c3c' : '#3498db'}; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.6rem; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-transform: uppercase;">
+        ${temEstoqueDefinido ? `📦 ${disponivelReal}` : '♾️ ILIMITADO'}
+      </div>
 
       <img src="${item.imagem}" alt="${item.nome}" style="filter: ${disponivelReal === 0 ? 'grayscale(1)' : 'none'}; height: 80px !important; width: 100%; object-fit: cover; display: block; border-bottom: 1px solid #f0f0f0;">
 
-      <div style="padding: 20px !important; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between;">
-        <h4 style="margin: 0 0 2px 0 !important; font-size: 0.85rem !important; color: #2c3e50 !important; line-height: 1.2 !important; font-weight: 700 !important; min-height: 2.2rem !important; padding: 0 !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${item.nome}</h4>
-
-        <div style="padding-top: 2px;">
-           <p style="margin: 0 0 4px 0 !important; color: #27ae60 !important; font-weight: 900 !important; font-size: 1.05rem !important; padding: 0 !important;">R$ ${item.preco.toFixed(2)}</p>
-           ${temEstoqueDefinido ? `
-             <div style="background: ${disponivelReal <= 0 ? '#fff5f5' : '#f0f9ff'}; padding: 4px; border-radius: 6px; border: 1px solid ${disponivelReal <= 0 ? '#feb2b2' : '#bee3f8'}; width: 100%; box-sizing: border-box; margin-bottom: 2px; min-height: 24px; display: flex; align-items: center; justify-content: center;">
-               <small style="display:block; font-size:0.65rem; font-weight: 900; color:${disponivelReal <= 0 ? '#e74c3c' : '#2c3e50'}; text-align: center; text-transform: uppercase;">DISPONÍVEL: ${disponivelReal}</small>
-             </div>
-           ` : `
-             <div style="background: #f8f9fa; padding: 4px; border-radius: 6px; border: 1px solid #e2e8f0; width: 100%; box-sizing: border-box; margin-bottom: 2px; min-height: 24px; display: flex; align-items: center; justify-content: center;">
-               <small style="display:block; font-size:0.65rem; color:#718096; text-align: center; font-weight: 900; text-transform: uppercase;">ILIMITADO</small>
-             </div>
-           `}
-        </div>
+      <div style="padding: 8px !important; display: flex; flex-direction: column; flex-grow: 1; justify-content: flex-start; gap: 4px;">
+        <h4 style="margin: 0 !important; font-size: 0.8rem !important; color: #2c3e50 !important; line-height: 1.1 !important; font-weight: 700 !important; min-height: 1.8rem !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: left;">${item.nome}</h4>
+        <p style="margin: 0 !important; color: #27ae60 !important; font-weight: 900 !important; font-size: 0.9rem !important;">R$ ${item.preco.toFixed(2)}</p>
       </div>
     </div>
     `}).join('');}
@@ -2586,27 +2579,20 @@ async function renderizarMenuEdicao(categoria = 'todas') {
     const temEstoqueDefinido = estoqueNum !== -1;
     
     return `
-    <div class="item-menu-mini" onclick="adicionarItemNaEdicao(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${estoqueDisponivel === 0 ? '0.6' : '1'}; min-height: 240px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-      <!-- Badge de Preço em destaque -->
-      <div style="position: absolute; top: 6px; right: 6px; background: #27ae60; color: white; padding: 2px 6px; border-radius: 20px; font-weight: 900; font-size: 0.75rem; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">R$ ${item.preco.toFixed(2)}</div>
+    <div class="item-menu-mini" onclick="adicionarItemNaEdicao(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${estoqueDisponivel === 0 ? '0.6' : '1'}; min-height: 160px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+      <!-- Badge de Preço -->
+      <div style="position: absolute; top: 6px; right: 6px; background: #27ae60; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.7rem; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">R$ ${item.preco.toFixed(2)}</div>
+      
+      <!-- Badge de ESTOQUE (Super Visível) -->
+      <div style="position: absolute; top: 6px; left: 6px; background: ${estoqueDisponivel <= 0 ? '#e74c3c' : '#3498db'}; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.6rem; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2); text-transform: uppercase;">
+        ${temEstoqueDefinido ? `📦 ${estoqueDisponivel}` : '♾️ ILIMITADO'}
+      </div>
       
       <img src="${item.imagem}" alt="${item.nome}" style="filter: ${estoqueDisponivel === 0 ? 'grayscale(1)' : 'none'}; height: 80px !important; width: 100%; object-fit: cover; display: block; border-bottom: 1px solid #f0f0f0;">
       
-      <div style="padding: 20px !important; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between;">
-        <h4 style="margin: 0 0 2px 0 !important; font-size: 0.85rem !important; color: #2c3e50 !important; line-height: 1.2 !important; font-weight: 700 !important; min-height: 2.2rem !important; padding: 0 !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${item.nome}</h4>
-        
-        <div style="padding-top: 2px;">
-           <p style="margin: 0 0 4px 0 !important; color: #27ae60 !important; font-weight: 900 !important; font-size: 1.05rem !important; padding: 0 !important;">R$ ${item.preco.toFixed(2)}</p>
-           ${temEstoqueDefinido ? `
-             <div style="background: ${estoqueDisponivel <= 0 ? '#fff5f5' : '#f0f9ff'}; padding: 4px; border-radius: 6px; border: 1px solid ${estoqueDisponivel <= 0 ? '#feb2b2' : '#bee3f8'}; width: 100%; box-sizing: border-box; margin-bottom: 2px; min-height: 24px; display: flex; align-items: center; justify-content: center;">
-               <small style="display:block; font-size:0.65rem; font-weight: 900; color:${estoqueDisponivel <= 0 ? '#e74c3c' : '#2c3e50'}; text-align: center; text-transform: uppercase;">DISPONÍVEL: ${estoqueDisponivel}</small>
-             </div>
-           ` : `
-             <div style="background: #f8f9fa; padding: 4px; border-radius: 6px; border: 1px solid #e2e8f0; width: 100%; box-sizing: border-box; margin-bottom: 2px; min-height: 24px; display: flex; align-items: center; justify-content: center;">
-               <small style="display:block; font-size:0.65rem; color:#718096; text-align: center; font-weight: 900; text-transform: uppercase;">ILIMITADO</small>
-             </div>
-           `}
-        </div>
+      <div style="padding: 8px !important; display: flex; flex-direction: column; flex-grow: 1; justify-content: flex-start; gap: 4px;">
+        <h4 style="margin: 0 !important; font-size: 0.8rem !important; color: #2c3e50 !important; line-height: 1.1 !important; font-weight: 700 !important; min-height: 1.8rem !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: left;">${item.nome}</h4>
+        <p style="margin: 0 !important; color: #27ae60 !important; font-weight: 900 !important; font-size: 0.9rem !important;">R$ ${item.preco.toFixed(2)}</p>
       </div>
     </div>
   `}).join('');
