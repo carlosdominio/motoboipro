@@ -958,15 +958,22 @@ app.put('/api/pedidos/:id/atualizar-itens', async (req, res) => {
     const total = (pedido && pedido.cobrar_taxa) ? Math.round(novoSub * 1.10 * 100) / 100 : novoSub;
     
     // Determina o status do pedido com base nos itens:
-    // Se houver algum item 'pendente' ou 'pronto', o status do pedido deve ser 'recebido'.
-    // Caso contrário (todos entregues), o status deve ser 'servido'.
     const temPendente = itens.some(i => i.status === 'pendente' || i.status === 'pronto');
     const novoStatusPedido = temPendente ? 'recebido' : 'servido';
     const agora = new Date().toISOString();
     
-    // Se tem pendente, atualizamos o status para 'recebido', mas mantemos o created_at original para não resetar o cronômetro
+    // Busca o status atual para saber se deve resetar o cronômetro
+    const statusAtualRes = await query("SELECT status FROM pedidos WHERE id = ?", [id]);
+    const statusAnterior = statusAtualRes.rows[0] ? statusAtualRes.rows[0].status : '';
+
+    // Se está voltando para 'recebido' vindo de um status diferente de 'recebido', reinicia o cronômetro
+    // Se já estava em 'recebido', mantém o original.
     if (temPendente) {
-      await query("UPDATE pedidos SET total = ?, status = ?, observacao = ? WHERE id = ?", [total, novoStatusPedido, observacao || '', id]);
+      if (statusAnterior !== 'recebido') {
+        await query("UPDATE pedidos SET total = ?, status = ?, created_at = ?, observacao = ? WHERE id = ?", [total, novoStatusPedido, agora, observacao || '', id]);
+      } else {
+        await query("UPDATE pedidos SET total = ?, status = ?, observacao = ? WHERE id = ?", [total, novoStatusPedido, observacao || '', id]);
+      }
       
       const resMesa = await query("SELECT m.numero FROM pedidos p JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [id]);
       const mesaNum = resMesa.rows[0] ? resMesa.rows[0].numero : 'BALCÃO';
@@ -1001,9 +1008,18 @@ app.put('/api/pedidos/:id/adicionar', async (req, res) => {
     const sub = tItens.reduce((sum, i) => sum + (i.preco * i.quantidade), 0);
     const tot = deveTaxa ? Math.round(sub * 1.10 * 100) / 100 : sub;
     const agora = new Date().toISOString();
-    
-    // Atualiza o total e o status, mas mantém o created_at original para não resetar o cronômetro
-    await query("UPDATE pedidos SET total = ?, cobrar_taxa = ?, status = 'recebido', observacao = ? WHERE id = ?", [tot, isPostgres ? deveTaxa : (deveTaxa?1:0), observacao || '', id]);
+
+    // Busca o status atual para saber se deve resetar o cronômetro
+    const statusAtualRes = await query("SELECT status FROM pedidos WHERE id = ?", [id]);
+    const statusAnterior = statusAtualRes.rows[0] ? statusAtualRes.rows[0].status : '';
+
+    // Se está voltando para 'recebido' vindo de um status diferente, reinicia o cronômetro (novo ciclo de preparo)
+    // Se já estava em 'recebido', mantém o original.
+    if (statusAnterior !== 'recebido') {
+      await query("UPDATE pedidos SET total = ?, cobrar_taxa = ?, status = 'recebido', created_at = ?, observacao = ? WHERE id = ?", [tot, isPostgres ? deveTaxa : (deveTaxa?1:0), agora, observacao || '', id]);
+    } else {
+      await query("UPDATE pedidos SET total = ?, cobrar_taxa = ?, status = 'recebido', observacao = ? WHERE id = ?", [tot, isPostgres ? deveTaxa : (deveTaxa?1:0), observacao || '', id]);
+    }
     const pMesa = (await query("SELECT mesa_id, m.numero FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [id])).rows[0];
     if (pMesa && pMesa.mesa_id) await query("UPDATE mesas SET status = 'ocupada' WHERE id = ?", [pMesa.mesa_id]);
     
