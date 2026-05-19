@@ -2547,21 +2547,31 @@ function renderizarItensEdicao() {
   if (!container) return;
   container.innerHTML = itensEmEdicao.map((item, index) => {
     const isEntregue = item.status === 'entregue';
+    const infoMenu = cardapio.find(m => m.id === item.menu_id) || {};
+    const urlImagem = infoMenu.imagem || 'https://placehold.co/50';
+
     return `
     <div class="item-edicao" style="${isEntregue ? 'background: #f0fff4; border-left: 4px solid #27ae60;' : (item.status === 'pronto' ? 'background: #e8f8f5; border-left: 4px solid #2ecc71;' : 'border-left: 4px solid #e67e22;')} padding: 12px; margin-bottom: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #edf2f7; display: flex; flex-direction: column; gap: 10px;">
-      
-      <!-- LINHA 1: CHECKBOX + NOME + STATUS -->
+
+      <!-- LINHA 1: CHECKBOX + IMAGEM + NOME + STATUS -->
       <div style="display: flex; align-items: flex-start; gap: 10px;">
         <input type="checkbox" ${item.selecionado ? 'checked' : ''} onchange="alternarSelecaoItemEdicao(${index})" style="width: 22px; height: 22px; cursor: pointer; flex-shrink: 0; margin-top: 2px;">
-        
+
+        <!-- ÍCONE DA IMAGEM -->
+        <img src="${urlImagem}" alt="${item.nome}" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 1px solid #eee; flex-shrink: 0;">
+
         <div style="flex: 1; min-width: 0;">
-          <div style="font-size: 1rem; color: #1e293b; font-weight: 800; line-height: 1.3; margin-bottom: 2px;">${item.nome}</div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 5px;">
+            <div style="font-size: 1rem; color: #1e293b; font-weight: 800; line-height: 1.3; margin-bottom: 2px;">${item.nome}</div>
+            <!-- BOTÃO REMOVER -->
+            <button onclick="removerItemEdicao(${index})" 
+                    style="background: #fef2f2; color: #ef4444; border: none; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.8rem;">✕</button>
+          </div>
           <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; background: ${isEntregue ? '#dcfce7' : (item.status === 'pronto' ? '#e8f8f5' : '#fef3c7')}; color: ${isEntregue ? '#166534' : (item.status === 'pronto' ? '#27ae60' : '#92400e')};">
             ${isEntregue ? '✅ Entregue' : (item.status === 'pronto' ? '🔥 Pronto' : '⏳ Pendente')}
           </span>
         </div>
       </div>
-
       <!-- OBSERVAÇÃO -->
       <div style="margin: 0;">
         <input type="text" 
@@ -2584,10 +2594,6 @@ function renderizarItensEdicao() {
             <button onclick="mudarQtdItem(${index}, ${item.quantidade + 1})" 
                     style="width: 38px; height: 100%; border: none; background: #fff; color: #22c55e; font-size: 1.4rem; font-weight: bold; cursor: pointer; border-left: 2px solid #e2e8f0;">+</button>
           </div>
-
-          <!-- BOTÃO REMOVER -->
-          <button onclick="removerItemEdicao(${index})" 
-                  style="background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center;">✕</button>
         </div>
 
         <!-- PREÇO TOTAL DO ITEM -->
