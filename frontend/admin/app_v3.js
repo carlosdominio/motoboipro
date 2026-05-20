@@ -3777,24 +3777,10 @@ async function configurarPusher() {
       timeoutPusher = setTimeout(() => carregarPedidos(), 100);
     });
 
-    // EVENTO: CHAMADO DE CLIENTE (🛎️)
-    channel.bind('chamado-garcom', (data) => {
-      console.log('📢 Admin: Chamado de cliente recebido!', data);
-      tocarNotificacao('campainha');
-      iniciarPiscarTitulo();
-      
-      const mesaNum = data.mesa_numero || 'X';
-      exibirNotificacaoNativa('🛎️ CHAMADO DE CLIENTE', `Mesa ${mesaNum} solicitou atendimento imediato!`, `chamado-${data.mesa_id}`);
-      mostrarToast(`🛎️ CHAMADO: Mesa ${mesaNum}`, 'erro'); // Usa cor de destaque
-      
-      mostrarAlerta(`A Mesa ${mesaNum} está solicitando atendimento agora!`, "🛎️ CHAMADO DE CLIENTE");
-    });
-
-  } catch (e) {
+    } catch (e) {
     console.warn('❌ Erro na inicialização do Pusher:', e);
-  }
-}
-function tocarNotificacao(tipo = 'ambos') {
+    }
+    }function tocarNotificacao(tipo = 'ambos') {
   const somMP3 = localStorage.getItem('admin_som_mp3_ativo') !== 'false';
   const somWin = localStorage.getItem('admin_som_windows') === 'true';
 
