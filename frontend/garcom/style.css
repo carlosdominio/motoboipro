@@ -240,6 +240,19 @@ main {
 
 .mesa.fechando { background-color: #9b59b6; color: white; border: none; cursor: not-allowed; opacity: 0.9; pointer-events: none; }
 
+.cliente-acessando {
+  background-color: #3498db !important;
+  color: white !important;
+  border: 2px solid #fff !important;
+  box-shadow: 0 0 15px rgba(52, 152, 219, 0.5) !important;
+  animation: pisca-cliente 1.5s infinite alternate !important;
+}
+
+@keyframes pisca-cliente {
+  from { opacity: 0.8; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.02); }
+}
+
 .mesa.caixa-fechado {
   background-color: #bdc3c7 !important;
   color: #7f8c8d !important;

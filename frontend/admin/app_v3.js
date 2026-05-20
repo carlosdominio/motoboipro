@@ -1858,8 +1858,8 @@ async function atualizarIndicadoresTopo() {
     }
   }
 
-  if (elFat) elFat.innerText = `R$ ${faturamentoRealAtivo.toFixed(2)}`;
-  if (elVendas) elVendas.innerText = `R$ ${caixaAtual.total_vendas.toFixed(2)}`;
+  if (elFat) elFat.innerText = `R$ ${Number(faturamentoRealAtivo || 0).toFixed(2)}`;
+  if (elVendas) elVendas.innerText = `R$ ${Number((caixaAtual && caixaAtual.total_vendas) || 0).toFixed(2)}`;
 }
 
 let pedidosStatusTaxa = {}; // Armazena se cada pedido cobra taxa ou não {pedidoId: true/false}

@@ -292,6 +292,12 @@ async function configurarPusher() {
       atualizarStatusCaixa();
     });
 
+    channel.bind('chamado-garcom', (data) => {
+      console.log('📢 Evento recebido: chamado-garcom', data);
+      tocarCampainha();
+      mostrarAlerta(data.mensagem, "🛎️ CHAMADO DE CLIENTE");
+    });
+
     channel.bind('menu-atualizado', (data) => {
       console.log('📢 Evento recebido: menu-atualizado', data);
       carregarMenu();
@@ -376,9 +382,19 @@ function exibirMesas() {
     if (!caixaAberto) {
       classeBloqueada = 'caixa-fechado';
       statusTexto = 'CAIXA FECHADO';
-    } else if (mesa.status === 'ocupada') {
-      const eMeuPedido = mesa.garcom_id === garcomLogado.nome;
-      if (!eMeuPedido) {
+    } else if (mesa.status === 'ocupada' || mesa.status === 'fechando') {
+      const eMeuPedido = mesa.garcom_id === garcomLogado.usuario;
+      
+      // Se não tem pedido ainda mas está ocupada, é porque gerou código
+      if (!mesa.pedido_created_at && !mesa.pedido_status && mesa.status === 'ocupada') {
+        statusTexto = '📱 AGUARDANDO CLIENTE';
+        classeAlerta = 'cliente-acessando';
+      } else if (mesa.status === 'fechando') {
+        statusTexto = '💰 AGUARDANDO CAIXA';
+        classeAlerta = 'aguardando-fechamento';
+      } else if (mesa.pedido_status === 'servido') {
+        statusTexto = 'OCUPADA';
+      } else if (!eMeuPedido && mesa.garcom_id) {
         classeBloqueada = 'bloqueada';
         statusTexto = `OCUPADA (${mesa.garcom_id})`;
       }
@@ -389,55 +405,98 @@ function exibirMesas() {
         statusTexto = '🔥 PRONTO PARA ENTREGA';
       }
 
-      if (mesa.pedido_created_at) {
+      // SÓ MOSTRA O CRONÔMETRO SE TIVER PEDIDO E NÃO ESTIVER "SERVIDO"
+      if (mesa.pedido_created_at && mesa.pedido_status !== 'servido') {
         const minutos = calcularMinutos(mesa.pedido_created_at);
         cronometroHtml = `<div class="cronometro">⏱️ ${minutos} min</div>`;
-        if (minutos >= 10) classeAlerta = 'alerta-atraso';
+        if (minutos >= 10 && mesa.status !== 'fechando') classeAlerta = 'alerta-atraso';
       }
     }
 
     return `
-      <div class="mesa ${mesa.status} ${classeAlerta} ${classeBloqueada}" data-id="${mesa.id}">
+      <div class="mesa ${mesa.status} ${classeAlerta} ${classeBloqueada}" data-id="${mesa.id}" style="cursor:pointer">
         <h3>Mesa ${mesa.numero}</h3>
-        <p>${statusTexto}</p>
+        <p style="font-weight:bold">${statusTexto}</p>
         ${cronometroHtml}
       </div>
     `;
   }).join('');
 
-  document.querySelectorAll('.mesa').forEach(mesa => {
-    mesa.addEventListener('click', async () => {
+  document.querySelectorAll('.mesa').forEach(mesaEl => {
+    mesaEl.onclick = async () => {
       if (!caixaAberto) {
-        await mostrarAlerta("O CAIXA ESTÁ FECHADO! Não é possível realizar pedidos agora.", "Aviso");
+        await mostrarAlerta("O CAIXA ESTÁ FECHADO!", "Aviso");
         return;
       }
-      const mesaSelecionada = mesas.find(m => m.id == mesa.dataset.id);
+      const mesaSelecionada = mesas.find(m => m.id == mesaEl.dataset.id);
       mesaAtual = mesaSelecionada;
       
-      if (mesaSelecionada.status === 'ocupada') {
-        const eMeuPedido = mesaSelecionada.garcom_id === garcomLogado.nome;
-        if (!eMeuPedido) {
-          await mostrarAlerta(`Esta mesa está sendo atendida pelo colega: ${mesaSelecionada.garcom_id}`, "Mesa Ocupada");
+      if (mesaSelecionada.status === 'ocupada' || mesaSelecionada.status === 'fechando') {
+        const eMeuPedido = mesaSelecionada.garcom_id === garcomLogado.usuario;
+        // Permite acesso se for o meu pedido OU se for uma mesa recém-aberta via código (sem garcom_id ainda no pedido)
+        if (!eMeuPedido && mesaSelecionada.garcom_id && mesaSelecionada.pedido_created_at) {
+          await mostrarAlerta(`Atendida por: ${mesaSelecionada.garcom_id}`, "Mesa Ocupada");
           return;
         }
-        mostrarOpcoesMesa(mesaSelecionada);
-      } else { 
-        pedidoAbertoNaMesa = null; 
-        abrirCardapio(); 
       }
-    });
+      
+      mostrarOpcoesMesa(mesaSelecionada);
+    };
   });
 }
 
 async function mostrarOpcoesMesa(mesa) {
-  const res = await fetch(`/api/pedidos/mesa/${mesa.id}`);
-  pedidoAbertoNaMesa = await res.json();
-  if (!pedidoAbertoNaMesa) {
-    await mostrarAlerta("Erro: Mesa ocupada sem pedido. Liberando...", "Erro");
-    await fetch(`/api/mesas/${mesa.id}/liberar`, { method: 'PUT' });
-    return carregarMesas();
+  // Reset
+  pedidoAbertoNaMesa = null;
+
+  if (mesa.status === 'ocupada' || mesa.status === 'fechando') {
+    try {
+      const res = await fetch(`/api/pedidos/mesa/${mesa.id}`);
+      if (res.ok) {
+        const dados = await res.json();
+        if (dados) pedidoAbertoNaMesa = dados;
+      }
+    } catch (e) { console.error("Erro ao buscar pedido:", e); }
   }
-  document.getElementById('modal-mesa-titulo').textContent = `Mesa ${mesa.numero}`;
+
+  // Ajusta visibilidade dos botões
+  const btnVerItens = document.querySelector('.btn-ver-itens');
+  const btnFecharConta = document.querySelector('.btn-fechar-conta');
+  const btnAdd = document.querySelector('.btn-adicionar');
+  const btnGerarCodigo = document.querySelector('.btn-gerar-codigo');
+  const btnCancelarCodigo = document.querySelector('.btn-cancelar-codigo');
+  
+  if (btnVerItens) btnVerItens.style.display = pedidoAbertoNaMesa ? 'block' : 'none';
+  if (btnFecharConta) btnFecharConta.style.display = (pedidoAbertoNaMesa && mesa.status !== 'fechando') ? 'block' : 'none';
+  if (btnAdd) btnAdd.innerText = pedidoAbertoNaMesa ? '➕ Adicionar mais itens' : '📝 Abrir Mesa / Pedido';
+
+  // Lógica dos botões de código digital e exibição do código ativo
+  let tituloModal = `Mesa ${mesa.numero}`;
+  
+  if (mesa.status === 'livre') {
+    if (btnGerarCodigo) btnGerarCodigo.style.display = 'block';
+    if (btnCancelarCodigo) btnCancelarCodigo.style.display = 'none';
+  } else if (mesa.status === 'ocupada' && !pedidoAbertoNaMesa) {
+    // Mesa ocupada sem pedido = Mesa aberta via código digital
+    if (btnGerarCodigo) btnGerarCodigo.style.display = 'none';
+    if (btnCancelarCodigo) btnCancelarCodigo.style.display = 'block';
+    
+    // Adiciona o código ao título para o garçom ver
+    if (mesa.codigo_acesso) {
+      tituloModal = `Mesa ${mesa.numero} [Código: ${mesa.codigo_acesso}]`;
+    }
+  } else {
+    // Mesa ocupada com pedido real
+    if (btnGerarCodigo) btnGerarCodigo.style.display = 'none';
+    if (btnCancelarCodigo) btnCancelarCodigo.style.display = 'none';
+    
+    // Mesmo com pedido, se houver código ativo, mostra no título
+    if (mesa.codigo_acesso) {
+      tituloModal = `Mesa ${mesa.numero} [Código: ${mesa.codigo_acesso}]`;
+    }
+  }
+
+  document.getElementById('modal-mesa-titulo').textContent = tituloModal;
   document.getElementById('modal-opcoes').style.display = 'block';
 }
 
@@ -930,12 +989,14 @@ async function enviarPedido() {
        method = 'PUT';
     }
     
+    console.log(`🚀 ENVIANDO PEDIDO: Mesa ${mesa_id}, Garçom: ${garcomLogado?.usuario}`);
+
     const res = await fetch(url, {
       method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         mesa_id: mesa_id, 
-        garcom_id: (garcomLogado && garcomLogado.nome) ? garcomLogado.nome : 'garcom-desconhecido', 
+        garcom_id: (garcomLogado && garcomLogado.usuario) ? garcomLogado.usuario : 'garcom-desconhecido', 
         itens: pedidoAtual,
         observacao: window.pedidoObservacaoGeral || ''
       })
@@ -962,6 +1023,50 @@ async function enviarPedido() {
     btnEnviar.innerText = originalTexto;
     btnEnviar.style.opacity = "1";
     btnEnviar.style.cursor = "pointer";
+  }
+}
+
+async function gerarCodigoAcesso() {
+  if (!mesaAtual) return;
+  try {
+    const res = await fetch('/api/acesso/gerar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mesa_id: mesaAtual.id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      fecharOpcoes();
+      await mostrarAlerta(`CÓDIGO DE ACESSO: ${data.codigo}\n\nInforme este código ao cliente para liberar o cardápio digital na Mesa ${mesaAtual.numero}.`, "Código Gerado");
+    } else {
+      await mostrarAlerta("Erro ao gerar código.", "Erro");
+    }
+  } catch (error) {
+    await mostrarAlerta("Erro de conexão.", "Erro");
+  }
+}
+
+async function cancelarCodigoAcesso() {
+  if (!mesaAtual) return;
+  
+  const confirm = await mostrarConfirmacao(`Deseja realmente CANCELAR o acesso digital da Mesa ${mesaAtual.numero}? O cliente será deslogado e a mesa ficará livre.`, "Confirmar Cancelamento");
+  if (!confirm) return;
+
+  try {
+    const res = await fetch('/api/acesso/cancelar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mesa_id: mesaAtual.id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      fecharOpcoes();
+      await mostrarAlerta("Acesso cancelado e mesa liberada com sucesso.", "Cancelado");
+    } else {
+      await mostrarAlerta("Erro ao cancelar acesso.", "Erro");
+    }
+  } catch (error) {
+    await mostrarAlerta("Erro de conexão.", "Erro");
   }
 }
 

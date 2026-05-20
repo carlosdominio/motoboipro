@@ -244,8 +244,8 @@ async function notifyStatus(pedidoId, mesaDbId, status, mesaNumPredefined = null
         mesaNum = res.rows[0] ? res.rows[0].numero : 'BALCÃO';
       }
     }
-    const payload = { pedido_id: pedidoId, mesa_id: mesaNum, mesa_numero: mesaNum, status: status };
-    console.log(`🔔 Notificando status: Mesa ${mesaNum}, Status ${status}`);
+    const payload = { pedido_id: pedidoId, mesa_id: mesaDbId, mesa_numero: mesaNum, status: status };
+    console.log(`🔔 Notificando status: Mesa ${mesaNum} (ID: ${mesaDbId}), Status ${status}`);
     
     // Dispara Pusher IMEDIATAMENTE (Prioridade)
     await safePusherTrigger('garconnexpress', 'status-atualizado', payload);
@@ -264,8 +264,8 @@ let dbInitError = null;
 
 async function initDb() {
   const tables = [
-    `CREATE TABLE IF NOT EXISTS mesas (id SERIAL PRIMARY KEY, numero INTEGER NOT NULL, status TEXT DEFAULT 'livre')`,
-    `CREATE TABLE IF NOT EXISTS menu (id SERIAL PRIMARY KEY, nome TEXT NOT NULL, categoria TEXT NOT NULL, preco REAL NOT NULL, imagem TEXT, estoque INTEGER DEFAULT -1, validade DATE, enviar_cozinha BOOLEAN DEFAULT TRUE)`,
+    `CREATE TABLE IF NOT EXISTS mesas (id SERIAL PRIMARY KEY, numero INTEGER NOT NULL, status TEXT DEFAULT 'livre', garcom_id TEXT)`,
+    `CREATE TABLE IF NOT EXISTS menu (id SERIAL PRIMARY KEY, nome TEXT NOT NULL, categoria TEXT NOT NULL, preco REAL NOT NULL, imagem TEXT, estoque INTEGER DEFAULT -1, validade DATE, enviar_cozinha BOOLEAN DEFAULT TRUE, visivel BOOLEAN DEFAULT TRUE)`,
     `CREATE TABLE IF NOT EXISTS pedidos (id SERIAL PRIMARY KEY, mesa_id INTEGER, garcom_id TEXT, status TEXT DEFAULT 'recebido', total REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, forma_pagamento TEXT, desconto REAL DEFAULT 0, acrescimo REAL DEFAULT 0, valor_recebido REAL DEFAULT 0, troco REAL DEFAULT 0, cobrar_taxa BOOLEAN DEFAULT TRUE, num_pessoas INTEGER DEFAULT 1, valor_por_pessoa REAL, observacao TEXT, pago_parcial REAL DEFAULT 0)`,
     `CREATE TABLE IF NOT EXISTS pedido_itens (id SERIAL PRIMARY KEY, pedido_id INTEGER, menu_id INTEGER, quantidade INTEGER, observacao TEXT, status TEXT DEFAULT 'pendente')`,
     `CREATE TABLE IF NOT EXISTS pagamentos (id SERIAL PRIMARY KEY, pedido_id INTEGER, valor REAL, forma_pagamento TEXT, recebido REAL, troco REAL, data TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
@@ -273,6 +273,7 @@ async function initDb() {
     `CREATE TABLE IF NOT EXISTS usuarios_admin (id SERIAL PRIMARY KEY, usuario TEXT UNIQUE NOT NULL, senha TEXT NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS sistema_config (chave TEXT PRIMARY KEY, valor TEXT)`,
     `CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP, data_fechamento TIMESTAMP, valor_inicial REAL NOT NULL, valor_final REAL, status TEXT DEFAULT 'aberto', total_dinheiro REAL DEFAULT 0, total_pix REAL DEFAULT 0, total_cartao REAL DEFAULT 0, total_vendas REAL DEFAULT 0)`,
+    `CREATE TABLE IF NOT EXISTS codigos_acesso (id SERIAL PRIMARY KEY, mesa_id INTEGER, codigo TEXT NOT NULL, status TEXT DEFAULT 'ativo', criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE INDEX IF NOT EXISTS idx_pedido_itens_pedido_id ON pedido_itens(pedido_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pedidos_mesa_id ON pedidos(mesa_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pedidos_status ON pedidos(status)`
@@ -319,6 +320,7 @@ async function initDb() {
     };
     
     // Migrações garantidas para todos os bancos
+    await addCol('mesas', 'garcom_id', 'TEXT');
     await addCol('pedidos', 'forma_pagamento', 'TEXT');
     await addCol('pedidos', 'desconto', 'REAL DEFAULT 0');
     await addCol('pedidos', 'acrescimo', 'REAL DEFAULT 0');
@@ -542,7 +544,10 @@ app.put('/api/pedidos/:id/marcar-entregue', async (req, res) => {
     
     await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
     res.json({ success: true, entregueTudo: parseInt(pendentesCount) === 0 });
-  } catch (error) { res.status(500).json({ error: error.message }); }
+  } catch (error) { 
+    console.error('Erro ao marcar entregue:', error);
+    res.status(500).json({ error: error.message }); 
+  }
 });
 
 app.put('/api/itens/:id/pronto', async (req, res) => {
@@ -562,19 +567,27 @@ app.put('/api/itens/:id/pronto', async (req, res) => {
       await query("UPDATE pedido_itens SET quantidade = quantidade + ? WHERE id = ?", [item.quantidade, itemExistente.id]);
       await query("DELETE FROM pedido_itens WHERE id = ?", [id]);
     } else {
-      // Apenas marca como entregue
+      // Apenas marca como entregue (OU PRONTO? A função chama /pronto mas o código original marca como entregue?)
+      // Na verdade, cozinha marca como pronto, garçom marca como entregue.
+      // Vou manter a lógica de marcar como entregue se for essa a intenção da rota original
       await query("UPDATE pedido_itens SET status = 'entregue' WHERE id = ?", [id]);
     }
 
-    // Verifica se ainda existem itens pendentes no pedido    const pendentes = (await query("SELECT id FROM pedido_itens WHERE pedido_id = ? AND status = 'pendente'", [item.pedido_id])).rows;
+    // Verifica se ainda existem itens pendentes no pedido
+    const pendentes = (await query("SELECT id FROM pedido_itens WHERE pedido_id = ? AND status IN ('pendente', 'pronto')", [item.pedido_id])).rows;
     if (pendentes.length === 0) {
       await query("UPDATE pedidos SET status = 'servido' WHERE id = ?", [item.pedido_id]);
       await notifyStatus(item.pedido_id, null, 'servido');
+    } else {
+      await notifyStatus(item.pedido_id, null, 'itens_atualizados');
     }
     
     await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
     res.json({ success: true });
-  } catch (error) { res.status(500).json({ error: error.message }); }
+  } catch (error) { 
+    console.error('Erro ao marcar item pronto/entregue:', error);
+    res.status(500).json({ error: error.message }); 
+  }
 });
 
 app.put('/api/pedidos/:id/taxa', async (req, res) => {
@@ -886,7 +899,7 @@ app.post('/api/pedidos', async (req, res) => {
       resPedido = await query('INSERT INTO pedidos (mesa_id, garcom_id, total, status, created_at, cobrar_taxa, observacao) VALUES (?, ?, ?, ?, ?, ?, ?)', [mesa_id || null, garcom_id, total, 'recebido', new Date().toISOString(), deveCobrarTaxa ? 1 : 0, observacao || '']);
       pedidoId = resPedido.lastInsertRowid;
     }
-    if (mesa_id) await query("UPDATE mesas SET status = 'ocupada' WHERE id = ?", [mesa_id]);
+    if (mesa_id) await query("UPDATE mesas SET status = 'ocupada', garcom_id = ? WHERE id = ?", [garcom_id, mesa_id]);
     for (const item of itens) {
       await query('INSERT INTO pedido_itens (pedido_id, menu_id, quantidade, observacao, status) VALUES (?, ?, ?, ?, ?)', [pedidoId, item.menu_id, item.quantidade, item.observacao || '', 'pendente']);
       await query("UPDATE menu SET estoque = CASE WHEN estoque = -1 THEN -1 ELSE estoque - ? END WHERE id = ?", [item.quantidade, item.menu_id]);
@@ -1423,14 +1436,15 @@ app.get('/api/mesas', ensureDbInitialized, async (req, res) => {
   try {
     res.json((await query(`
       SELECT m.*, 
-        (SELECT p.created_at FROM pedidos p WHERE p.mesa_id = m.id AND p.status IN ('recebido', 'pronto') ORDER BY p.id DESC LIMIT 1) as pedido_created_at, 
-        (SELECT p.garcom_id FROM pedidos p WHERE p.mesa_id = m.id AND p.status NOT IN ('entregue', 'cancelado') ORDER BY p.id DESC LIMIT 1) as garcom_id,
-        (SELECT p.status FROM pedidos p WHERE p.mesa_id = m.id AND p.status NOT IN ('entregue', 'cancelado') ORDER BY p.id DESC LIMIT 1) as pedido_status
+        (SELECT p.id FROM pedidos p WHERE p.mesa_id = m.id AND p.status != 'entregue' AND p.status != 'cancelado' ORDER BY p.id DESC LIMIT 1) as pedido_id,
+        (SELECT p.created_at FROM pedidos p WHERE p.mesa_id = m.id AND p.status != 'entregue' AND p.status != 'cancelado' ORDER BY p.id DESC LIMIT 1) as pedido_created_at, 
+        (SELECT p.garcom_id FROM pedidos p WHERE p.mesa_id = m.id AND p.status != 'entregue' AND p.status != 'cancelado' ORDER BY p.id DESC LIMIT 1) as garcom_id,
+        (SELECT p.status FROM pedidos p WHERE p.mesa_id = m.id AND p.status != 'entregue' AND p.status != 'cancelado' ORDER BY p.id DESC LIMIT 1) as pedido_status,
+        (SELECT ca.codigo FROM codigos_acesso ca WHERE ca.mesa_id = m.id AND ca.status = 'ativo' ORDER BY ca.id DESC LIMIT 1) as codigo_acesso
       FROM mesas m ORDER BY m.numero
     `)).rows); 
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { usuario, senha } = req.body;
@@ -1458,12 +1472,12 @@ app.post('/api/admin/login', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { usuario, senha } = req.body;
-    const result = await query('SELECT id, nome, senha FROM garcons WHERE usuario = ?', [usuario]);
+    const result = await query('SELECT id, nome, usuario, senha FROM garcons WHERE usuario = ?', [usuario]);
     if (result.rows.length > 0 && await bcrypt.compare(senha, result.rows[0].senha)) { 
       const garcom = result.rows[0];
       delete garcom.senha;
       
-      const token = jwt.sign({ id: garcom.id, nome: garcom.nome, role: 'garcom' }, JWT_SECRET, { expiresIn: '7d' });
+      const token = jwt.sign({ id: garcom.id, nome: garcom.nome, usuario: garcom.usuario, role: 'garcom' }, JWT_SECRET, { expiresIn: '7d' });
       
       const isProd = process.env.NODE_ENV === 'production';
       res.cookie('token', token, {
@@ -1484,6 +1498,127 @@ app.get('/api/pusher-config', (req, res) => {
     key: process.env.PUSHER_APP_KEY || "5b2b284e309dea9d90fb",
     cluster: process.env.PUSHER_CLUSTER || "sa1"
   });
+});
+
+// --- ROTAS DO CARDÁPIO DIGITAL (CLIENTE) ---
+
+// Gera um novo código de acesso para uma mesa (Usado pelo Garçom/Admin)
+app.post('/api/acesso/gerar', isAuthenticated, async (req, res) => {
+  const { mesa_id } = req.body;
+  console.log(`🔑 GERAR CÓDIGO: Mesa ID=${mesa_id}`);
+  if (!mesa_id) return res.status(400).json({ error: 'Mesa é obrigatória' });
+  
+  try {
+    // 1. Desativa códigos anteriores desta mesa
+    const resDesativa = await query("UPDATE codigos_acesso SET status = 'expirado' WHERE mesa_id = ? AND status = 'ativo'", [mesa_id]);
+    console.log(`   - Desativados: ${resDesativa.changes}`);
+    
+    // 2. Gera código aleatório de 4 dígitos
+    const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let codigo = '';
+    for (let i = 0; i < 4; i++) {
+      codigo += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+    }
+    
+    // 3. Insere o novo código
+    const resInsert = await query("INSERT INTO codigos_acesso (mesa_id, codigo) VALUES (?, ?)", [mesa_id, codigo]);
+    console.log(`   - Novo código: ${codigo} (ID: ${resInsert.lastInsertRowid})`);
+    
+    // 4. Marca a mesa como ocupada e associa ao garçom que gerou o código
+    const garcom_id = req.user ? (req.user.usuario || req.user.nome) : 'Sistema';
+    
+    const resUpdateMesa = await query("UPDATE mesas SET status = 'ocupada', garcom_id = ? WHERE id = ?", [garcom_id, mesa_id]);
+    console.log(`   - Status Mesa ${mesa_id} atualizado para 'ocupada' (Garçom: ${garcom_id}): ${resUpdateMesa.changes} linha(s) afetada(s)`);
+    
+    // Notifica via Pusher para atualizar as mesas de todos
+    await safePusherTrigger('garconnexpress', 'status-atualizado', { 
+      mesa_id, 
+      status: 'ocupada',
+      garcom_id: garcom_id,
+      origem: 'codigo_gerado'
+    });
+    
+    res.json({ success: true, codigo });
+  } catch (error) {
+    console.error(`❌ ERRO AO GERAR CÓDIGO:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cancela o acesso de uma mesa (Cliente desistiu ou saiu antes de pedir)
+app.post('/api/acesso/cancelar', isAuthenticated, async (req, res) => {
+  const { mesa_id } = req.body;
+  if (!mesa_id) return res.status(400).json({ error: 'Mesa é obrigatória' });
+
+  try {
+    // 1. Invalida os códigos ativos da mesa
+    await query("UPDATE codigos_acesso SET status = 'expirado' WHERE mesa_id = ? AND status = 'ativo'", [mesa_id]);
+
+    // 2. Libera a mesa no sistema
+    await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [mesa_id]);
+
+    // 3. Notifica o cliente para deslogar (via Pusher)
+    await safePusherTrigger('garconnexpress', `deslogar-mesa-${mesa_id}`, { 
+      mensagem: "Este acesso foi cancelado pelo garçom." 
+    });
+
+    // 4. Notifica todos os garçons/admin para atualizar o grid de mesas
+    await safePusherTrigger('garconnexpress', 'status-atualizado', { 
+      mesa_id, 
+      status: 'liberada',
+      origem: 'acesso_cancelado'
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Valida o acesso do cliente
+app.post('/api/acesso/validar', async (req, res) => {
+  const { codigo } = req.body;
+  if (!codigo) return res.status(400).json({ error: 'Código é obrigatório' });
+
+  try {
+    // 1. Verifica se o caixa está aberto
+    const caixa = (await query("SELECT id FROM fluxo_caixa WHERE status = 'aberto'")).rows[0];
+    if (!caixa) return res.status(403).json({ error: 'ESTABELECIMENTO FECHADO: O cardápio digital só funciona com o caixa aberto.' });
+
+    // 2. Verifica se o código é válido e ativo
+    const acesso = (await query("SELECT ca.*, m.numero as mesa_numero FROM codigos_acesso ca JOIN mesas m ON ca.mesa_id = m.id WHERE UPPER(ca.codigo) = UPPER(?) AND ca.status = 'ativo'", [codigo])).rows[0];
+    
+    if (!acesso) return res.status(401).json({ error: 'Código inválido ou expirado. Peça um novo ao garçom.' });
+
+    // Se válido, retorna os dados da mesa para o cliente salvar no LocalStorage
+    res.json({ 
+      success: true, 
+      mesa_id: acesso.mesa_id, 
+      mesa_numero: acesso.mesa_numero,
+      token_acesso: jwt.sign({ mesa_id: acesso.mesa_id, mesa_numero: acesso.mesa_numero, role: 'cliente' }, JWT_SECRET, { expiresIn: '6h' })
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cliente solicita atendimento do garçom
+app.post('/api/cliente/chamar-garcom', async (req, res) => {
+  const { mesa_id, mesa_numero } = req.body;
+  try {
+    await safePusherTrigger('garconnexpress', 'chamado-garcom', {
+      mesa_id,
+      mesa_numero,
+      mensagem: `🛎️ MESA ${mesa_numero} solicitou atendimento!`
+    });
+    
+    // Notifica via WhatsApp também se configurado
+    sendWhatsAppMessage(`🛎️ *CHAMADO DE MESA*\n📍 Mesa: ${mesa_numero}\n🙋‍♂️ O cliente solicitou atendimento imediato.`).catch(e => console.error('Erro Wpp Chamado:', e.message));
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/api/whatsapp-status', async (req, res) => {

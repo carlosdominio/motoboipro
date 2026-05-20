@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardápio Digital - GarconnExpress</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #ff4757;
+            --secondary: #2f3542;
+            --bg: #f1f2f6;
+            --white: #ffffff;
+            --shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--secondary); overflow-x: hidden; }
+        
+        /* LOGIN / ACESSO */
+        #login-screen {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary), #ff6b81);
+            color: var(--white);
+            text-align: center;
+        }
+        .login-box {
+            background: var(--white);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 350px;
+            color: var(--secondary);
+        }
+        .login-box h2 { margin-bottom: 20px; font-weight: 600; }
+        .login-box input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 20px;
+            text-align: center;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+        .btn-access {
+            background: var(--primary);
+            color: var(--white);
+            border: none;
+            padding: 15px;
+            width: 100%;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn-access:active { transform: scale(0.95); }
+
+        /* MENU PRINCIPAL */
+        #menu-screen { display: none; padding-bottom: 80px; }
+        header {
+            background: var(--white);
+            padding: 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .mesa-badge {
+            background: var(--primary);
+            color: var(--white);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 5px;
+            display: inline-block;
+        }
+
+        .category-nav {
+            display: flex;
+            overflow-x: auto;
+            padding: 15px;
+            gap: 10px;
+            background: var(--white);
+            scrollbar-width: none;
+        }
+        .category-nav::-webkit-scrollbar { display: none; }
+        .cat-btn {
+            white-space: nowrap;
+            padding: 8px 20px;
+            background: #eee;
+            border-radius: 20px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+        }
+        .cat-btn.active { background: var(--primary); color: var(--white); }
+
+        .item-list { padding: 15px; display: grid; gap: 15px; }
+        .item-card {
+            background: var(--white);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            display: flex;
+            transition: 0.3s;
+        }
+        .item-img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            background: #ddd;
+        }
+        .item-info { padding: 15px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .item-name { font-weight: 600; font-size: 16px; margin-bottom: 5px; }
+        .item-price { color: var(--primary); font-weight: 600; font-size: 18px; }
+        .stock-out { color: #ff4757; font-size: 12px; font-weight: bold; margin-top: 5px; }
+
+        /* BOTÃO CHAMAR GARÇOM */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--primary);
+            color: var(--white);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 20px rgba(255, 71, 87, 0.4);
+            cursor: pointer;
+            z-index: 1000;
+            border: none;
+        }
+        .fab:active { transform: scale(0.9); }
+
+        /* LOADING */
+        .loading {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        /* ANIMAÇÃO */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate { animation: fadeIn 0.5s ease forwards; }
+
+        .empty-msg { text-align: center; padding: 40px; color: #999; }
+    </style>
+</head>
+<body>
+
+    <div class="loading" id="loading"><i class="fas fa-spinner fa-spin fa-3x" style="color: var(--primary)"></i></div>
+
+    <!-- TELA DE ACESSO -->
+    <div id="login-screen">
+        <h1 style="margin-bottom: 30px;"><i class="fas fa-utensils"></i> GarconnExpress</h1>
+        <div class="login-box animate">
+            <h2>Bem-vindo!</h2>
+            <p style="font-size: 14px; margin-bottom: 20px; color: #666;">Digite o código fornecido pelo garçom para ver o cardápio.</p>
+            <input type="text" id="codigo-acesso" maxlength="4" placeholder="••••">
+            <button class="btn-access" onclick="validarAcesso()">ENTRAR</button>
+        </div>
+        <p style="margin-top: 40px; font-size: 12px; opacity: 0.8;">© 2026 GarconnExpress - Sua experiência digital</p>
+    </div>
+
+    <!-- TELA DO CARDÁPIO -->
+    <div id="menu-screen">
+        <header>
+            <h2 id="header-nome">Nosso Cardápio</h2>
+            <div class="mesa-badge" id="mesa-label">Mesa: --</div>
+        </header>
+
+        <nav class="category-nav" id="category-nav">
+            <!-- Categorias carregadas via JS -->
+        </nav>
+
+        <div class="item-list" id="item-list">
+            <!-- Itens carregados via JS -->
+        </div>
+
+        <button class="fab" onclick="chamarGarcom()" title="Chamar Garçom">
+            <i class="fas fa-bell"></i>
+        </button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script>
+        let menuData = [];
+        let sessionMesa = null;
+        let pusher = null;
+
+        // Ao carregar, verifica se já tem acesso no LocalStorage (Válido por 6h conforme o JWT)
+        window.onload = () => {
+            const saved = localStorage.getItem('ge_client_session');
+            if (saved) {
+                const data = JSON.parse(saved);
+                sessionMesa = data;
+                abrirCardapio();
+            }
+
+            // Tenta pegar código via URL para facilitar via QR Code (ex: ?c=A5B2)
+            const params = new URLSearchParams(window.location.search);
+            const codeUrl = params.get('c');
+            if (codeUrl) {
+                document.getElementById('codigo-acesso').value = codeUrl;
+                validarAcesso();
+            }
+        };
+
+        async function configurarPusher() {
+            if (!sessionMesa) return;
+            try {
+                const configRes = await fetch('/api/pusher-config');
+                const config = await configRes.json();
+                
+                pusher = new Pusher(config.key, { cluster: config.cluster });
+                const channel = pusher.subscribe('garconnexpress');
+
+                // Escuta evento de deslogar específico para esta mesa
+                channel.bind(`deslogar-mesa-${sessionMesa.mesa_id}`, (data) => {
+                    Swal.fire({
+                        title: 'Acesso Encerrado',
+                        text: data.mensagem || 'Seu acesso a este cardápio foi encerrado.',
+                        icon: 'info',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        localStorage.removeItem('ge_client_session');
+                        location.reload();
+                    });
+                });
+
+                // Escuta atualizações de menu
+                channel.bind('menu-atualizado', () => carregarMenu());
+                
+            } catch (err) { console.error('Erro Pusher:', err); }
+        }
+
+        async function validarAcesso() {
+            const codigo = document.getElementById('codigo-acesso').value.toUpperCase();
+            if (codigo.length < 4) return Swal.fire('Ops!', 'Digite o código de 4 dígitos.', 'warning');
+
+            showLoading(true);
+            try {
+                const res = await fetch('/api/acesso/validar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    sessionMesa = data;
+                    localStorage.setItem('ge_client_session', JSON.stringify(data));
+                    abrirCardapio();
+                } else {
+                    Swal.fire('Acesso Negado', data.error || 'Código inválido.', 'error');
+                }
+            } catch (err) {
+                Swal.fire('Erro', 'Não foi possível conectar ao servidor.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function abrirCardapio() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('menu-screen').style.display = 'block';
+            document.getElementById('mesa-label').innerText = `Mesa: ${sessionMesa.mesa_numero}`;
+            
+            await carregarMenu();
+            configurarPusher();
+        }
+
+        async function carregarMenu() {
+            try {
+                const res = await fetch('/api/menu');
+                menuData = await res.json();
+                renderCategorias();
+                renderItens();
+            } catch (err) {
+                console.error('Erro ao carregar menu:', err);
+            }
+        }
+
+        function renderCategorias() {
+            const nav = document.getElementById('category-nav');
+            const categorias = [...new Set(menuData.map(i => i.categoria))];
+            
+            nav.innerHTML = `<button class="cat-btn active" onclick="filtrarCategoria('TODOS', this)">Todos</button>`;
+            categorias.forEach(cat => {
+                nav.innerHTML += `<button class="cat-btn" onclick="filtrarCategoria('${cat}', this)">${cat}</button>`;
+            });
+        }
+
+        function renderItens(filtro = 'TODOS') {
+            const list = document.getElementById('item-list');
+            list.innerHTML = '';
+
+            const itens = filtro === 'TODOS' ? menuData : menuData.filter(i => i.categoria === filtro);
+
+            if (itens.length === 0) {
+                list.innerHTML = '<div class="empty-msg">Nenhum item disponível nesta categoria no momento.</div>';
+                return;
+            }
+
+            itens.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'item-card animate';
+                
+                const imagem = item.imagem ? item.imagem : 'https://via.placeholder.com/120?text=Sem+Foto';
+                const esgotado = item.estoque === 0;
+
+                card.innerHTML = `
+                    <img src="${imagem}" class="item-img" style="${esgotado ? 'filter: grayscale(1); opacity: 0.5;' : ''}">
+                    <div class="item-info">
+                        <div>
+                            <div class="item-name">${item.nome}</div>
+                            ${esgotado ? '<div class="stock-out">ESGOTADO</div>' : ''}
+                        </div>
+                        <div class="item-price">R$ ${item.preco.toFixed(2).replace('.', ',')}</div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function filtrarCategoria(cat, btn) {
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderItens(cat);
+        }
+
+        async function chamarGarcom() {
+            const result = await Swal.fire({
+                title: 'Chamar Garçom?',
+                text: "Um garçom virá até sua mesa em instantes.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#ff4757',
+                confirmButtonText: 'Sim, chamar!',
+                cancelButtonText: 'Não, cancelar'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const res = await fetch('/api/cliente/chamar-garcom', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            mesa_id: sessionMesa.mesa_id,
+                            mesa_numero: sessionMesa.mesa_numero
+                        })
+                    });
+                    if (res.ok) {
+                        Swal.fire('Chamado enviado!', 'O garçom já foi notificado.', 'success');
+                    }
+                } catch (err) {
+                    Swal.fire('Erro', 'Falha ao enviar chamado.', 'error');
+                }
+            }
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'flex' : 'none';
+        }
+    </script>
+</body>
+</html>
