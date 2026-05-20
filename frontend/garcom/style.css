@@ -542,29 +542,51 @@ main {
 }
 
 /* --- ESTILOS DO NOVO CARRINHO --- */
-.btn-carrinho {
+.float-buttons {
   position: fixed;
   bottom: 30px;
   right: 30px;
-  width: 65px;
-  height: 65px;
-  background-color: #27ae60;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  z-index: 1000;
+  align-items: center;
+}
+
+.btn-float {
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 15px rgba(0,0,0,0.3);
   cursor: pointer;
-  z-index: 1000;
   transition: transform 0.2s ease;
 }
 
-.btn-carrinho:active {
+.btn-float:active {
   transform: scale(0.9);
 }
 
-.btn-carrinho .icon {
-  font-size: 30px;
+.btn-float .icon {
+  font-size: 28px;
+}
+
+.btn-mesas {
+  background-color: #3498db;
+  width: 50px;
+  height: 50px;
+}
+
+.btn-mesas .icon {
+  font-size: 22px;
+}
+
+.btn-carrinho {
+  background-color: #27ae60;
+  width: 65px;
+  height: 65px;
 }
 
 .btn-carrinho .badge {

@@ -53,10 +53,18 @@
       <div id="categorias"></div>
       <div id="menu-grid"></div>
       
-      <!-- Botão Flutuante do Carrinho -->
-      <div id="btn-carrinho" class="btn-carrinho" onclick="toggleCarrinho()">
-        <span class="icon">🛒</span>
-        <span id="carrinho-badge" class="badge">0</span>
+      <!-- Botões Flutuantes -->
+      <div class="float-buttons">
+        <!-- Botão Voltar para Mesas -->
+        <div id="btn-voltar-flutuante" class="btn-float btn-mesas" onclick="voltarParaMesas()">
+          <span class="icon">🪑</span>
+        </div>
+
+        <!-- Botão Flutuante do Carrinho -->
+        <div id="btn-carrinho" class="btn-float btn-carrinho" onclick="toggleCarrinho()">
+          <span class="icon">🛒</span>
+          <span id="carrinho-badge" class="badge">0</span>
+        </div>
       </div>
 
       <!-- Modal do Resumo do Pedido (Carrinho) -->

@@ -711,6 +711,20 @@ function toggleCarrinho() {
   }
 }
 
+function voltarParaMesas() {
+  if (pedidoAtual.length > 0) {
+    mostrarConfirmacao("Você tem itens no carrinho. Deseja realmente voltar e descartar este pedido?", "Aviso", "Sim, descartar", "Não, manter").then(confirm => {
+      if (confirm) {
+        document.getElementById('pedido').classList.add('hidden');
+        document.getElementById('mesas').classList.remove('hidden');
+      }
+    });
+  } else {
+    document.getElementById('pedido').classList.add('hidden');
+    document.getElementById('mesas').classList.remove('hidden');
+  }
+}
+
 async function finalizarEDesocupar() {
   if (!mesaAtual || !pedidoAbertoNaMesa) return;
 
