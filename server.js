@@ -859,6 +859,11 @@ app.delete('/api/pedidos/:id', async (req, res) => {
       if (pedido.status !== 'entregue' && pedido.status !== 'cancelado' && pedido.mesa_id) {
         await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [pedido.mesa_id]);
         await query("UPDATE codigos_acesso SET status = 'expirado' WHERE mesa_id = ? AND status = 'ativo'", [pedido.mesa_id]);
+
+        // Notifica o cliente para encerrar o acesso
+        await safePusherTrigger('garconnexpress', `deslogar-mesa-${pedido.mesa_id}`, { 
+          mensagem: "Este pedido foi removido pelo estabelecimento. Seu acesso foi encerrado." 
+        });
       }
       const mesaNum = pedido.numero || 'BALCÃO';
       await safePusherTrigger('garconnexpress', 'pedido-cancelado', { 
@@ -1167,6 +1172,12 @@ app.post('/api/pedidos/:id/pagamento-parcial', async (req, res) => {
       await query("UPDATE pedidos SET status = 'entregue', pago_parcial = pago_parcial + ?, total = 0 WHERE id = ?", [total, id]); 
       await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [mesa_id]);
       await query("UPDATE codigos_acesso SET status = 'expirado' WHERE mesa_id = ? AND status = 'ativo'", [mesa_id]);
+      
+      // Notifica o cliente para encerrar o acesso
+      await safePusherTrigger('garconnexpress', `deslogar-mesa-${mesa_id}`, { 
+        mensagem: "Sua conta foi finalizada. Obrigado pela preferência!" 
+      });
+
       await notifyStatus(null, mesa_id, 'liberada'); 
     } else { 
       // Atualiza o total do pedido original subtraindo o que foi pago
@@ -1253,6 +1264,11 @@ app.put('/api/pedidos/:id/status', async (req, res) => {
     if ((status === 'cancelado' || status === 'entregue') && pm && pm.mesa_id) {
         await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [pm.mesa_id]);
         await query("UPDATE codigos_acesso SET status = 'expirado' WHERE mesa_id = ? AND status = 'ativo'", [pm.mesa_id]);
+
+        // Notifica o cliente logado para encerrar o acesso
+        await safePusherTrigger('garconnexpress', `deslogar-mesa-${pm.mesa_id}`, { 
+          mensagem: status === 'entregue' ? "Sua conta foi finalizada. Obrigado pela preferência!" : "Este pedido foi cancelado pelo estabelecimento. Seu acesso foi encerrado." 
+        });
     }
     
     await notifyStatus(id, null, status);
@@ -1435,9 +1451,16 @@ app.post('/api/mesas', async (req, res) => {
 });
 app.put('/api/mesas/:id/liberar', async (req, res) => { 
   try { 
-    await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [req.params.id]); 
-    await query("UPDATE codigos_acesso SET status = 'expirado' WHERE mesa_id = ? AND status = 'ativo'", [req.params.id]);
-    await notifyStatus(null, req.params.id, 'liberada'); 
+    const mesaId = req.params.id;
+    await query("UPDATE mesas SET status = 'livre' WHERE id = ?", [mesaId]); 
+    await query("UPDATE codigos_acesso SET status = 'expirado' WHERE mesa_id = ? AND status = 'ativo'", [mesaId]);
+    
+    // Notifica o cliente para encerrar o acesso
+    await safePusherTrigger('garconnexpress', `deslogar-mesa-${mesaId}`, { 
+      mensagem: "Mesa liberada pelo estabelecimento. Seu acesso foi encerrado." 
+    });
+
+    await notifyStatus(null, mesaId, 'liberada'); 
     res.json({ success: true }); 
   } catch (error) { res.status(500).json({ error: error.message }); } 
 });
