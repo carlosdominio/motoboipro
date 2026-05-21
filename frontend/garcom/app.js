@@ -690,7 +690,7 @@ function abrirCardapioAdicionar() {
 function abrirCardapio() {
   const mesaTxt = document.getElementById('mesa-atual');
   if (mesaTxt) mesaTxt.textContent = pedidoAbertoNaMesa ? `${mesaAtual.numero} (+ itens)` : mesaAtual.numero;
-  
+
   // Resetar visual das categorias para "Todas"
   document.querySelectorAll('.categoria').forEach(c => {
     c.classList.toggle('ativa', c.dataset.categoria === 'todas');
@@ -698,7 +698,8 @@ function abrirCardapio() {
 
   document.getElementById('mesas').classList.add('hidden');
   document.getElementById('pedido').classList.remove('hidden');
-  
+  document.getElementById('btn-header-mesas').style.display = 'block';
+
   // Esconde o modal do carrinho caso esteja aberto
   const modalCarrinho = document.getElementById('modal-carrinho');
   if (modalCarrinho) modalCarrinho.style.display = 'none';
@@ -708,7 +709,6 @@ function abrirCardapio() {
   exibirResumoPedido();
   exibirMenu('todas');
 }
-
 function toggleCarrinho() {
   const modal = document.getElementById('modal-carrinho');
   if (!modal) return;
@@ -731,11 +731,13 @@ function voltarParaMesas() {
       if (confirm) {
         document.getElementById('pedido').classList.add('hidden');
         document.getElementById('mesas').classList.remove('hidden');
+        document.getElementById('btn-header-mesas').style.display = 'none';
       }
     });
   } else {
     document.getElementById('pedido').classList.add('hidden');
     document.getElementById('mesas').classList.remove('hidden');
+    document.getElementById('btn-header-mesas').style.display = 'none';
   }
 }
 
