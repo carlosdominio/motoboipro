@@ -308,6 +308,21 @@ main {
 
 .hidden { display: none; }
 
+.pedido-menu-sticky {
+  position: sticky;
+  top: 61px;
+  background: #f5f5f5;
+  z-index: 1050;
+  padding-top: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+@media (max-width: 480px) {
+  .pedido-menu-sticky {
+    top: 105px;
+  }
+}
+
 #categorias {
   display: block !important;
   white-space: nowrap !important;
@@ -318,16 +333,7 @@ main {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
   -webkit-overflow-scrolling: touch;
-  position: sticky;
-  top: 61px; /* Logo abaixo do header desktop */
   background: #f5f5f5;
-  z-index: 1050;
-  border-bottom: 1px solid #ddd;
-}
-@media (max-width: 480px) {
-  #categorias {
-    top: 105px; /* Ajuste para header mobile que é mais alto */
-  }
 }
 #categorias::-webkit-scrollbar { display: none !important; }
 
