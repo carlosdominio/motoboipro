@@ -269,7 +269,7 @@ async function initDb() {
     `CREATE TABLE IF NOT EXISTS pedidos (id SERIAL PRIMARY KEY, mesa_id INTEGER, garcom_id TEXT, status TEXT DEFAULT 'recebido', total REAL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, forma_pagamento TEXT, desconto REAL DEFAULT 0, acrescimo REAL DEFAULT 0, valor_recebido REAL DEFAULT 0, troco REAL DEFAULT 0, cobrar_taxa BOOLEAN DEFAULT TRUE, num_pessoas INTEGER DEFAULT 1, valor_por_pessoa REAL, observacao TEXT, pago_parcial REAL DEFAULT 0)`,
     `CREATE TABLE IF NOT EXISTS pedido_itens (id SERIAL PRIMARY KEY, pedido_id INTEGER, menu_id INTEGER, quantidade INTEGER, observacao TEXT, status TEXT DEFAULT 'pendente')`,
     `CREATE TABLE IF NOT EXISTS pagamentos (id SERIAL PRIMARY KEY, pedido_id INTEGER, valor REAL, forma_pagamento TEXT, recebido REAL, troco REAL, data TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
-    `CREATE TABLE IF NOT EXISTS garcons (id SERIAL PRIMARY KEY, nome TEXT NOT NULL, usuario TEXT UNIQUE NOT NULL, senha TEXT NOT NULL DEFAULT '123', telefone TEXT)`,
+    `CREATE TABLE IF NOT EXISTS garcons (id SERIAL PRIMARY KEY, nome TEXT NOT NULL, usuario TEXT UNIQUE NOT NULL, senha TEXT NOT NULL DEFAULT '123', telefone TEXT, comissao REAL DEFAULT 0)`,
     `CREATE TABLE IF NOT EXISTS usuarios_admin (id SERIAL PRIMARY KEY, usuario TEXT UNIQUE NOT NULL, senha TEXT NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS sistema_config (chave TEXT PRIMARY KEY, valor TEXT)`,
     `CREATE TABLE IF NOT EXISTS fluxo_caixa (id SERIAL PRIMARY KEY, data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP, data_fechamento TIMESTAMP, valor_inicial REAL NOT NULL, valor_final REAL, status TEXT DEFAULT 'aberto', total_dinheiro REAL DEFAULT 0, total_pix REAL DEFAULT 0, total_cartao REAL DEFAULT 0, total_vendas REAL DEFAULT 0)`,
@@ -331,6 +331,7 @@ async function initDb() {
     await addCol('garcons', 'telefone', 'TEXT');
     await addCol('pedidos', 'observacao', 'TEXT');
     await addCol('pedidos', 'pago_parcial', 'REAL DEFAULT 0');
+    await addCol('garcons', 'comissao', 'REAL DEFAULT 0');
     
     // Garante que a tabela pagamentos tenha as colunas necessárias
     await addCol('pagamentos', 'recebido', 'REAL DEFAULT 0');
@@ -1412,7 +1413,7 @@ app.put('/api/menu/categoria/:categoria', async (req, res) => {
 
 app.get('/api/garcons', ensureDbInitialized, async (req, res) => {
   try {
-    const result = await query('SELECT id, nome, usuario, telefone FROM garcons ORDER BY nome');
+    const result = await query('SELECT id, nome, usuario, telefone, comissao FROM garcons ORDER BY nome');
     res.json(result.rows);
   } catch (error) { 
     console.error('❌ ERRO NA ROTA /api/garcons:', error);
@@ -1421,20 +1422,20 @@ app.get('/api/garcons', ensureDbInitialized, async (req, res) => {
 });
 app.post('/api/garcons', async (req, res) => { 
   try {
-    const { nome, usuario, senha, telefone } = req.body; 
+    const { nome, usuario, senha, telefone, comissao } = req.body; 
     const hashed = await bcrypt.hash(senha || '123', saltRounds); 
-    await query('INSERT INTO garcons (nome, usuario, senha, telefone) VALUES (?, ?, ?, ?)', [nome, usuario, hashed, telefone]); 
+    await query('INSERT INTO garcons (nome, usuario, senha, telefone, comissao) VALUES (?, ?, ?, ?, ?)', [nome, usuario, hashed, telefone, comissao || 0]); 
     res.json({ success: true }); 
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 app.put('/api/garcons/:id', async (req, res) => {
   try {
-    const { nome, usuario, senha, telefone } = req.body;
+    const { nome, usuario, senha, telefone, comissao } = req.body;
     if (senha) {
       const hashed = await bcrypt.hash(senha, saltRounds);
-      await query('UPDATE garcons SET nome = ?, usuario = ?, senha = ?, telefone = ? WHERE id = ?', [nome, usuario, hashed, telefone, req.params.id]);
+      await query('UPDATE garcons SET nome = ?, usuario = ?, senha = ?, telefone = ?, comissao = ? WHERE id = ?', [nome, usuario, hashed, telefone, comissao || 0, req.params.id]);
     } else {
-      await query('UPDATE garcons SET nome = ?, usuario = ?, telefone = ? WHERE id = ?', [nome, usuario, telefone, req.params.id]);
+      await query('UPDATE garcons SET nome = ?, usuario = ?, telefone = ?, comissao = ? WHERE id = ?', [nome, usuario, telefone, comissao || 0, req.params.id]);
     }
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
