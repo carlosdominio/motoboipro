@@ -370,12 +370,11 @@ main {
 }
 
 #menu-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-.item-menu {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-top: 2.5rem;
+  }.item-menu {
     background-color: white;
     padding: 0;
     border-radius: 12px;
