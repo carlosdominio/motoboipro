@@ -124,7 +124,8 @@
         }
         .item-info { padding: 15px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
         .item-name { font-weight: 600; font-size: 1.0rem; margin-bottom: 5px; }
-        .item-price { color: var(--primary); font-weight: 600; font-size: 1.0rem; text-align: right; }
+        .item-price { color: var(--primary); font-weight: 600; font-size: 1.0rem; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+        .price-original { text-decoration: line-through; opacity: 0.5; font-size: 0.8rem; line-height: 1; margin-bottom: 2px; }
         .stock-out { color: #ff4757; font-size: 12px; font-weight: bold; margin-top: 5px; text-align: right; }
 
         .promo-badge {
@@ -458,15 +459,12 @@
                             <div class="item-name">${item.nome}</div>
                             ${esgotado ? '<div class="stock-out">ESGOTADO</div>' : ''}
                         </div>
-                        <div class="item-price">R$ ${item.preco.toFixed(2).replace('.', ',')}</div>
-                        
-                        <!-- Info de ESTOQUE abaixo do preço -->
-                        <div style="background: ${esgotado ? '#e74c3c' : '#3498db'} !important; color: white !important; padding: 2px 6px !important; border-radius: 4px !important; font-weight: bold !important; font-size: 0.9rem !important; display: flex !important; align-items: center !important; gap: 4px !important; width: fit-content !important; margin-top: 4px !important; align-self: flex-end !important;">
-                            ${temEstoque ? `<span>📦</span> ${item.estoque}` : '<span>♾️</span> Ilimitado'}
+                        <div class="item-price">
+                            ${item.preco_original ? `<span class="price-original">R$ ${item.preco_original.toFixed(2).replace('.', ',')}</span>` : ''}
+                            <span>R$ ${item.preco.toFixed(2).replace('.', ',')}</span>
                         </div>
-                    </div>
-                `;
-                list.appendChild(card);
+                        </div>
+                        `;                list.appendChild(card);
             });
         }
 

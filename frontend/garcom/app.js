@@ -904,8 +904,10 @@ async function exibirMenu(categoria) {
         <!-- Container de Info (TOPO DIREITO) -->
         <div style="position: absolute; top: 6px; right: 6px; z-index: 10; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
           <!-- Preço -->
-          <div style="background: #27ae60; color: white; padding: 4px 8px; border-radius: 6px; font-weight: 900; font-size: 1.0rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">R$ ${item.preco.toFixed(2)}</div>
-          
+          <div style="background: #27ae60; color: white; padding: 4px 8px; border-radius: 6px; font-weight: 900; font-size: 1.0rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: flex; flex-direction: column; align-items: flex-end;">
+            ${item.preco_original ? `<span style="text-decoration: line-through; opacity: 0.7; font-size: 0.7rem; line-height: 1;">R$ ${item.preco_original.toFixed(2)}</span>` : ''}
+            <span>R$ ${item.preco.toFixed(2)}</span>
+          </div>          
           <!-- Info de ESTOQUE -->
           <div style="background: ${esgotado ? '#e74c3c' : '#3498db'}; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
             ${temEstoqueDefinido ? `<span>📦</span> ${estoqueNum}` : '<span>♾️</span> Ilimitado'}

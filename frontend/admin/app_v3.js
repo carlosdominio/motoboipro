@@ -1272,14 +1272,15 @@ async function abrirModalItemMenu(item = null) {
     const btnExcluir = document.getElementById('btn-excluir-item-menu');
     if (btnExcluir) btnExcluir.classList.remove('hidden');
 
-    document.getElementById('menu-nome').value = item.nome;
-    document.getElementById('menu-preco').value = item.preco;
-    document.getElementById('menu-estoque').value = item.estoque;
-    document.getElementById('menu-validade').value = item.validade || '';
-    document.getElementById('menu-img').value = item.imagem;
-    document.getElementById('menu-enviar-cozinha').checked = (item.enviar_cozinha === true || item.enviar_cozinha === 1 || item.enviar_cozinha === null);
-    document.getElementById('menu-visivel').checked = (item.visivel === true || item.visivel === 1 || item.visivel === null || item.visivel === undefined);
-    document.getElementById('menu-promocao').checked = (item.em_promocao === true || item.em_promocao === 1);
+    if (document.getElementById('menu-nome')) document.getElementById('menu-nome').value = item.nome;
+    if (document.getElementById('menu-preco-original')) document.getElementById('menu-preco-original').value = item.preco_original || '';
+    if (document.getElementById('menu-preco')) document.getElementById('menu-preco').value = item.preco;
+    if (document.getElementById('menu-estoque')) document.getElementById('menu-estoque').value = item.estoque;
+    if (document.getElementById('menu-validade')) document.getElementById('menu-validade').value = item.validade || '';
+    if (document.getElementById('menu-img')) document.getElementById('menu-img').value = item.imagem;
+    if (document.getElementById('menu-enviar-cozinha')) document.getElementById('menu-enviar-cozinha').checked = (item.enviar_cozinha === true || item.enviar_cozinha === 1 || item.enviar_cozinha === null);
+    if (document.getElementById('menu-visivel')) document.getElementById('menu-visivel').checked = (item.visivel === true || item.visivel === 1 || item.visivel === null || item.visivel === undefined);
+    if (document.getElementById('menu-promocao')) document.getElementById('menu-promocao').checked = (item.em_promocao === true || item.em_promocao === 1);
 
     // Tenta selecionar no dropdown
     const catUpper = item.categoria.trim().toUpperCase();
@@ -1299,9 +1300,12 @@ async function abrirModalItemMenu(item = null) {
     const btnExcluir = document.getElementById('btn-excluir-item-menu');
     if (btnExcluir) btnExcluir.classList.add('hidden');
     
-    ['menu-nome', 'menu-preco', 'menu-img', 'menu-validade'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('menu-estoque').value = '-1';
-    selectCat.value = '';
+    ['menu-nome', 'menu-preco-original', 'menu-preco', 'menu-img', 'menu-validade'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    if (document.getElementById('menu-estoque')) document.getElementById('menu-estoque').value = '-1';
+    if (selectCat) selectCat.value = '';
   }
 
   modal.style.display = 'flex';
@@ -1348,6 +1352,7 @@ async function processarAcaoMenu() {
   }
 
   const preco = parseFloat(document.getElementById('menu-preco').value);
+  const preco_original = parseFloat(document.getElementById('menu-preco-original').value) || null;
   const estoque = parseInt(document.getElementById('menu-estoque').value);
   const validade = document.getElementById('menu-validade').value;
   const imagem = document.getElementById('menu-img').value || 'https://placehold.co/100';
@@ -1359,7 +1364,7 @@ async function processarAcaoMenu() {
     return await mostrarAlerta("Por favor, preencha o nome, categoria e preço corretamente.", "Aviso");
   }
 
-  const payload = { nome, categoria: categoria.toUpperCase(), preco, imagem, estoque, validade, enviar_cozinha, visivel, em_promocao };
+  const payload = { nome, categoria: categoria.toUpperCase(), preco, preco_original, imagem, estoque, validade, enviar_cozinha, visivel, em_promocao };
   const method = idItemEdicaoMenu ? 'PUT' : 'POST';
   const url = idItemEdicaoMenu ? `/api/menu/${idItemEdicaoMenu}` : '/api/menu';
 
@@ -1447,7 +1452,7 @@ async function exibirMenuConfig() {
               <img src="${m.imagem}" alt="${m.nome}" style="filter: ${(m.visivel === false || m.visivel === 0) ? 'grayscale(1) opacity(0.6)' : 'none'}">
               <div style="flex-grow: 1;">
                 <strong style="${(m.visivel === false || m.visivel === 0) ? 'color: #95a5a6;' : ''}">${m.nome}</strong><br>
-                <small>${m.categoria} - R$ ${m.preco.toFixed(2)}</small><br>
+                <small>${m.categoria} - ${m.preco_original ? `<span style="text-decoration: line-through; opacity: 0.6; font-size: 0.8rem;">R$ ${m.preco_original.toFixed(2)}</span> ` : ''}<span style="${m.em_promocao ? 'color: #e74c3c; font-weight: bold;' : ''}">R$ ${m.preco.toFixed(2)}</span></small><br>
                 <small style="color: ${m.estoque === 0 ? '#e74c3c' : '#27ae60'}; font-weight: bold;">
                   Estoque: ${m.estoque === -1 ? 'Ilimitado' : m.estoque}
                 </small><br>
