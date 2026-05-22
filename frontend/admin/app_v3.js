@@ -627,7 +627,7 @@ function exibirMenuLancar(categoria) {
     const temEstoqueDefinido = estoqueNum !== -1;
 
     return `
-    <div class="item-menu-mini" onclick="adicionarAoCarrinhoLancar(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${disponivelReal === 0 ? '0.6' : '1'}; min-height: 140px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <div class="item-menu-mini" onclick="adicionarAoCarrinhoLancar(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${disponivelReal === 0 ? '0.6' : '1'}; min-height: 125px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
       <!-- Container de Info (TOPO DIREITO) -->
       <div style="position: absolute; top: 6px; right: 6px; z-index: 10; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
         <!-- Preço -->
@@ -641,8 +641,8 @@ function exibirMenuLancar(categoria) {
 
       <img src="${item.imagem}" alt="${item.nome}" style="filter: ${disponivelReal === 0 ? 'grayscale(1)' : 'none'}; height: 80px !important; width: 100%; object-fit: cover; display: block; border-bottom: 1px solid #f0f0f0;">
 
-      <div style="padding: 6px 8px !important; display: flex; flex-direction: column; flex-grow: 1; justify-content: flex-start; gap: 2px;">
-        <h4 style="margin: 0 !important; font-size: 0.9rem !important; color: #2c3e50 !important; line-height: 1.1 !important; font-weight: 700 !important; min-height: 2.2rem !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: left;">${item.nome}</h4>
+      <div style="padding: 4px 8px !important; display: flex; flex-direction: column; flex-grow: 1; justify-content: flex-start;">
+        <h4 style="margin: 0 !important; font-size: 0.85rem !important; color: #2c3e50 !important; line-height: 1.1 !important; font-weight: 700 !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: left;">${item.nome}</h4>
       </div>
     </div>
     `}).join('');}
