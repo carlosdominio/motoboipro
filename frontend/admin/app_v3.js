@@ -4137,6 +4137,25 @@ function copiarPedido(btn, texto) {
   });
 }
 
+async function reimprimirCupomById(id) {
+  try {
+    const res = await fetch(`/api/pedidos/${id}`);
+    if (!res.ok) throw new Error("Erro ao buscar dados do pedido");
+    const pedido = await res.json();
+    
+    const resItens = await fetch(`/api/pedidos/${id}/itens`);
+    if (!resItens.ok) throw new Error("Erro ao buscar itens do pedido");
+    const itens = await resItens.json();
+    
+    // Chama a função principal de impressão com o pedido e seus itens
+    // Passamos como re-impressão (isFechamentoFinal=false para não calcular "pago agora" como saldo)
+    await imprimirCupom({ ...pedido, isReimpressao: true }, itens);
+  } catch (e) {
+    console.error("Erro ao re-imprimir cupom:", e);
+    mostrarAlerta("Não foi possível re-imprimir o cupom: " + e.message, "Erro");
+  }
+}
+
 async function imprimirCupom(pedido, itens) {
   const container = document.getElementById('cupom-impressao');
   if (!container) return;
