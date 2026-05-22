@@ -1089,14 +1089,20 @@ async function enviarPedido() {
        method = 'PUT';
     }
     
-    console.log(`🚀 ENVIANDO PEDIDO: Mesa ${mesa_id}, Garçom: ${garcomLogado?.usuario}`);
+    // Identificação do Garçom
+    let idGarcom = 'garcom-desconhecido';
+    if (garcomLogado) {
+      idGarcom = garcomLogado.usuario || garcomLogado.id || garcomLogado.nome || 'garcom-sem-id';
+    }
+    
+    console.log(`🚀 ENVIANDO PEDIDO: Mesa ${mesa_id}, Garçom: ${idGarcom}`, garcomLogado);
 
     const res = await fetch(url, {
       method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         mesa_id: mesa_id, 
-        garcom_id: (garcomLogado && garcomLogado.usuario) ? garcomLogado.usuario : 'garcom-desconhecido', 
+        garcom_id: idGarcom, 
         itens: pedidoAtual,
         observacao: window.pedidoObservacaoGeral || ''
       })
