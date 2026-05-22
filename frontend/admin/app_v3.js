@@ -1422,107 +1422,143 @@ function prepararEdicaoMenu(item) {
 
 async function exibirMenuConfig() {
   const container = document.getElementById('lista-menu-config');
+  const selectFiltroCat = document.getElementById('filtro-menu-categoria');
+  const inputBusca = document.getElementById('filtro-menu-busca');
+  
   if (!container) return;
 
-  const res = await fetch('/api/menu?admin=true');
-  if (!res.ok) return;
-  cardapio = await res.json(); // Atualiza variável global também, pois ela é usada na renderização
-  const hoje = new Date();
-  hoje.setHours(0,0,0,0);
-  let vencidosCount = 0;
-  let proxVencimentoCount = 0;
-
-  // Agrupar itens por categoria
-  const categorias = [...new Set(cardapio.map(item => item.categoria.trim().toUpperCase()))].sort();
-  
-  let htmlFinal = '';
-
-  categorias.forEach(cat => {
-    const itensDaCat = cardapio.filter(i => i.categoria.trim().toUpperCase() === cat);
+  try {
+    const res = await fetch('/api/menu?admin=true');
+    if (!res.ok) return;
+    cardapio = await res.json(); // Atualiza variável global
     
-    htmlFinal += `
-      <div class="categoria-config-section" style="width: 100%; grid-column: 1 / -1; margin-top: 2rem;">
-        <h2 style="background: #2c3e50; color: white; padding: 10px 20px; border-radius: 8px; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span>📂 ${cat}</span>
-            <button onclick="editarCategoria('${cat}')" style="background: #3498db; border: none; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 3px;">
-              ✏️ Editar
-            </button>
-            <small style="font-size: 0.8rem; opacity: 0.8;">${itensDaCat.length} itens</small>
-          </div>
-          <button onclick="excluirCategoria('${cat}')" style="background: #e74c3c; border: none; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 5px;" onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'">
-            🗑️ Excluir Categoria
-          </button>
-        </h2>
-        <div class="menu-config-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
-          ${itensDaCat.map(m => {
-            let validadeHtml = '';
-            let classeValidade = '';
-            
-            if (m.validade) {
-              const dataVal = new Date(m.validade);
-              dataVal.setHours(0,0,0,0);
-              const diffDias = Math.ceil((dataVal - hoje) / (1000 * 60 * 60 * 24));
-              const dataFormatada = dataVal.toLocaleDateString('pt-BR');
-              
-              if (diffDias < 0) {
-                classeValidade = 'vencido';
-                validadeHtml = `<span style="color:#e74c3c; font-weight:bold;">❌ VENCIDO EM ${dataFormatada}</span>`;
-                vencidosCount++;
-              } else if (diffDias <= 7) {
-                classeValidade = 'alerta-validade';
-                validadeHtml = `<span style="color:#f39c12; font-weight:bold;">⚠️ VENCE EM ${dataFormatada} (${diffDias} dias)</span>`;
-                proxVencimentoCount++;
-              } else {
-                validadeHtml = `Validade: ${dataFormatada}`;
-              }
-            }
-
-            const hasStatus = m.em_promocao || isItemParaCozinha(m) || (m.visivel === false || m.visivel === 0);
-            const statusHeader = hasStatus ? `
-              <div style="display: flex; width: 100%; height: 22px;">
-                ${m.em_promocao ? '<div style="flex: 1; background: #f1c40f; color: #2c3e50; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">🔥 PROMOÇÃO</div>' : ''}
-                ${isItemParaCozinha(m) ? '<div style="flex: 1; background: #3498db; color: white; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">👨‍🍳 COZINHA</div>' : ''}
-                ${(m.visivel === false || m.visivel === 0) ? '<div style="flex: 1; background: #e74c3c; color: white; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">🚫 OCULTO</div>' : ''}
-              </div>` : '';
-
-            return `
-            <div class="menu-item-config ${classeValidade}" id="item-menu-${m.id}" style="border-left: 5px solid ${classeValidade === 'vencido' ? '#e74c3c' : (classeValidade === 'alerta-validade' ? '#f39c12' : 'transparent')}; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: stretch; padding: 0;">
-              
-              <!-- Tarjas de Status (Topo) -->
-              ${statusHeader}
-
-              <div style="display: flex; gap: 1.2rem; align-items: center; padding: 1.2rem;">
-                <img src="${m.imagem}" alt="${m.nome}" style="filter: ${(m.visivel === false || m.visivel === 0) ? 'grayscale(1) opacity(0.6)' : 'none'}">
-                <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
-                  <strong style="${(m.visivel === false || m.visivel === 0) ? 'color: #95a5a6;' : ''}">${m.nome}</strong>
-                  <small>${m.categoria} - ${m.preco_original ? `<span style="text-decoration: line-through; opacity: 0.6; font-size: 0.8rem;">R$ ${m.preco_original.toFixed(2)}</span> ` : ''}<span style="${m.em_promocao ? 'color: #e74c3c; font-weight: bold;' : ''}">R$ ${m.preco.toFixed(2)}</span></small>
-                  <small style="color: ${m.estoque === 0 ? '#e74c3c' : '#27ae60'}; font-weight: bold;">
-                    Estoque: ${m.estoque === -1 ? 'Ilimitado' : m.estoque}
-                  </small>
-                  <small>${validadeHtml}</small>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:0.2rem">
-                  <button style="background:#3498db; padding:4px 8px; font-size:0.8rem" onclick="prepararEdicaoMenuById(${m.id})">✏️ Editar</button>
-                  <button class="btn-excluir" onclick="excluirDoMenu(${m.id})">Excluir</button>
-                </div>
-              </div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = htmlFinal || '<p style="text-align:center; padding: 2rem; opacity: 0.5;">Nenhum item cadastrado no cardápio.</p>';
-
-  if (vencidosCount > 0 || proxVencimentoCount > 0) {
-    const agora = Date.now();
-    // Debounce de 30 segundos para evitar que o alerta apareça várias vezes seguidas
-    if (agora - ultimoAlertaValidadeMostrado > 30000) {
-      mostrarToast(`🚨 ALERTA: ${vencidosCount} produtos vencidos e ${proxVencimentoCount} próximos da validade!`);
-      ultimoAlertaValidadeMostrado = agora;
+    // 1. POPULA O SELECT DE CATEGORIAS (Se estiver apenas com a opção padrão)
+    if (selectFiltroCat && selectFiltroCat.options.length <= 1) {
+      const categoriasUnicas = [...new Set(cardapio.map(item => item.categoria.trim().toUpperCase()))].sort();
+      categoriasUnicas.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.innerText = cat;
+        selectFiltroCat.appendChild(opt);
+      });
     }
+
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    let vencidosCount = 0;
+    let proxVencimentoCount = 0;
+
+    // 2. APLICA OS FILTROS (BUSCA E CATEGORIA)
+    const termoBusca = inputBusca ? inputBusca.value.toLowerCase().trim() : '';
+    const catSelecionada = selectFiltroCat ? selectFiltroCat.value.toUpperCase() : '';
+
+    const cardapioFiltrado = cardapio.filter(m => {
+      const matchBusca = m.nome.toLowerCase().includes(termoBusca) || (m.descricao && m.descricao.toLowerCase().includes(termoBusca));
+      const matchCat = catSelecionada === '' || m.categoria.trim().toUpperCase() === catSelecionada;
+      return matchBusca && matchCat;
+    });
+
+    if (cardapioFiltrado.length === 0) {
+      container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 4rem; opacity: 0.5;">
+        <p style="font-size: 1.5rem;">🔍 Nenhum item encontrado.</p>
+        <p>Tente mudar o filtro de categoria ou a busca.</p>
+      </div>`;
+      return;
+    }
+
+    // 3. AGRUPAR ITENS FILTRADOS POR CATEGORIA PARA RENDERIZAÇÃO
+    const categoriasNoFiltro = [...new Set(cardapioFiltrado.map(item => item.categoria.trim().toUpperCase()))].sort();
+    
+    let htmlFinal = '';
+
+    categoriasNoFiltro.forEach(cat => {
+      const itensDaCat = cardapioFiltrado.filter(i => i.categoria.trim().toUpperCase() === cat);
+      
+      htmlFinal += `
+        <div class="categoria-config-section" style="width: 100%; grid-column: 1 / -1; margin-top: 2rem;">
+          <h2 style="background: #2c3e50; color: white; padding: 10px 20px; border-radius: 8px; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span>📂 ${cat}</span>
+              <button onclick="editarCategoria('${cat}')" style="background: #3498db; border: none; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 3px;">
+                ✏️ Editar
+              </button>
+              <small style="font-size: 0.8rem; opacity: 0.8;">${itensDaCat.length} itens</small>
+            </div>
+            <button onclick="excluirCategoria('${cat}')" style="background: #e74c3c; border: none; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 5px;" onmouseover="this.style.background='#c0392b'" onmouseout="this.style.background='#e74c3c'">
+              🗑️ Excluir Categoria
+            </button>
+          </h2>
+          <div class="menu-config-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            ${itensDaCat.map(m => {
+              let validadeHtml = '';
+              let classeValidade = '';
+              
+              if (m.validade) {
+                const dataVal = new Date(m.validade);
+                dataVal.setHours(0,0,0,0);
+                const diffDias = Math.ceil((dataVal - hoje) / (1000 * 60 * 60 * 24));
+                const dataFormatada = dataVal.toLocaleDateString('pt-BR');
+                
+                if (diffDias < 0) {
+                  classeValidade = 'vencido';
+                  validadeHtml = `<span style="color:#e74c3c; font-weight:bold;">❌ VENCIDO EM ${dataFormatada}</span>`;
+                  vencidosCount++;
+                } else if (diffDias <= 7) {
+                  classeValidade = 'alerta-validade';
+                  validadeHtml = `<span style="color:#f39c12; font-weight:bold;">⚠️ VENCE EM ${dataFormatada} (${diffDias} dias)</span>`;
+                  proxVencimentoCount++;
+                } else {
+                  validadeHtml = `Validade: ${dataFormatada}`;
+                }
+              }
+
+              const hasStatus = m.em_promocao || isItemParaCozinha(m) || (m.visivel === false || m.visivel === 0);
+              const statusHeader = hasStatus ? `
+                <div style="display: flex; width: 100%; height: 22px;">
+                  ${m.em_promocao ? '<div style="flex: 1; background: #f1c40f; color: #2c3e50; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">🔥 PROMOÇÃO</div>' : ''}
+                  ${isItemParaCozinha(m) ? '<div style="flex: 1; background: #3498db; color: white; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">👨‍🍳 COZINHA</div>' : ''}
+                  ${(m.visivel === false || m.visivel === 0) ? '<div style="flex: 1; background: #e74c3c; color: white; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">🚫 OCULTO</div>' : ''}
+                </div>` : '';
+
+              return `
+              <div class="menu-item-config ${classeValidade}" id="item-menu-${m.id}" style="border-left: 5px solid ${classeValidade === 'vencido' ? '#e74c3c' : (classeValidade === 'alerta-validade' ? '#f39c12' : 'transparent')}; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: stretch; padding: 0;">
+                
+                <!-- Tarjas de Status (Topo) -->
+                ${statusHeader}
+
+                <div style="display: flex; gap: 1.2rem; align-items: center; padding: 1.2rem;">
+                  <img src="${m.imagem}" alt="${m.nome}" style="filter: ${(m.visivel === false || m.visivel === 0) ? 'grayscale(1) opacity(0.6)' : 'none'}">
+                  <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+                    <strong style="${(m.visivel === false || m.visivel === 0) ? 'color: #95a5a6;' : ''}">${m.nome}</strong>
+                    <small>${m.categoria} - ${m.preco_original ? `<span style="text-decoration: line-through; opacity: 0.6; font-size: 0.8rem;">R$ ${m.preco_original.toFixed(2)}</span> ` : ''}<span style="${m.em_promocao ? 'color: #e74c3c; font-weight: bold;' : ''}">R$ ${m.preco.toFixed(2)}</span></small>
+                    <small style="color: ${m.estoque === 0 ? '#e74c3c' : '#27ae60'}; font-weight: bold;">
+                      Estoque: ${m.estoque === -1 ? 'Ilimitado' : m.estoque}
+                    </small>
+                    <small>${validadeHtml}</small>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:0.2rem">
+                    <button style="background:#3498db; padding:4px 8px; font-size:0.8rem" onclick="prepararEdicaoMenuById(${m.id})">✏️ Editar</button>
+                    <button class="btn-excluir" onclick="excluirDoMenu(${m.id})">Excluir</button>
+                  </div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = htmlFinal || '<p style="text-align:center; padding: 2rem; opacity: 0.5;">Nenhum item cadastrado no cardápio.</p>';
+
+    if (vencidosCount > 0 || proxVencimentoCount > 0) {
+      const agora_ms = Date.now();
+      if (agora_ms - ultimoAlertaValidadeMostrado > 30000) {
+        mostrarToast(`🚨 ALERTA: ${vencidosCount} produtos vencidos e ${proxVencimentoCount} próximos da validade!`);
+        ultimoAlertaValidadeMostrado = agora_ms;
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao carregar cardápio admin:", e);
   }
 }
 

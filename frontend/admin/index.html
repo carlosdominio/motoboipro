@@ -455,9 +455,25 @@
 
         <!-- Gerenciamento de Cardápio -->
         <div class="config-card config-card-full">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 2px solid #3498db; padding-bottom: 0.5rem;">
-            <h3 style="margin:0; border:none;">Gerenciar Cardápio</h3>
-            <button onclick="abrirModalItemMenu()" style="background: #27ae60; padding: 10px 20px; border-radius: 10px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #3498db; padding-bottom: 1rem; gap: 15px;">
+            <div style="display: flex; align-items: center; gap: 15px; flex: 1; min-width: 300px;">
+              <h3 style="margin:0; border:none; white-space: nowrap;">Gerenciar Cardápio</h3>
+              
+              <!-- FILTROS DO CARDÁPIO -->
+              <div style="display: flex; gap: 10px; flex: 1;">
+                <div style="flex: 1; position: relative;">
+                  <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
+                  <input type="text" id="filtro-menu-busca" oninput="exibirMenuConfig()" placeholder="Buscar por nome..." 
+                         style="width: 100%; padding: 8px 10px 8px 32px; border-radius: 8px; border: 1px solid #cbd5e0; font-size: 0.9rem; outline: none;">
+                </div>
+                <select id="filtro-menu-categoria" onchange="exibirMenuConfig()" 
+                        style="padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e0; font-weight: bold; background: white; cursor: pointer; min-width: 150px;">
+                  <option value="">📂 Todas as Categorias</option>
+                </select>
+              </div>
+            </div>
+            
+            <button onclick="abrirModalItemMenu()" style="background: #27ae60; padding: 10px 20px; border-radius: 10px; font-weight: bold; display: flex; align-items: center; gap: 8px; white-space: nowrap;">
               ➕ ADICIONAR NOVO ITEM
             </button>
           </div>
