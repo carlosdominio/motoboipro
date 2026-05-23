@@ -1688,37 +1688,56 @@ app.post('/api/cliente/meus-pedidos', async (req, res) => {
     const acesso = (await query("SELECT id, status, criado_at FROM codigos_acesso WHERE id = ?", [acessoId])).rows[0];
     if (!acesso) return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
 
-    // 3. Busca o pedido vinculado à SESSÃO do cliente
-    // Se não tiver pedido_id no token (mesa nova), tenta buscar o pedido desta sessão
-    let pedido;
-    if (pedidoIdSessao) {
-      pedido = (await query("SELECT id, total, status, cobrar_taxa, desconto, acrescimo, solicitou_fechamento, fechamento_liberado FROM pedidos WHERE id = ?", [pedidoIdSessao])).rows[0];
-    } else {
-      // Isolamento: Só buscamos pedidos criados APÓS a geração deste código de acesso
-      // Usamos DATETIME() para garantir que a comparação funcione mesmo com formatos diferentes (ISO vs SQLite default)
-      if (acesso.status === 'ativo') {
-        pedido = (await query("SELECT id, total, status, cobrar_taxa, desconto, acrescimo, solicitou_fechamento, fechamento_liberado FROM pedidos WHERE mesa_id = ? AND DATETIME(created_at) >= DATETIME(?) AND status NOT IN ('entregue', 'cancelado') ORDER BY id DESC LIMIT 1", [mesaId, acesso.criado_at])).rows[0];
-      } else {
-        // Se a sessão expirou (mesa fechada), permitimos ver o último pedido daquela sessão para a nota
-        pedido = (await query("SELECT id, total, status, cobrar_taxa, desconto, acrescimo, solicitou_fechamento, fechamento_liberado FROM pedidos WHERE mesa_id = ? AND DATETIME(created_at) >= DATETIME(?) ORDER BY id DESC LIMIT 1", [mesaId, acesso.criado_at])).rows[0];
-      }
-    }    
-    if (!pedido) {
+    // 3. Busca todos os pedidos vinculados a esta sessão (Isolamento de Sessão)
+    // Buscamos todos os pedidos criados APÓS a geração do código de acesso.
+    const pedidosSessao = (await query(`
+      SELECT id, total, status, cobrar_taxa, desconto, acrescimo, solicitou_fechamento, fechamento_liberado 
+      FROM pedidos 
+      WHERE mesa_id = ? 
+      AND STRFTIME('%Y-%m-%d %H:%M:%S', created_at) >= STRFTIME('%Y-%m-%d %H:%M:%S', ?)
+      AND status != 'cancelado'
+      ORDER BY id ASC
+    `, [mesaId, acesso.criado_at])).rows;
+
+    if (pedidosSessao.length === 0) {
       return res.json({ success: true, pedido: null, itens: [] });
     }
 
-    // 4. Busca os itens desse pedido (Pegando o preço do menu caso não tenha no item)
+    // 4. Busca todos os itens de todos os pedidos da sessão
+    const pedidoIds = pedidosSessao.map(p => p.id);
+    const placeholders = pedidoIds.map(() => '?').join(',');
     const itens = (await query(`
       SELECT pi.*, m.nome as menu_nome, m.imagem as menu_imagem, m.preco as menu_preco
       FROM pedido_itens pi
       JOIN menu m ON pi.menu_id = m.id
-      WHERE pi.pedido_id = ?
+      WHERE pi.pedido_id IN (${placeholders})
+      AND pi.status != 'cancelado'
       ORDER BY pi.id DESC
-    `, [pedido.id])).rows;
+    `, pedidoIds)).rows;
+
+    // 5. Consolida os dados e calcula o total real
+    // Usamos o último pedido da lista para as flags de status (fechamento, etc)
+    const ultimoPedido = pedidosSessao[pedidosSessao.length - 1];
+    
+    let totalReal = 0;
+    itens.forEach(i => {
+      const preco = i.preco || i.menu_preco || 0;
+      totalReal += (i.quantidade * preco);
+    });
+
+    // Aplica taxa de serviço (baseada na preferência do último pedido ou se algum deles cobrar)
+    const cobrarTaxa = pedidosSessao.some(p => p.cobrar_taxa === 1 || p.cobrar_taxa === true);
+    if (cobrarTaxa) totalReal = Math.round(totalReal * 1.10 * 100) / 100;
+
+    const pedidoConsolidado = {
+      ...ultimoPedido,
+      total: totalReal,
+      cobrar_taxa: cobrarTaxa
+    };
 
     res.json({
       success: true,
-      pedido,
+      pedido: pedidoConsolidado,
       itens
     });
 
