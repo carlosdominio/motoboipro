@@ -201,11 +201,6 @@
                 pusher = new Pusher(c.key, { cluster: c.cluster }); const ch = pusher.subscribe('garconnexpress');
                 ch.bind('status-caixa-atualizado', (d) => { if(d.status === 'fechado') location.reload(); });
                 ch.bind('status-atualizado', (d) => { if (sessionMesa && d.mesa_id == sessionMesa.mesa_id) carregarMeusPedidos(); });
-                ch.bind('pedido-cancelado', (d) => {
-                    if (sessionMesa && (d.id == sessionMesa.pedido_id || d.mesa_numero == sessionMesa.mesa_numero)) {
-                        Swal.fire({ title: 'Sessão Encerrada', text: 'Pedido cancelado.', icon: 'error' }).then(() => { localStorage.removeItem('sessionMesa'); location.reload(); });
-                    }
-                });
                 adicionarOuvintesMesa();
             });
         }
@@ -213,27 +208,34 @@
             if (!pusher || !sessionMesa) return; const ch = pusher.channel('garconnexpress') || pusher.subscribe('garconnexpress');
             ch.bind(`fechamento-liberado-mesa-${sessionMesa.mesa_id}`, () => { Swal.fire({ title: 'Conta Liberada!', icon: 'success' }).then(() => carregarMeusPedidos()); });
             ch.bind(`deslogar-mesa-${sessionMesa.mesa_id}`, (d) => {
-                if (isClosingSession) return; isClosingSession = true;
+                if (isClosingSession) return; 
+                isClosingSession = true;
+                
+                const isCancelado = d.status === 'cancelado';
                 Swal.fire({
-                    title: 'Mesa Finalizada',
-                    text: 'Deseja baixar seu comprovante final?',
-                    icon: 'success',
-                    showCancelButton: true,
-                    confirmButtonText: 'BAIXAR NOTA (PDF)',
+                    title: isCancelado ? 'Sessão Encerrada' : 'Mesa Finalizada',
+                    text: d.mensagem || (isCancelado ? 'Seu acesso foi cancelado pelo estabelecimento.' : 'Deseja baixar seu comprovante final?'),
+                    icon: isCancelado ? 'warning' : 'success',
+                    showCancelButton: !isCancelado,
+                    confirmButtonText: isCancelado ? 'OK, ENTENDI' : 'BAIXAR NOTA (PDF)',
                     cancelButtonText: 'SAIR AGORA',
-                    confirmButtonColor: '#27ae60',
+                    confirmButtonColor: isCancelado ? '#ff4757' : '#27ae60',
                     allowOutsideClick: false,
-                    timer: 60000
+                    allowEscapeKey: false,
+                    timer: 60000, // 60 segundos de tempo
+                    timerProgressBar: true
                 }).then((result) => {
-                    if (result.isConfirmed) {
-                        gerarPDFNota(true).then(() => { 
-                            // Delay maior para garantir que o navegador termine de escrever o arquivo no disco
+                    if (!isCancelado && result.isConfirmed) {
+                        gerarPDFNota(true).then(() => {
                             setTimeout(() => {
-                                localStorage.removeItem('sessionMesa'); 
-                                location.reload(); 
-                            }, 2000);
+                                localStorage.removeItem('sessionMesa');
+                                location.reload();
+                            }, 2500);
                         });
-                    } else { localStorage.removeItem('sessionMesa'); location.reload(); }
+                    } else { 
+                        localStorage.removeItem('sessionMesa');
+                        location.reload();
+                    }
                 });
             });
         }

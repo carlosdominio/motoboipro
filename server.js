@@ -911,6 +911,7 @@ app.delete('/api/pedidos/itens/:id', async (req, res) => {
         
         // Notifica o cliente para encerrar o acesso
         await safePusherTrigger('garconnexpress', `deslogar-mesa-${pedido.mesa_id}`, { 
+          status: 'cancelado',
           mensagem: "Seu pedido foi cancelado e a mesa liberada. O acesso foi encerrado." 
         });
       }
@@ -949,6 +950,7 @@ app.delete('/api/pedidos/:id', async (req, res) => {
 
         // Notifica o cliente para encerrar o acesso
         await safePusherTrigger('garconnexpress', `deslogar-mesa-${pedido.mesa_id}`, { 
+          status: 'cancelado',
           mensagem: "Este pedido foi removido pelo estabelecimento. Seu acesso foi encerrado." 
         });
       }
@@ -1626,6 +1628,7 @@ app.put('/api/mesas/:id/liberar', async (req, res) => {
     
     // Notifica o cliente para encerrar o acesso
     await safePusherTrigger('garconnexpress', `deslogar-mesa-${mesaId}`, { 
+      status: 'cancelado',
       mensagem: "Mesa liberada pelo estabelecimento. Seu acesso foi encerrado." 
     });
 
@@ -1861,6 +1864,7 @@ app.post('/api/acesso/cancelar', isAuthenticated, async (req, res) => {
 
     // 3. Notifica o cliente para deslogar (via Pusher)
     await safePusherTrigger('garconnexpress', `deslogar-mesa-${mesa_id}`, { 
+      status: 'cancelado',
       mensagem: "Este acesso foi cancelado pelo garçom." 
     });
 
