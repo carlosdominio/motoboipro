@@ -10,699 +10,211 @@
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        :root {
-            --primary: #ff4757;
-            --primary-dark: #e84118;
-            --bg: #f1f2f6;
-            --card-bg: #ffffff;
-            --text: #2f3542;
-            --text-light: #747d8c;
-            --shadow: 0 4px 12px rgba(0,0,0,0.08);
-            --radius: 16px;
-        }
-
+        :root { --primary: #ff4757; --primary-dark: #e84118; --bg: #f1f2f6; --card-bg: #ffffff; --text: #2f3542; --text-light: #747d8c; --shadow: 0 4px 12px rgba(0,0,0,0.08); --radius: 16px; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: var(--bg); color: var(--text); padding-bottom: 100px; }
         body.login-active, body.modal-open { overflow: hidden; height: 100vh; overscroll-behavior: none; }
-
-        /* HEADER & CATEGORIES */
-        #sticky-header-group {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: var(--bg); 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
-
-        header {
-            background: var(--card-bg);
-            padding: 25px 20px;
-            text-align: center;
-            border-bottom: 1px solid #eee;
-        }
-
-        header h1 { font-size: 1rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
+        #sticky-header-group { position: sticky; top: 0; z-index: 100; background: var(--bg); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        header { background: var(--card-bg); padding: 25px 20px; text-align: center; border-bottom: 1px solid #eee; }
+        header h1 { font-size: 1rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 2px; }
         header p { font-size: 2.2rem; color: var(--primary); font-weight: 900; }
-
-        .categories {
-            display: flex;
-            overflow-x: auto;
-            padding: 15px 20px;
-            gap: 12px;
-            background: var(--bg);
-            scrollbar-width: none;
-        }
+        .categories { display: flex; overflow-x: auto; padding: 15px 20px; gap: 12px; background: var(--bg); scrollbar-width: none; }
         .categories::-webkit-scrollbar { display: none; }
-        .category-pill {
-            background: var(--card-bg);
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 0.9rem;
-            white-space: nowrap;
-            box-shadow: var(--shadow);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-            font-weight: 600;
-            color: var(--text-light);
-        }
-        .category-pill.active {
-            background: var(--primary);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(255, 71, 87, 0.3);
-        }
-
+        .category-pill { background: var(--card-bg); padding: 10px 20px; border-radius: 25px; font-size: 0.9rem; white-space: nowrap; box-shadow: var(--shadow); cursor: pointer; font-weight: 600; color: var(--text-light); border: 2px solid transparent; }
+        .category-pill.active { background: var(--primary); color: white; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 71, 87, 0.3); }
         .container { padding: 20px; max-width: 600px; margin: 0 auto; }
         .section-title { margin: 25px 0 15px; font-size: 1.4rem; color: var(--text); font-weight: 800; border-left: 5px solid var(--primary); padding-left: 12px; }
-
-        /* MENU ITEMS */
-        .menu-item {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 18px;
-            margin-bottom: 20px;
-            display: flex;
-            gap: 15px;
-            box-shadow: var(--shadow);
-            transition: transform 0.2s;
-        }
-        .menu-item:active { transform: scale(0.98); }
-
-        .item-img {
-            width: 90px;
-            height: 90px;
-            background: #f8f9fa;
-            border-radius: 14px;
-            object-fit: cover;
-        }
-        .item-placeholder {
-            width: 90px;
-            height: 90px;
-            background: #f1f2f6;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ccc;
-            font-size: 2rem;
-            font-weight: bold;
-        }
-
+        .menu-item { background: var(--card-bg); border-radius: var(--radius); padding: 18px; margin-bottom: 20px; display: flex; gap: 15px; box-shadow: var(--shadow); }
+        .item-img { width: 90px; height: 90px; background: #f8f9fa; border-radius: 14px; object-fit: cover; }
+        .item-placeholder { width: 90px; height: 90px; background: #f1f2f6; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 2rem; font-weight: bold; }
         .item-info { flex: 1; }
-        .item-info h3 { font-size: 1.15rem; margin-bottom: 6px; color: var(--text); }
-        .item-info .desc { font-size: 0.85rem; color: var(--text-light); line-height: 1.4; margin-bottom: 12px; }
-        .item-info .price { font-weight: 800; color: var(--primary); font-size: 1.2rem; }
-
+        .item-info h3 { font-size: 1.15rem; margin-bottom: 6px; }
+        .item-info .desc { font-size: 0.85rem; color: var(--text-light); line-height: 1.4; }
+        .item-info .price { font-weight: 800; color: var(--primary); font-size: 1.2rem; margin-top: 8px; }
         .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
-        .btn-qty {
-            width: 32px;
-            height: 32px;
-            border-radius: 10px;
-            border: none;
-            background: #f1f2f6;
-            color: var(--text);
-            font-size: 1.2rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
+        .btn-qty { width: 32px; height: 32px; border-radius: 10px; border: none; background: #f1f2f6; cursor: pointer; font-weight: bold; font-size: 1.2rem; }
         .qty { font-weight: 800; font-size: 1.1rem; width: 25px; text-align: center; }
-        .btn-add-initial {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(255, 71, 87, 0.2);
-        }
-
-        /* ACTIONS BARS */
-        .cart-bar {
-            position: fixed;
-            bottom: 85px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: calc(100% - 40px);
-            max-width: 500px;
-            background: #2f3542;
-            color: white;
-            padding: 18px 25px;
-            border-radius: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            z-index: 200;
-            cursor: pointer;
-            display: none;
-            animation: slideUp 0.4s ease;
-        }
-        @keyframes slideUp { from { bottom: 50px; opacity: 0; } to { bottom: 85px; opacity: 1; } }
-
-        .actions-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: white;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-around;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
-            z-index: 150;
-        }
-        .action-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-            color: var(--text-light);
-            font-size: 0.8rem;
-            cursor: pointer;
-            background: none;
-            border: none;
-            transition: 0.3s;
-            font-weight: 600;
-        }
+        .btn-add-initial { background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        .cart-bar { position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%); width: calc(100% - 40px); max-width: 500px; background: #2f3542; color: white; padding: 18px 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 200; cursor: pointer; display: none; }
+        .actions-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 12px 20px; display: flex; justify-content: space-around; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 150; }
+        .action-item { display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--text-light); font-size: 0.8rem; cursor: pointer; background: none; border: none; font-weight: 600; }
         .action-item.active { color: var(--primary); }
         .action-item i { font-size: 1.4rem; }
-
-        /* MODALS */
-        .modal-cart {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            display: none;
-            z-index: 1000;
-            justify-content: flex-end;
-            flex-direction: column;
-        }
-        .modal-content {
-            background: white;
-            border-radius: 30px 30px 0 0;
-            padding: 30px 25px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
+        .modal-cart { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; z-index: 1000; justify-content: flex-end; flex-direction: column; }
+        .modal-content { background: white; border-radius: 30px 30px 0 0; padding: 30px 25px; max-height: 90vh; overflow-y: auto; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .modal-header h2 { font-size: 1.5rem; font-weight: 800; }
-        .close-modal { font-size: 1.8rem; color: #ccc; cursor: pointer; }
-
-        .cart-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 0;
-            border-bottom: 1px solid #f1f2f6;
-        }
-        .cart-item-info h4 { font-size: 1.05rem; margin-bottom: 4px; }
-        .cart-item-info p { font-size: 0.9rem; color: var(--text-light); }
-
-        .cart-footer { margin-top: 25px; }
-        .cart-total { display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 900; margin-bottom: 25px; }
-        .btn-send {
-            width: 100%;
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 18px;
-            border-radius: 20px;
-            font-size: 1.1rem;
-            font-weight: 800;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            box-shadow: 0 8px 20px rgba(255, 71, 87, 0.3);
-        }
-
-        /* SCREENS: LOGIN & CLOSED */
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #f1f2f6; }
+        .btn-send { width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 20px; font-size: 1.1rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; }
         #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 20px; }
         .spinner { width: 50px; height: 50px; border: 6px solid #f3f3f3; border-top: 6px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        #login-screen, #closed-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100vh; height: 100dvh;
-            background: white;
-            z-index: 2000;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 30px;
-            text-align: center;
-            overflow: hidden;
-        }
-
-        .login-box { width: 100%; max-width: 400px; }
-        .login-logo { width: 100px; margin-bottom: 30px; }
-        .login-input {
-            width: 100%;
-            text-align: center;
-            font-size: 2.2rem;
-            padding: 20px;
-            border: 3px solid #f1f2f6;
-            border-radius: 20px;
-            margin-bottom: 30px;
-            font-weight: 900;
-            letter-spacing: 8px;
-            text-transform: uppercase;
-            color: var(--primary);
-            outline: none;
-        }
-        .login-input:focus { border-color: var(--primary); background: #fffafa; }
-
-        /* UTILS */
+        #login-screen, #closed-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: white; z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; overflow: hidden; }
+        .login-input { width: 100%; text-align: center; font-size: 2.2rem; padding: 20px; border: 3px solid #f1f2f6; border-radius: 20px; margin-bottom: 30px; font-weight: 900; letter-spacing: 8px; text-transform: uppercase; color: var(--primary); outline: none; }
         .status-badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 12px; background: #eee; color: #777; font-weight: 700; text-transform: uppercase; }
     </style>
 </head>
 <body>
-
     <div id="loading"><div class="spinner"></div><p style="font-weight: 700; color: #999;">CARREGANDO...</p></div>
-
-    <!-- TELA: ESTABELECIMENTO FECHADO -->
     <div id="closed-screen">
         <div style="background: #f8f9fa; padding: 60px 40px; border-radius: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); max-width: 450px;">
-            <div style="font-size: 6rem; margin-bottom: 20px;">🚩</div>
+            <div style="font-size: 5rem;">🚩</div>
             <h1 style="font-weight: 900; font-size: 2.2rem; margin-bottom: 15px;">Estamos Fechados</h1>
-            <p style="color: var(--text-light); font-size: 1.1rem; line-height: 1.6;">O caixa está encerrado no momento. <br><b>Aguardamos você em breve!</b></p>
+            <p style="color: var(--text-light); font-size: 1.1rem; line-height: 1.6;">O caixa está encerrado. Volte em breve!</p>
         </div>
     </div>
-
-    <!-- TELA: LOGIN -->
     <div id="login-screen">
-        <div class="login-box">
-            <img src="../favicon.svg" class="login-logo">
-            <h1 style="font-weight: 900; color: var(--text); margin-bottom: 10px;">Olá!</h1>
-            <p style="color: var(--text-light); margin-bottom: 40px;">Informe o código da mesa para começar.</p>
+        <div style="width: 100%; max-width: 400px;">
+            <img src="../favicon.svg" style="width: 100px; margin-bottom: 30px;">
+            <h1 style="font-weight: 900; margin-bottom: 10px;">Olá!</h1>
+            <p style="color: var(--text-light); margin-bottom: 40px;">Informe o código da sua mesa.</p>
             <input type="text" maxlength="4" id="access-code" class="login-input" placeholder="0000">
             <button onclick="validarAcesso()" id="btn-login" class="btn-send">ACESSAR CARDÁPIO</button>
-            <p style="margin-top: 30px; font-size: 0.8rem; color: #ddd; font-weight: bold;">GARCONN EXPRESS v2.5</p>
         </div>
     </div>
-
-    <!-- CONTEÚDO PRINCIPAL -->
     <div id="main-content" style="display: none;">
-        <div id="sticky-header-group">
-            <header>
-                <h1>GarconnExpress</h1>
-                <p id="mesa-label">Mesa --</p>
-            </header>
-            <div class="categories" id="categories-container"></div>
-        </div>
-
+        <div id="sticky-header-group"><header><h1>GarconnExpress</h1><p id="mesa-label">Mesa --</p></header><div class="categories" id="categories-container"></div></div>
         <div class="container" id="menu-container"></div>
-
         <div class="cart-bar" id="cart-bar" onclick="toggleCartModal(true)">
-            <div class="info">
-                <span id="cart-qty" style="opacity: 0.8; font-size: 0.85rem;">0 itens</span>
-                <span id="cart-total" style="display: block; font-weight: 900; font-size: 1.2rem;">R$ 0,00</span>
-            </div>
-            <div style="font-weight: 800; font-size: 0.9rem; text-transform: uppercase;">VER RASCUNHO <i class="fas fa-chevron-right"></i></div>
+            <div class="info"><span id="cart-qty">0 itens</span><span id="cart-total" style="display: block; font-weight: 900; font-size: 1.2rem;">R$ 0,00</span></div>
+            <div style="font-weight: 800; font-size: 0.9rem;">RASCUNHO <i class="fas fa-chevron-right"></i></div>
         </div>
-
         <div class="actions-bar">
-            <button class="action-item active" onclick="location.reload()">
-                <i class="fas fa-book-open"></i><span>Cardápio</span>
-            </button>
-            <button class="action-item" onclick="chamarGarcom()">
-                <i class="fas fa-bell"></i><span>Garçom</span>
-            </button>
-            <button class="action-item" onclick="verMeusPedidos()">
-                <i class="fas fa-receipt"></i><span>Pedidos</span>
-            </button>
+            <button class="action-item active" onclick="location.reload()"><i class="fas fa-book-open"></i><span>Menu</span></button>
+            <button class="action-item" onclick="chamarGarcom()"><i class="fas fa-bell"></i><span>Garçom</span></button>
+            <button class="action-item" onclick="verMeusPedidos()"><i class="fas fa-receipt"></i><span>Pedidos</span></button>
         </div>
     </div>
-
-    <!-- MODAL: RASCUNHO -->
-    <div class="modal-cart" id="modal-cart">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Rascunho</h2>
-                <i class="fas fa-times close-modal" onclick="toggleCartModal(false)"></i>
-            </div>
-            <div class="cart-items" id="modal-cart-items"></div>
-            <div class="cart-footer">
-                <div class="cart-total"><span>Total Estimado</span><span id="modal-cart-total">R$ 0,00</span></div>
-                <button class="btn-send" onclick="enviarRascunho()"><i class="fas fa-paper-plane"></i> ENVIAR PEDIDO</button>
-            </div>
+    <div class="modal-cart" id="modal-cart"><div class="modal-content"><div class="modal-header"><h2>Rascunho</h2><i class="fas fa-times close-modal" onclick="toggleCartModal(false)"></i></div><div class="cart-items" id="modal-cart-items"></div><div class="cart-footer"><div class="cart-total"><span>Total</span><span id="modal-cart-total">R$ 0,00</span></div><button class="btn-send" onclick="enviarRascunho()">ENVIAR PEDIDO</button></div></div></div>
+    <div class="modal-cart" id="modal-pedidos"><div class="modal-content"><div class="modal-header"><h2>Pedidos</h2><i class="fas fa-times close-modal" onclick="togglePedidosModal(false)"></i></div><div id="pedidos-lista" style="margin-bottom: 25px;"></div><div class="cart-footer" id="pedidos-footer">
+        <div class="cart-total"><span>Total Consumido</span><span id="pedidos-total">R$ 0,00</span></div>
+        <div style="display: flex; gap: 12px;">
+            <button class="btn-send" style="background: #95a5a6; flex: 1;" onclick="carregarMeusPedidos()"><i class="fas fa-sync"></i></button>
+            <button id="btn-solicitar-fechamento" class="btn-send" style="background: #f1c40f; color: #2f3542; flex: 4;" onclick="solicitarFechamento()">PEDIR CONTA</button>
         </div>
-    </div>
-
-    <!-- MODAL: MEUS PEDIDOS -->
-    <div class="modal-cart" id="modal-pedidos">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Meus Pedidos</h2>
-                <i class="fas fa-times close-modal" onclick="togglePedidosModal(false)"></i>
-            </div>
-            <div id="pedidos-lista" style="margin-bottom: 25px;"></div>
-            <div class="cart-footer" id="pedidos-footer">
-                <div class="cart-total"><span>Total Consumido</span><span id="pedidos-total">R$ 0,00</span></div>
-                <div style="display: flex; gap: 12px;">
-                    <button class="btn-send" style="background: #95a5a6; flex: 1; box-shadow: none;" onclick="carregarMeusPedidos()"><i class="fas fa-sync"></i></button>
-                    <button id="btn-solicitar-fechamento" class="btn-send" style="background: #f1c40f; color: #2f3542; flex: 4; box-shadow: 0 6px 15px rgba(241, 196, 15, 0.3);" onclick="solicitarFechamento()">SOLICITAR CONTA</button>
-                </div>
-                <p style="text-align: center; font-size: 0.8rem; color: var(--text-light); margin-top: 15px; line-height: 1.4;">Aguarde todos os itens serem entregues.</p>
-            </div>
-        </div>
-    </div>
-
+        <p style="text-align: center; font-size: 0.8rem; color: #999; margin-top: 15px;">Aguarde todos os itens serem entregues.</p>
+    </div></div></div>
     <script>
         let fullMenu = [], cart = [], pusher, currentCategory = null, isClosingSession = false;
         let sessionMesa = JSON.parse(localStorage.getItem('sessionMesa'));
-
         document.addEventListener('DOMContentLoaded', async () => {
-            await verificarCaixa();
-            initPusher();
-            setInterval(verificarCaixa, 30000);
-
-            if (!sessionMesa) {
-                showLoading(false);
-                document.body.classList.add('login-active');
-                document.getElementById('login-screen').style.display = 'flex';
-                return;
-            }
-
-            const sessaoValida = await validarSessaoAtiva();
-            if (!sessaoValida) {
-                localStorage.removeItem('sessionMesa');
-                window.location.reload();
-                return;
-            }
-
+            await verificarCaixa(); initPusher(); setInterval(verificarCaixa, 30000);
+            if (!sessionMesa) { showLoading(false); document.body.classList.add('login-active'); document.getElementById('login-screen').style.display='flex'; return; }
+            if (!await validarSessaoAtiva()) { localStorage.removeItem('sessionMesa'); window.location.reload(); return; }
             showMainContent();
         });
-
-        async function validarSessaoAtiva() {
-            if (!sessionMesa || !sessionMesa.token) return false;
-            try {
-                const res = await fetch('/api/acesso/check', { headers: { 'Authorization': `Bearer ${sessionMesa.token}` } });
-                const data = await res.json();
-                return data.valid === true;
-            } catch (e) { return false; }
-        }
-
         async function verificarCaixa() {
-            try {
-                const res = await fetch('/api/caixa/status');
-                const caixa = await res.json();
-                const screen = document.getElementById('closed-screen');
-                if (!caixa) {
-                    screen.style.display = 'flex';
-                    document.body.classList.add('modal-open');
-                    return false;
-                }
-                screen.style.display = 'none';
-                return true;
-            } catch (e) { return true; }
+            try { const res = await fetch('/api/caixa/status'); const cx = await res.json(); const s = document.getElementById('closed-screen'); if(!cx){ s.style.display='flex'; return false; } s.style.display='none'; return true; } catch(e){ return true; }
         }
-
+        async function validarSessaoAtiva() {
+            if (!sessionMesa) return false;
+            try { const res = await fetch('/api/acesso/check', { headers: { 'Authorization': `Bearer ${sessionMesa.token}` } }); const d = await res.json(); return d.valid === true; } catch(e){ return false; }
+        }
         async function validarAcesso() {
-            const codigo = document.getElementById('access-code').value.trim();
-            if (codigo.length < 4) return Swal.fire('Aviso', 'O código deve ter 4 caracteres.', 'warning');
-            const btn = document.getElementById('btn-login'); 
-            btn.disabled = true; btn.innerText = 'VALIDANDO...';
+            const cod = document.getElementById('access-code').value.trim();
+            if (cod.length < 4) return Swal.fire('Aviso', 'Código de 4 dígitos.', 'warning');
+            const btn = document.getElementById('btn-login'); btn.disabled = true;
             try {
-                const res = await fetch('/api/acesso/validar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ codigo })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    sessionMesa = { mesa_id: data.mesa_id, mesa_numero: data.mesa_numero, token: data.token_acesso, pedido_id: data.pedido_id };
+                const res = await fetch('/api/acesso/validar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: cod }) });
+                const d = await res.json();
+                if (d.success) {
+                    sessionMesa = { mesa_id: d.mesa_id, mesa_numero: d.mesa_numero, token: d.token_acesso, pedido_id: d.pedido_id };
                     localStorage.setItem('sessionMesa', JSON.stringify(sessionMesa));
                     showMainContent();
-                } else { Swal.fire('Erro', data.error, 'error'); }
-            } catch (err) { Swal.fire('Erro', 'Falha na conexão.', 'error'); } 
-            finally { btn.disabled = false; btn.innerText = 'ACESSAR CARDÁPIO'; }
+                } else { Swal.fire('Erro', d.error, 'error'); }
+            } catch(err){ Swal.fire('Erro', 'Conexão falhou.', 'error'); } finally { btn.disabled = false; }
         }
-
         function showMainContent() {
-            document.body.classList.remove('login-active');
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-content').style.display = 'block';
+            document.body.classList.remove('login-active'); document.getElementById('login-screen').style.display='none'; document.getElementById('main-content').style.display='block';
             document.getElementById('mesa-label').innerText = `Mesa ${sessionMesa.mesa_numero}`;
-            showLoading(true);
-            adicionarOuvintesMesa(); 
-            loadMenu();
+            showLoading(true); adicionarOuvintesMesa(); loadMenu();
         }
-
         function initPusher() {
             if (pusher) return;
-            fetch('/api/pusher-config').then(res => res.json()).then(config => {
-                pusher = new Pusher(config.key, { cluster: config.cluster });
-                const channel = pusher.subscribe('garconnexpress');
-                
-                channel.bind('status-caixa-atualizado', (data) => {
-                    if (data.status === 'fechado') {
-                        document.getElementById('closed-screen').style.display = 'flex';
-                        document.body.classList.add('modal-open');
-                    } else {
-                        document.getElementById('closed-screen').style.display = 'none';
-                        document.body.classList.remove('modal-open');
+            fetch('/api/pusher-config').then(r => r.json()).then(c => {
+                pusher = new Pusher(c.key, { cluster: c.cluster }); const ch = pusher.subscribe('garconnexpress');
+                ch.bind('status-caixa-atualizado', (d) => { if(d.status==='fechado') location.reload(); });
+                ch.bind('status-atualizado', (d) => { if (sessionMesa && d.mesa_id == sessionMesa.mesa_id) carregarMeusPedidos(); });
+                ch.bind('pedido-cancelado', (d) => {
+                    if (sessionMesa && (d.id == sessionMesa.pedido_id || d.mesa_numero == sessionMesa.mesa_numero)) {
+                        Swal.fire({ title: 'Sessão Encerrada', text: 'Pedido cancelado.', icon: 'error' }).then(() => { localStorage.removeItem('sessionMesa'); location.reload(); });
                     }
                 });
-
-                channel.bind('status-atualizado', (data) => {
-                    if (sessionMesa && data.mesa_id == sessionMesa.mesa_id) carregarMeusPedidos();
-                });
-
-                channel.bind('pedido-cancelado', (data) => {
-                    if (sessionMesa && (data.id == sessionMesa.pedido_id || data.mesa_numero == sessionMesa.mesa_numero)) {
-                        Swal.fire({ title: 'Sessão Encerrada', text: 'Seu pedido foi cancelado pelo estabelecimento.', icon: 'error', confirmButtonText: 'SAIR' })
-                        .then(() => { localStorage.removeItem('sessionMesa'); window.location.reload(); });
-                    }
-                });
-
                 adicionarOuvintesMesa();
             });
         }
-
         function adicionarOuvintesMesa() {
-            if (!pusher || !sessionMesa) return;
-            const channel = pusher.channel('garconnexpress') || pusher.subscribe('garconnexpress');
-
-            channel.bind(`fechamento-liberado-mesa-${sessionMesa.mesa_id}`, () => {
-                Swal.fire({ title: 'Conta Liberada!', text: 'Sua conferência já está disponível.', icon: 'success' }).then(() => carregarMeusPedidos());
-            });
-
-            channel.bind(`deslogar-mesa-${sessionMesa.mesa_id}`, (data) => {
-                if (isClosingSession) return; 
-                isClosingSession = true;
-                
-                let timerInterval;
-                Swal.fire({
-                    title: 'Mesa Finalizada!',
-                    html: `
-                        <div style="text-align:center;">
-                            <p>Obrigado pela preferência! Deseja baixar sua nota fiscal?</p>
-                            <button onclick="gerarPDFNota()" style="background:#27ae60;color:white;padding:15px;border-radius:25px;width:100%;margin-top:15px;font-weight:bold;border:none;cursor:pointer;">
-                                <i class="fas fa-file-pdf"></i> BAIXAR PDF
-                            </button>
-                            <p style="margin-top:15px;font-size:0.8rem;color:#999;">Encerrando em <b>60</b> segundos...</p>
-                        </div>
-                    `,
-                    timer: 60000,
-                    timerProgressBar: true,
-                    showConfirmButton: true,
-                    confirmButtonText: 'SAIR AGORA',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        const b = Swal.getHtmlContainer().querySelector('b');
-                        timerInterval = setInterval(() => { b.textContent = Math.ceil(Swal.getTimerLeft() / 1000); }, 100);
-                    },
-                    willClose: () => { clearInterval(timerInterval); }
-                }).then(() => { localStorage.removeItem('sessionMesa'); window.location.reload(); });
+            if (!pusher || !sessionMesa) return; const ch = pusher.channel('garconnexpress') || pusher.subscribe('garconnexpress');
+            ch.bind(`fechamento-liberado-mesa-${sessionMesa.mesa_id}`, () => { Swal.fire({ title: 'Conta Liberada!', icon: 'success' }).then(() => carregarMeusPedidos()); });
+            ch.bind(`deslogar-mesa-${sessionMesa.mesa_id}`, (d) => {
+                if (isClosingSession) return; isClosingSession = true;
+                Swal.fire({ title: 'Mesa Finalizada', html: `<button onclick="gerarPDFNota()" style="background:#27ae60;color:white;padding:15px;border-radius:25px;width:100%;margin-top:15px;border:none;font-weight:bold;">BAIXAR NOTA</button><p style="margin-top:15px;">Encerrando em 60s...</p>`, timer: 60000, showConfirmButton: true, confirmButtonText: 'SAIR AGORA' }).then(() => { localStorage.removeItem('sessionMesa'); location.reload(); });
             });
         }
-
         async function carregarMeusPedidos() {
-            const container = document.getElementById('pedidos-lista');
-            const totalSpan = document.getElementById('pedidos-total');
-            const footerMsg = document.querySelector('#pedidos-footer p');
-            container.innerHTML = '<div style="text-align:center;padding:20px;">Carregando...</div>';
+            const container = document.getElementById('pedidos-lista'); const totalSpan = document.getElementById('pedidos-total');
+            const footer = document.getElementById('pedidos-footer'); const footerMsg = footer ? footer.querySelector('p') : null;
+            container.innerHTML = '<p style="text-align:center;">Carregando...</p>';
             try {
-                const res = await fetch('/api/cliente/meus-pedidos', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ token: sessionMesa.token }) 
-                });
-                const data = await res.json();
-                if (data.success && data.pedido) {
-                    container.innerHTML = `<p style="font-size:0.85rem;color:#777;border-bottom:1px solid #eee;padding-bottom:10px;margin-bottom:15px;">PEDIDO: #${data.pedido.id}</p>`;
-                    container.innerHTML += data.itens.map(i => {
-                        const pr = i.preco || i.menu_preco || 0;
-                        const sub = i.quantidade * pr;
-                        return `
-                        <div class="cart-item">
-                            <div class="cart-item-info">
-                                <h4>${i.quantidade}x ${i.menu_nome}</h4>
-                                <p>R$ ${pr.toFixed(2)} cada | <b>R$ ${sub.toFixed(2)}</b></p>
-                            </div>
-                            <span class="status-badge">${i.status}</span>
-                        </div>`;
+                const res = await fetch('/api/cliente/meus-pedidos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: sessionMesa.token }) });
+                const d = await res.json();
+                if (d.success && d.pedido && d.itens && d.itens.length > 0) {
+                    if (footer) footer.style.display = 'block';
+                    container.innerHTML = `<p style="font-size:0.85rem;color:#777;border-bottom:1px solid #eee;padding-bottom:10px;margin-bottom:15px;">PEDIDO: #${d.pedido.id}</p>`;
+                    container.innerHTML += d.itens.map(i => {
+                        const pr = i.preco || i.menu_preco || 0; return `<div class="cart-item"><div class="cart-item-info"><h4>${i.quantidade}x ${i.menu_nome}</h4><p>R$ ${pr.toFixed(2)} cada | <b>R$ ${(i.quantidade*pr).toFixed(2)}</b></p></div><span class="status-badge">${i.status}</span></div>`;
                     }).join('');
-                    
-                    totalSpan.innerText = `R$ ${Number(data.pedido.total).toFixed(2)}`;
-                    
-                    const btn = document.getElementById('btn-solicitar-fechamento');
-                    const todosEnt = data.itens.every(i => ['entregue','servido','cancelado'].includes(i.status));
-
-                    if (data.pedido.fechamento_liberado) {
-                        btn.disabled = false; btn.style.background = '#27ae60'; btn.style.color = '#fff'; btn.innerHTML = '<i class="fas fa-file-pdf"></i> BAIXAR CONFERÊNCIA';
-                        btn.onclick = gerarPDFNota;
-                        footerMsg.innerText = "Sua conta foi conferida e liberada.";
-                    } else if (data.pedido.solicitou_fechamento) {
-                        btn.disabled = true; btn.style.opacity = '0.5'; btn.innerHTML = 'AGUARDANDO LIBERAÇÃO...';
-                        footerMsg.innerText = "O garçom está processando seu pedido de conta.";
-                    } else if (!todosEnt) {
-                        btn.disabled = true; btn.style.opacity = '0.5'; btn.style.background = '#95a5a6'; btn.innerHTML = 'AGUARDE O CONSUMO';
-                        footerMsg.innerText = "Aguarde a entrega de todos os itens.";
-                    } else {
-                        btn.disabled = false; btn.style.opacity = '1'; btn.style.background = '#f1c40f'; btn.innerHTML = 'SOLICITAR CONTA';
-                        btn.onclick = solicitarFechamento;
-                        footerMsg.innerText = "Tudo pronto! Já pode solicitar o fechamento.";
+                    totalSpan.innerText = `R$ ${Number(d.pedido.total).toFixed(2)}`;
+                    const btn = document.getElementById('btn-solicitar-fechamento'); const todosEnt = d.itens.every(i => ['entregue','servido','cancelado'].includes(i.status));
+                    if (btn) {
+                        btn.disabled = false; btn.style.opacity = '1';
+                        if (d.pedido.fechamento_liberado) { btn.style.background = '#27ae60'; btn.style.color = '#fff'; btn.innerHTML = 'BAIXAR NOTA'; btn.onclick = gerarPDFNota; if(footerMsg) footerMsg.innerText = "Conta liberada."; }
+                        else if (d.pedido.solicitou_fechamento) { btn.disabled = true; btn.style.opacity = '0.5'; btn.innerHTML = 'AGUARDANDO...'; if(footerMsg) footerMsg.innerText = "Processando solicitação."; }
+                        else if (!todosEnt) { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.background = '#95a5a6'; btn.innerHTML = 'AGUARDE ENTREGA'; if(footerMsg) footerMsg.innerText = "Aguarde os pratos."; }
+                        else { btn.style.background = '#f1c40f'; btn.innerHTML = 'PEDIR CONTA'; btn.onclick = solicitarFechamento; if(footerMsg) footerMsg.innerText = "Tudo pronto!"; }
                     }
-                } else { container.innerHTML = '<p style="text-align:center;padding:20px;">Nenhum pedido ativo.</p>'; }
-            } catch (e) { container.innerHTML = '<p>Erro ao carregar.</p>'; }
+                } else { 
+                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;"><i class="fas fa-receipt" style="font-size:3rem;opacity:0.1;margin-bottom:15px;display:block;"></i><p>Nenhum pedido ativo.</p></div>';
+                    if (footer) footer.style.display = 'none';
+                }
+            } catch (e) { container.innerHTML = '<p>Erro ao carregar.</p>'; if(footer) footer.style.display = 'none'; }
         }
-
         async function gerarPDFNota() {
             try {
-                const res = await fetch('/api/cliente/meus-pedidos', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ token: sessionMesa.token }) 
-                });
-                const data = await res.json();
-                const agora = new Date().toLocaleString('pt-BR');
-                
-                const html = `
-                    <div style="padding:40px;font-family:monospace;background:white;width:550px;">
-                        <div style="text-align:center;border-bottom:2px dashed #000;padding-bottom:15px;margin-bottom:20px;">
-                            <h1 style="margin:0;">GarconnExpress</h1>
-                            <p style="margin:5px 0;font-weight:bold;">COMPROVANTE DE CONSUMO #${data.pedido.id}</p>
-                            <p style="margin:0;">MESA: ${sessionMesa.mesa_numero} | ${agora}</p>
-                        </div>
-                        <table style="width:100%;border-collapse:collapse;">
-                            <thead><tr style="border-bottom:1px solid #000;"><th style="text-align:left;">ITEM</th><th style="text-align:center;">QTD</th><th style="text-align:right;">TOTAL</th></tr></thead>
-                            <tbody>
-                                ${data.itens.map(i => {
-                                    const p = i.preco || i.menu_preco || 0;
-                                    return `<tr><td style="padding:5px 0;">${i.menu_nome}</td><td style="text-align:center;">${i.quantidade}x</td><td style="text-align:right;">R$ ${(i.quantidade*p).toFixed(2)}</td></tr>`;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                        <div style="border-top:2px dashed #000;margin-top:20px;padding-top:15px;text-align:right;font-weight:bold;font-size:22px;">
-                            TOTAL: R$ ${Number(data.pedido.total).toFixed(2)}
-                        </div>
-                        <div style="text-align:center;margin-top:40px;border-top:1px solid #eee;padding-top:20px;">
-                            <p>Obrigado pela preferência!</p>
-                            <p style="font-size:10px;color:#999;">Sem valor fiscal.</p>
-                        </div>
-                    </div>
-                `;
-
+                const res = await fetch('/api/cliente/meus-pedidos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: sessionMesa.token }) });
+                const d = await res.json(); const agora = new Date().toLocaleString('pt-BR');
+                const html = `<div style="padding:40px;font-family:monospace;background:white;width:550px;color:#000;"><div style="text-align:center;border-bottom:2px dashed #000;padding-bottom:15px;margin-bottom:20px;"><h1>GarconnExpress</h1><p style="text-align:center;">NOTA #${d.pedido.id} | MESA ${sessionMesa.mesa_numero}</p><hr><table><tbody>${d.itens.map(i=>{const p=i.preco||i.menu_preco||0; return `<tr><td>${i.menu_nome}</td><td>${i.quantidade}x</td><td style="text-align:right;">R$ ${(i.quantidade*p).toFixed(2)}</td></tr>`;}).join('')}</tbody></table><hr><h2 style="text-align:right;">TOTAL: R$ ${Number(d.pedido.total).toFixed(2)}</h2></div></div>`;
                 const el = document.createElement('div'); el.innerHTML = html;
-                const opt = { margin:10, filename:`pedido-${data.pedido.id}.pdf`, html2canvas:{scale:2}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} };
-                
-                html2pdf().from(el).set(opt).save().then(() => Swal.fire('Sucesso','Nota baixada com sucesso!','success'));
-            } catch (e) { Swal.fire('Erro','Não foi possível gerar o PDF.','error'); }
+                html2pdf().from(el).set({ margin:10, filename:`nota-${d.pedido.id}.pdf`, html2canvas:{scale:2}, jsPDF:{unit:'mm', format:'a4'} }).save()
+                .then(() => Swal.fire('Sucesso','Nota baixada!','success'));
+            } catch (e) { Swal.fire('Erro','Falha no PDF.','error'); }
         }
-
         async function solicitarFechamento() {
-            const res = await Swal.fire({ title:'Fechar Conta?', text:"Deseja solicitar a conferência ao garçom?", icon:'question', showCancelButton:true, confirmButtonColor:'#f1c40f', confirmButtonText:'Sim, solicitar' });
-            if (res.isConfirmed) {
-                showLoading(true);
-                try {
-                    const r = await fetch('/api/cliente/solicitar-conta', { 
-                        method:'POST', 
-                        headers:{'Content-Type':'application/json'}, 
-                        body:JSON.stringify({token:sessionMesa.token}) 
-                    });
-                    if (r.ok) { Swal.fire('Solicitado!','Aguarde a liberação do garçom.','success'); carregarMeusPedidos(); }
-                } catch(e) { Swal.fire('Erro','Conexão falhou.','error'); }
-                finally { showLoading(false); }
+            if (await Swal.fire({ title:'Fechar conta?', icon:'question', showCancelButton:true, confirmButtonColor:'#f1c40f' }).then(r => r.isConfirmed)) {
+                showLoading(true); try { await fetch('/api/cliente/solicitar-conta', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:sessionMesa.token}) }); carregarMeusPedidos(); } finally { showLoading(false); }
             }
         }
-
         async function chamarGarcom() {
-            const res = await Swal.fire({ 
-                title: 'Chamar Garçom?', 
-                text: "Deseja solicitar atendimento na mesa?", 
-                icon: 'question', 
-                showCancelButton: true, 
-                confirmButtonColor: '#ff4757', 
-                confirmButtonText: 'Sim, Chamar' 
-            });
-            if (res.isConfirmed) {
-                showLoading(true);
-                try {
-                    const r = await fetch('/api/cliente/chamar-garcom', { 
-                        method:'POST', 
-                        headers:{'Content-Type':'application/json'}, 
-                        body:JSON.stringify({ mesa_id:sessionMesa.mesa_id, mesa_numero:sessionMesa.mesa_numero }) 
-                    });
-                    if (r.ok) Swal.fire('Chamado Enviado', 'O garçom já foi notificado.', 'success');
-                } catch(e) { Swal.fire('Erro','Conexão falhou.','error'); }
-                finally { showLoading(false); }
+            if (await Swal.fire({ title:'Chamar Garçom?', icon:'question', showCancelButton:true, confirmButtonColor:'#ff4757' }).then(r => r.isConfirmed)) {
+                showLoading(true); try { await fetch('/api/cliente/chamar-garcom', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mesa_id:sessionMesa.mesa_id, mesa_numero:sessionMesa.mesa_numero }) }); Swal.fire('Enviado','Garçom avisado!','success'); } finally { showLoading(false); }
             }
         }
-
-        async function verMeusPedidos() { togglePedidosModal(true); }
-
-        function togglePedidosModal(s) { 
-            const modal = document.getElementById('modal-pedidos');
-            modal.style.display=s?'flex':'none'; 
-            if(s){ document.body.classList.add('modal-open'); carregarMeusPedidos(); }
-            else { document.body.classList.remove('modal-open'); } 
-        }
-
-        async function loadMenu() {
-            try {
-                const res = await fetch('/api/menu');
-                fullMenu = await res.json();
-                renderCategories(); renderMenu(); showLoading(false);
-            } catch (e) { Swal.fire('Erro','Falha ao carregar cardápio.','error'); }
-        }
-
+        async function loadMenu() { try { const res = await fetch('/api/menu'); fullMenu = await res.json(); renderCategories(); renderMenu(); showLoading(false); } catch(e){} }
         function renderCategories() {
             const cats = ['Tudo', ...new Set(fullMenu.map(i => i.categoria.trim().toUpperCase()))];
             document.getElementById('categories-container').innerHTML = cats.map(c => `<div class="category-pill ${(currentCategory===null && c==='Tudo')||currentCategory===c?'active':''}" onclick="filterCategory('${c}')">${c}</div>`).join('');
         }
-
         function filterCategory(c) { currentCategory = c === 'Tudo' ? null : c; renderCategories(); renderMenu(); }
-
         function renderMenu() {
             const container = document.getElementById('menu-container'); container.innerHTML = '';
             const menuToShow = currentCategory ? fullMenu.filter(i => i.categoria.trim().toUpperCase() === currentCategory) : fullMenu;
-            const groups = menuToShow.reduce((acc, i) => { 
-                const n = i.categoria.trim().toUpperCase();
-                if(!acc[n]) acc[n]=[]; acc[n].push(i); return acc; 
-            }, {});
-
+            const groups = menuToShow.reduce((acc, i) => { const n = i.categoria.trim().toUpperCase(); if(!acc[n]) acc[n]=[]; acc[n].push(i); return acc; }, {});
             for (const cat in groups) {
-                const section = document.createElement('div');
-                section.innerHTML = `<h2 class="section-title">${cat}</h2>`;
+                const section = document.createElement('div'); section.innerHTML = `<h2 class="section-title">${cat}</h2>`;
                 groups[cat].forEach(i => {
-                    const cartI = cart.find(c => c.id === i.id);
-                    const qty = cartI ? cartI.qty : 0;
+                    const cartI = cart.find(c => c.id === i.id); const qty = cartI ? cartI.qty : 0;
                     section.innerHTML += `
                         <div class="menu-item">
-                            ${i.imagem ? `<img src="${i.imagem}" class="item-img" onerror="this.style.display='none'">` : `<div class="item-placeholder">${i.nome[0]}</div>`}
+                            ${i.imagem ? `<img src="${i.imagem}" class="item-img" onerror="this.onerror=null;this.src='https://placehold.co/100x100?text=${i.nome[0]}'">` : `<div class="item-placeholder">${i.nome[0]}</div>`}
                             <div class="item-info">
                                 <h3>${i.nome}</h3>
                                 <p class="desc">${i.descricao||''}</p>
@@ -722,61 +234,29 @@
                 container.appendChild(section);
             }
         }
-
         function updateCart(id, delta) {
             const i = fullMenu.find(x => x.id === id); const cI = cart.find(x => x.id === id);
             if (cI) { cI.qty += delta; if (cI.qty <= 0) cart = cart.filter(x => x.id !== id); }
             else if (delta > 0) cart.push({ ...i, qty: 1 });
             renderMenu(); updateCartBar();
         }
-
         function updateCartBar() {
-            const bar = document.getElementById('cart-bar');
-            const q = cart.reduce((s, x) => s + x.qty, 0);
-            const v = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
-            if (q > 0) { 
-                bar.style.display = 'flex'; 
-                document.getElementById('cart-qty').innerText = `${q} itens`; 
-                document.getElementById('cart-total').innerText = `R$ ${v.toFixed(2)}`; 
-            } else { bar.style.display = 'none'; }
+            const bar = document.getElementById('cart-bar'); const q = cart.reduce((s, x) => s + x.qty, 0); const v = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
+            if (q > 0) { bar.style.display = 'flex'; document.getElementById('cart-qty').innerText = `${q} itens`; document.getElementById('cart-total').innerText = `R$ ${v.toFixed(2)}`; }
+            else { bar.style.display = 'none'; }
         }
-
-        function toggleCartModal(s) { 
-            document.getElementById('modal-cart').style.display=s?'flex':'none'; 
-            if(s){ document.body.classList.add('modal-open'); renderCartModal(); }
-            else { document.body.classList.remove('modal-open'); } 
-        }
-
+        function toggleCartModal(s) { document.getElementById('modal-cart').style.display=s?'flex':'none'; if(s){document.body.classList.add('modal-open');renderCartModal();}else{document.body.classList.remove('modal-open');} }
         function renderCartModal() {
-            const c = document.getElementById('modal-cart-items'); 
-            if (cart.length === 0) { c.innerHTML = '<p style="text-align:center;padding:20px;color:#999;">Seu rascunho está vazio.</p>'; return; }
-            c.innerHTML = cart.map(i => `
-                <div class="cart-item">
-                    <div><h4>${i.nome}</h4><p>${i.qty}x R$ ${i.preco.toFixed(2)}</p></div>
-                    <div class="controls">
-                        <button class="btn-qty" onclick="updateCart(${i.id},-1)">-</button>
-                        <span class="qty">${i.qty}</span>
-                        <button class="btn-qty" onclick="updateCart(${i.id},1)">+</button>
-                    </div>
-                </div>`).join('');
+            const c = document.getElementById('modal-cart-items'); if (cart.length === 0) { c.innerHTML = '<p style="text-align:center;padding:20px;color:#999;">Rascunho vazio.</p>'; return; }
+            c.innerHTML = cart.map(i => `<div class="cart-item"><div><h4>${i.nome}</h4><p>${i.qty}x R$ ${i.preco.toFixed(2)}</p></div><div class="controls"><button class="btn-qty" onclick="updateCart(${i.id},-1)">-</button><span class="qty">${i.qty}</span><button class="btn-qty" onclick="updateCart(${i.id},1)">+</button></div></div>`).join('');
             document.getElementById('modal-cart-total').innerText = `R$ ${cart.reduce((s, x) => s + (x.qty*x.preco), 0).toFixed(2)}`;
         }
-
         async function enviarRascunho() { 
-            const btn = document.querySelector('.modal-cart .btn-send');
-            btn.disabled = true; btn.innerText = 'ENVIANDO...';
-            try { 
-                await fetch('/api/cliente/enviar-rascunho', { 
-                    method:'POST', 
-                    headers:{'Content-Type':'application/json'}, 
-                    body:JSON.stringify({ mesa_id:sessionMesa.mesa_id, mesa_numero:sessionMesa.mesa_numero, itens:cart.map(i=>({menu_id:i.id, nome:i.nome, quantidade:i.qty, preco:i.preco})) }) 
-                }); 
-                Swal.fire({title:'Enviado!', icon:'success', timer:1500, showConfirmButton:false});
-                cart=[]; updateCartBar(); toggleCartModal(false); renderMenu(); 
-            } catch(e){ Swal.fire('Erro','','error'); }
-            finally { btn.disabled = false; btn.innerHTML = 'ENVIAR PEDIDO'; }
+            const btn = document.querySelector('.modal-cart .btn-send'); btn.disabled = true;
+            try { await fetch('/api/cliente/enviar-rascunho', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mesa_id:sessionMesa.mesa_id, mesa_numero:sessionMesa.mesa_numero, itens:cart.map(i=>({menu_id:i.id, nome:i.nome, quantidade:i.qty, preco:i.preco})) }) }); Swal.fire({title:'Enviado!', icon:'success', timer:1500, showConfirmButton:false}); cart=[]; updateCartBar(); toggleCartModal(false); renderMenu(); } finally { btn.disabled = false; }
         }
-
+        function verMeusPedidos() { togglePedidosModal(true); }
+        function togglePedidosModal(s) { document.getElementById('modal-pedidos').style.display=s?'flex':'none'; if(s){document.body.classList.add('modal-open');carregarMeusPedidos();}else{document.body.classList.remove('modal-open');} }
         function showLoading(s) { document.getElementById('loading').style.display=s?'flex':'none'; }
     </script>
 </body>
