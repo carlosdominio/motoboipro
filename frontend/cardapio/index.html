@@ -98,12 +98,21 @@
     <!-- Container para geração de PDF (invisível mas renderizado no DOM para captura) -->
     <div id="pdf-render-container" style="position: fixed; left: 0; top: 0; width: 450px; background: white; padding: 20px; color: black; font-family: Arial, sans-serif; z-index: -1; visibility: hidden;"></div>
 
-    <div id="closed-screen">
-        <div style="background: #f8f9fa; padding: 60px 40px; border-radius: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); max-width: 450px;">
-            <div style="font-size: 5rem;">🚩</div>
-            <h1 style="font-weight: 900; font-size: 2.2rem; margin-bottom: 15px;">Estabelecimento Fechado</h1>
-            <p style="color: var(--text-light);">O caixa está encerrado. Volte em breve!</p>
+    <div id="closed-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100vh; background:linear-gradient(135deg, #f1f2f6 0%, #ffffff 100%); z-index:3000; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center;">
+        <div style="width:100%; max-width:450px; background:white; padding:60px 40px; border-radius:40px; box-shadow: 0 25px 60px rgba(0,0,0,0.1); display:flex; flex-direction:column; align-items:center;">
+            <div style="width: 120px; height: 120px; background: #fff1f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 30px; font-size: 4rem;">🌙</div>
+            <h1 style="font-weight: 900; font-size: 2rem; color: #2f3542; margin-bottom: 15px; letter-spacing: -0.5px;">Até breve!</h1>
+            <p style="color: #747d8c; line-height: 1.6; font-size: 1.1rem; margin-bottom: 35px;">
+                Nosso atendimento via cardápio digital está <b>encerrado</b> no momento.<br><br>
+                Estamos preparando tudo para te receber com a melhor experiência em breve!
+            </p>
+            <div style="width: 100%; border-top: 1px solid #f1f2f6; padding-top: 30px;">
+                <p style="font-size: 0.9rem; color: #a4b0be; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Horário de Funcionamento</p>
+                <p style="font-size: 1rem; color: #2f3542; margin-top: 5px; font-weight: 700;">Consulte nossas redes sociais</p>
+            </div>
+            <button onclick="location.reload()" class="btn-send" style="margin-top: 40px; background: #2f3542; border-radius: 20px; width: auto; padding: 15px 40px;">TENTAR NOVAMENTE</button>
         </div>
+        <p style="margin-top: 30px; color: #a4b0be; font-size: 0.8rem; font-weight: 700;">GarconnExpress • Inteligência para o seu bar</p>
     </div>
     <div id="login-screen">
         <div style="width: 100%; max-width: 400px;">
@@ -199,7 +208,10 @@
             if (pusher) return;
             fetch('/api/pusher-config').then(r => r.json()).then(c => {
                 pusher = new Pusher(c.key, { cluster: c.cluster }); const ch = pusher.subscribe('garconnexpress');
-                ch.bind('status-caixa-atualizado', (d) => { if(d.status === 'fechado') location.reload(); });
+                ch.bind('status-caixa-atualizado', (d) => { 
+                    // Se o caixa abrir ou fechar, recarregamos para aplicar o bloqueio/desbloqueio
+                    if(d.status === 'fechado' || d.status === 'aberto') location.reload(); 
+                });
                 ch.bind('status-atualizado', (d) => { if (sessionMesa && d.mesa_id == sessionMesa.mesa_id) carregarMeusPedidos(); });
                 adicionarOuvintesMesa();
             });
