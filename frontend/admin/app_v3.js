@@ -838,26 +838,8 @@ async function enviarPedidoLoteAdmin() {
       document.getElementById('btn-decisao-fechar').onclick = async () => {
         modalDecisao.style.display = 'none';
         document.body.classList.remove('modal-open');
-
-        // TRAVA DE COZINHA: Verifica se existem itens sendo preparados antes de fechar
-        try {
-          const resItens = await fetch(`/api/pedidos/${novoPedidoId}/itens`);
-          if (resItens.ok) {
-            const itensAtualizados = await resItens.json();
-            const hasPend = itensAtualizados.some(i => i.status === 'pendente' || i.status === 'pronto');
-            if (hasPend) {
-              if (!await mostrarConfirmacao("⚠️ Existem itens sendo preparados na COZINHA. Deseja prosseguir com o fechamento mesmo assim?", "Cozinha em Andamento", "Sim, Prosseguir", "Não, Esperar")) {
-                mostrarToast("⏳ Fechamento cancelado para aguardar a cozinha.");
-                switchTab('ativos');
-                return;
-              }
-            }
-          }
-        } catch (e) { console.warn("Erro ao checar cozinha:", e); }
-
         aprovarFechamento(novoPedidoId, mesaId, nomeMesa);
       };
-
       document.getElementById('btn-decisao-manter').onclick = () => {
         modalDecisao.style.display = 'none';
         document.body.classList.remove('modal-open');
@@ -2616,36 +2598,52 @@ async function marcarPedidoEntregue(id) {
   try {
     const resItens = await fetch(`/api/pedidos/${id}/itens`);
     const itens = await resItens.json();
-    
-    const emPreparo = itens.filter(i => i.status === 'pendente' && isItemParaCozinha(i));
-    
-    if (emPreparo.length > 0) {
-      const confirm = await mostrarConfirmacao(
-        `⚠️ ATENÇÃO: Existem ${emPreparo.length} itens ainda EM PREPARO na cozinha.\n\n` +
-        `Deseja confirmar apenas a entrega dos itens que NÃO estão na cozinha (bebidas e itens já prontos)?\n\n` +
-        `O cronômetro da mesa continuará rodando para os itens que ficarem.`,
-        "Itens na Cozinha",
-        "Sim, entregar prontos",
-        "Não, cancelar"
-      );
-      
-      if (!confirm) return;
 
-      const res = await fetch(`/api/pedidos/${id}/marcar-entregue`, { 
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apenasProntos: true })
-      });
-      
-      if (res.ok) {
-        mostrarToast("✅ Itens prontos entregues!");
-        carregarPedidos();
+    // Itens que ainda estão em produção (Pendente + Cozinha)
+    const emPreparo = itens.filter(i => i.status === 'pendente' && isItemParaCozinha(i));
+    // Itens pendentes que NÃO são de cozinha (ex: bebidas que ainda não foram entregues)
+    const pendentesForaCozinha = itens.filter(i => i.status === 'pendente' && !isItemParaCozinha(i));
+    // Itens que já estão prontos na cozinha mas não entregues à mesa
+    const prontosCozinha = itens.filter(i => i.status === 'pronto' && isItemParaCozinha(i));
+
+    // Se existe algo SENDO FEITO na cozinha...
+    if (emPreparo.length > 0) {
+      // ...e ainda existem bebidas/outros pendentes de entrega
+      if (pendentesForaCozinha.length > 0) {
+        const confirm = await mostrarConfirmacao(
+          `⚠️ ATENÇÃO: Existem ${emPreparo.length} itens ainda EM PREPARO na cozinha.\n\n` +
+          `Deseja confirmar apenas a entrega dos itens que NÃO estão na cozinha (bebidas e itens já prontos)?\n\n` +
+          `O cronômetro da mesa continuará rodando para os itens que ficarem.`,
+          "Itens na Cozinha",
+          "Sim, entregar prontos",
+          "Não, cancelar"
+        );
+
+        if (!confirm) return;
+
+        const res = await fetch(`/api/pedidos/${id}/marcar-entregue`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apenasProntos: true })
+        });
+
+        if (res.ok) {
+          mostrarToast("✅ Itens prontos entregues!");
+          carregarPedidos();
+        }
+      } else {
+        // ...mas as bebidas/outros já foram entregues (ou não existem)
+        await mostrarAlerta(
+          `✅ Os pedidos fora da cozinha (bebidas/outros) já foram entregues!\n\n` +
+          `Ainda existem ${emPreparo.length} itens sendo preparados. Aguarde a finalização da COZINHA para confirmar a entrega total deste pedido.`,
+          "Aguardando Cozinha"
+        );
       }
       return;
     }
 
-    if (await mostrarConfirmacao("Confirmar a entrega de todos os itens deste pedido?", "Entregar Tudo")) {
-      const res = await fetch(`/api/pedidos/${id}/marcar-entregue`, { method: 'PUT' });
+    // Se não houver nada "Em Preparo", pode entregar tudo (incluindo o que estiver "Pronto")
+    if (await mostrarConfirmacao("Confirmar a entrega de todos os itens deste pedido?", "Entregar Tudo")) {      const res = await fetch(`/api/pedidos/${id}/marcar-entregue`, { method: 'PUT' });
       if (res.ok) {
         mostrarToast("✅ Pedido entregue!");
         carregarPedidos();
@@ -3001,6 +2999,25 @@ async function aprovarFechamento(idPedido, idMesa, mesaNomeForcado = null) {
     const resItens = await fetch(`/api/pedidos/${idPedido}/itens`);
     itensFechamentoAdmin = await resItens.json();
   }
+
+  // --- TRAVA DE COZINHA INTELIGENTE ---
+  // Filtra itens pendentes/prontos que SÃO da cozinha
+  const itensCozinhaPend = itensFechamentoAdmin.filter(i => (i.status === 'pendente' || i.status === 'pronto') && isItemParaCozinha(i));
+  // Filtra itens pendentes/prontos que NÃO são da cozinha (bebidas, etc)
+  const itensForaCozinhaPend = itensFechamentoAdmin.filter(i => (i.status === 'pendente' || i.status === 'pronto') && !isItemParaCozinha(i));
+
+  if (itensCozinhaPend.length > 0) {
+    // Caso clássico: Itens ainda na cozinha
+    if (!await mostrarConfirmacao(`⚠️ Existem ${itensCozinhaPend.length} itens sendo preparados na COZINHA. Deseja prosseguir com o fechamento mesmo assim?`, "Cozinha em Andamento", "Sim, Prosseguir", "Não, Esperar")) {
+      return;
+    }
+  } else if (itensForaCozinhaPend.length > 0) {
+    // Caso inteligente: Cozinha liberada, mas faltam bebidas/outros
+    if (!await mostrarConfirmacao(`✅ Os pedidos da COZINHA já foram entregues! No entanto, ainda há ${itensForaCozinhaPend.length} itens pendentes (bebidas/outros). Deseja prosseguir com o fechamento?`, "Itens Pendentes", "Sim, Prosseguir", "Não, Esperar")) {
+      return;
+    }
+  }
+  // ------------------------------------
   
   // Busca pagamentos já realizados para esta mesa
   try {

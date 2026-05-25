@@ -886,7 +886,7 @@ app.get('/api/pedidos/:id', ensureDbInitialized, async (req, res) => {
 
 app.get('/api/pedidos/:id/itens', ensureDbInitialized, async (req, res) => { 
   try {
-    const result = await query(`SELECT pi.*, m.nome, m.preco, m.enviar_cozinha FROM pedido_itens pi JOIN menu m ON pi.menu_id = m.id WHERE pi.pedido_id = ? ORDER BY pi.status DESC, pi.id ASC`, [req.params.id]);
+    const result = await query(`SELECT pi.*, m.nome, m.preco, m.categoria, m.enviar_cozinha FROM pedido_itens pi JOIN menu m ON pi.menu_id = m.id WHERE pi.pedido_id = ? ORDER BY pi.status DESC, pi.id ASC`, [req.params.id]);
     res.json(result.rows);
   } catch (error) {
     console.error('Erro ao buscar itens do pedido:', error);
