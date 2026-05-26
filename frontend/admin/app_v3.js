@@ -3009,19 +3009,32 @@ async function aprovarFechamento(idPedido, idMesa, mesaNomeForcado = null) {
   }
 
   // --- TRAVA DE COZINHA INTELIGENTE ---
-  // Filtra itens pendentes/prontos que SÃO da cozinha
-  const itensCozinhaPend = itensFechamentoAdmin.filter(i => (i.status === 'pendente' || i.status === 'pronto') && isItemParaCozinha(i));
-  // Filtra itens pendentes/prontos que NÃO são da cozinha (bebidas, etc)
-  const itensForaCozinhaPend = itensFechamentoAdmin.filter(i => (i.status === 'pendente' || i.status === 'pronto') && !isItemParaCozinha(i));
+  // Filtra itens pendentes (EM PREPARO) que SÃO da cozinha
+  const itensCozinhaEmPreparo = itensFechamentoAdmin.filter(i => i.status === 'pendente' && isItemParaCozinha(i));
+  // Filtra itens PRONTOS que ainda não foram marcados como entregues
+  const itensProntosNaoEntregues = itensFechamentoAdmin.filter(i => i.status === 'pronto');
+  // Filtra itens pendentes que NÃO são da cozinha (bebidas, etc)
+  const itensForaCozinhaPend = itensFechamentoAdmin.filter(i => i.status === 'pendente' && !isItemParaCozinha(i));
 
-  if (itensCozinhaPend.length > 0) {
-    // Caso clássico: Itens ainda na cozinha
-    if (!await mostrarConfirmacao(`⚠️ Existem ${itensCozinhaPend.length} itens sendo preparados na COZINHA. Deseja prosseguir com o fechamento mesmo assim?`, "Cozinha em Andamento", "Sim, Prosseguir", "Não, Esperar")) {
+  if (itensCozinhaEmPreparo.length > 0) {
+    // MODAL ESPECÍFICO PARA COZINHA (BLOQUEIO)
+    const listaHtml = itensCozinhaEmPreparo.map(i => `• ${i.quantidade}x ${i.nome}`).join('<br>');
+    if (!await mostrarConfirmacao(`
+      <div style="text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">👨‍🍳</div>
+        <p style="font-weight: bold; color: #e74c3c; font-size: 1.1rem; margin-bottom: 10px;">PEDIDO EM PREPARO NA COZINHA!</p>
+        <p style="color: #2c3e50; margin-bottom: 15px;">Ainda existem <strong>${itensCozinhaEmPreparo.length} itens</strong> sendo feitos. Deseja prosseguir e fechar a conta mesmo com o pedido incompleto?</p>
+        <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2; text-align: left; font-size: 0.9rem; max-height: 100px; overflow-y: auto;">
+          ${listaHtml}
+        </div>
+      </div>
+    `, "Cozinha em Andamento", "Sim, Fechar mesmo assim", "Não, Esperar Cozinha")) {
       return;
     }
-  } else if (itensForaCozinhaPend.length > 0) {
-    // Caso inteligente: Cozinha liberada, mas faltam bebidas/outros
-    if (!await mostrarConfirmacao(`✅ Os pedidos da COZINHA já foram entregues! No entanto, ainda há ${itensForaCozinhaPend.length} itens pendentes (bebidas/outros). Deseja prosseguir com o fechamento?`, "Itens Pendentes", "Sim, Prosseguir", "Não, Esperar")) {
+  } else if (itensProntosNaoEntregues.length > 0 || itensForaCozinhaPend.length > 0) {
+    // Caso de itens prontos ou bebidas que não passaram pela cozinha mas não foram marcados como entregues
+    const total = itensProntosNaoEntregues.length + itensForaCozinhaPend.length;
+    if (!await mostrarConfirmacao(`✅ A COZINHA já finalizou tudo! No entanto, ainda há ${total} itens que não foram marcados como ENTREGUES. Deseja prosseguir com o fechamento?`, "Itens Pendentes", "Sim, Prosseguir", "Não, Cancelar")) {
       return;
     }
   }

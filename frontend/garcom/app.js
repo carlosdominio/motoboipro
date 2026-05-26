@@ -874,10 +874,30 @@ async function finalizarEDesocupar() {
       return await mostrarAlerta("O servidor demorou para responder (Timeout). Tente novamente em alguns segundos.", "Erro de Conexão");
     }
     const itens = await resItens.json();
-    const temPendentes = itens.some(i => i.status === 'pendente');
+    
+    // Separa itens por tipo de pendência
+    const emPreparo = itens.filter(i => i.status === 'pendente' && i.enviar_cozinha);
+    const prontosParaEntrega = itens.filter(i => (i.status === 'pendente' && !i.enviar_cozinha) || i.status === 'pronto');
+    const temPendentesGeral = emPreparo.length > 0 || prontosParaEntrega.length > 0;
 
-    if (temPendentes) {
-      return await mostrarAlerta("Não é possível solicitar o fechamento! Existem itens pendentes de entrega nesta mesa. Marque-os como entregues primeiro.", "Aviso");
+    if (emPreparo.length > 0) {
+      // MODAL ESPECÍFICO PARA COZINHA (SOLICITADO PELO USUÁRIO)
+      const msgHtml = `
+        <div style="text-align: center;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">👨‍🍳</div>
+          <p style="font-weight: bold; color: #e74c3c; font-size: 1.1rem; margin-bottom: 10px;">PEDIDO EM PREPARO NA COZINHA!</p>
+          <p style="color: #2c3e50; margin-bottom: 15px;">Existem <strong>${emPreparo.length} itens</strong> sendo preparados agora. Você não pode fechar a conta enquanto a cozinha não finalizar!</p>
+          <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2; text-align: left; font-size: 0.9rem;">
+            ${emPreparo.map(i => `• ${i.quantidade}x ${i.nome}`).join('<br>')}
+          </div>
+        </div>
+      `;
+      return await mostrarAlerta(msgHtml, "Atenção: Cozinha Ativa");
+    }
+
+    if (prontosParaEntrega.length > 0) {
+      // Outras situações de pendência (bebidas ou prontos)
+      return await mostrarAlerta(`Existem <strong>${prontosParaEntrega.length} itens</strong> que já estão prontos mas ainda não foram marcados como entregues. Entregue-os primeiro para poder fechar a conta!`, "Itens não Entregues");
     }
 
     const subtotal = itens.reduce((sum, i) => sum + (i.preco * i.quantidade), 0);
