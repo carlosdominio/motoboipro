@@ -655,8 +655,9 @@ app.put('/api/pedidos/:id/marcar-entregue', async (req, res) => {
   const { id } = req.params;
   const { apenasProntos } = req.body;
   try {
+    const filterCozinha = await getFilterCozinha();
+
     if (apenasProntos) {
-      const filterCozinha = await getFilterCozinha();
       // Marca como entregue apenas os itens que já estão PRONTOS ou que NÃO vão para a cozinha (bebidas etc)
       // Note que invertemos a lógica do filtro para pegar o que NÃO é cozinha
       await query(`
@@ -666,6 +667,23 @@ app.put('/api/pedidos/:id/marcar-entregue', async (req, res) => {
         AND (status = 'pronto' OR (status = 'pendente' AND menu_id IN (SELECT id FROM menu m WHERE NOT (${filterCozinha}))))
       `, [id]);
     } else {
+      // BLOQUEIO SERVER-SIDE: Verifica se há itens SENDO FEITOS na cozinha
+      const prep = await query(`
+        SELECT pi.id 
+        FROM pedido_itens pi 
+        JOIN menu m ON pi.menu_id = m.id 
+        WHERE pi.pedido_id = ? 
+        AND pi.status = 'pendente' 
+        AND (${filterCozinha})
+      `, [id]);
+
+      if (prep.rows.length > 0) {
+        return res.status(400).json({ 
+          error: 'COZINHA_ATIVA', 
+          mensagem: `Não é possível entregar tudo! Existem ${prep.rows.length} itens ainda em preparo na cozinha.` 
+        });
+      }
+
       await query("UPDATE pedido_itens SET status = 'entregue' WHERE pedido_id = ?", [id]);
     }
     

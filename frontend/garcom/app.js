@@ -1,6 +1,28 @@
 let menu = [];
 let mesas = [];
 let timeoutPusher = null;
+let configCozinhaCategorias = []; // Estado global das categorias da cozinha
+
+let configCozinhaLoaded = false; // Flag para saber se já carregou do servidor
+
+// Helper para verificar se um item deve ir para a cozinha (Sincronizado com Backend)
+function isItemParaCozinha(item) {
+    if (!item) return false;
+    const envCozinha = item.enviar_cozinha;
+    const cat = (item.categoria || '').trim().toUpperCase();
+
+    // 1. Override Manual: Se for explicitamente 0/false ou 1/true, esse valor manda.
+    if (envCozinha === 0 || envCozinha === false || envCozinha === '0' || envCozinha === 'false') return false;
+    if (envCozinha === 1 || envCozinha === true || envCozinha === '1' || envCozinha === 'true') return true;
+
+    // 2. Regra por Categoria: Se for NULL/Indefinido, verifica se a categoria está na lista da cozinha.
+    if (configCozinhaCategorias.length > 0) {
+        return configCozinhaCategorias.includes(cat);
+    }
+
+    // 3. Fallback: Se não há categorias configuradas e é NULL, por padrão vai para a cozinha.
+    return true;
+}
 
 // --- SUPRESSÃO DE ERROS DE WEBSOCKET (Pusher/Socket.io) ---
 window.onerror = function(msg, url, line) {
@@ -153,6 +175,7 @@ async function logout() {
 }
 
 async function iniciarApp() {
+  await carregarConfigCozinha();
   await carregarMenu();
   await carregarMesas();
   await atualizarStatusCaixa();
@@ -169,6 +192,18 @@ async function iniciarApp() {
   setInterval(() => {
     carregarMesas();
   }, 60000);
+}
+
+async function carregarConfigCozinha() {
+    try {
+        const res = await fetch('/api/config/categorias-cozinha');
+        if (res.ok) {
+            const cats = await res.json();
+            configCozinhaCategorias = cats.map(c => c.trim().toUpperCase());
+            configCozinhaLoaded = true;
+            console.log("🍳 Configurações de cozinha carregadas:", configCozinhaCategorias);
+        }
+    } catch (e) { console.error("Erro ao carregar configs cozinha:", e); }
 }
 
 async function atualizarStatusCaixa() {
@@ -649,7 +684,7 @@ async function verItensDaMesa() {
       html += `<h4 style="color:#e74c3c; margin-bottom:10px; border-bottom:2px solid #e74c3c;">⏳ PARA ENTREGAR AGORA</h4>`;
       html += pendentes.map(item => {
         const isPronto = item.status === 'pronto';
-        const emPreparo = item.status === 'pendente' && item.enviar_cozinha;
+        const emPreparo = item.status === 'pendente' && isItemParaCozinha(item);
         
         let bgColor = '#fff5f5';
         let statusLabel = '';
@@ -746,7 +781,7 @@ async function marcarComoServido(idPedido) {
     const resItens = await fetch(`/api/pedidos/${idPedido}/itens`);
     const itens = await resItens.json();
 
-    const emPreparo = itens.filter(i => i.status === 'pendente' && i.enviar_cozinha);
+    const emPreparo = itens.filter(i => i.status === 'pendente' && isItemParaCozinha(i));
 
     if (emPreparo.length > 0) {
       // MODAL ESPECÍFICO PARA COZINHA (SOLICITADO PELO USUÁRIO) - BLOQUEIO TOTAL
@@ -867,7 +902,7 @@ async function finalizarEDesocupar() {
     const itens = await resItens.json();
     
     // Separa itens por tipo de pendência
-    const emPreparo = itens.filter(i => i.status === 'pendente' && i.enviar_cozinha);
+    const emPreparo = itens.filter(i => i.status === 'pendente' && isItemParaCozinha(i));
     const prontosParaEntrega = itens.filter(i => (i.status === 'pendente' && !i.enviar_cozinha) || i.status === 'pronto');
     const temPendentesGeral = emPreparo.length > 0 || prontosParaEntrega.length > 0;
 
