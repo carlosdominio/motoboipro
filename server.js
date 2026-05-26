@@ -1,4 +1,5 @@
 const express = require('express');
+// v1.0.1 - Deploy forçado para ativação do menu bot
 const path = require('path');
 // Carregamento condicional do SQLite para evitar erros no Vercel
 let Database = null;
