@@ -749,28 +749,19 @@ async function marcarComoServido(idPedido) {
     const emPreparo = itens.filter(i => i.status === 'pendente' && i.enviar_cozinha);
 
     if (emPreparo.length > 0) {
-      const confirmParcial = await mostrarConfirmacao(
-        `⚠️ Atenção: Existem ${emPreparo.length} item(ns) ainda EM PREPARO na cozinha.\n\nDeseja confirmar APENAS a entrega dos itens que já estão prontos (bebidas e outros)?\n\nOs itens em preparo continuarão aguardando confirmação da cozinha.`,
-        "Entrega Parcial",
-        "Sim, entregar prontos",
-        "Cancelar"
-      );
-
-      if (!confirmParcial) return;
-
-      const res = await fetch(`/api/pedidos/${idPedido}/marcar-entregue`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apenasProntos: true })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        await mostrarAlerta("Itens prontos entregues! Os itens em preparo continuam aguardando na cozinha.", "Entrega Parcial");
-        verItensDaMesa();
-        carregarMesas();
-      }
-      return;
+      // MODAL ESPECÍFICO PARA COZINHA (SOLICITADO PELO USUÁRIO) - BLOQUEIO TOTAL
+      const msgHtml = `
+        <div style="text-align: center;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">👨‍🍳</div>
+          <p style="font-weight: bold; color: #e74c3c; font-size: 1.1rem; margin-bottom: 10px;">COZINHA AINDA EM PREPARO!</p>
+          <p style="color: #2c3e50; margin-bottom: 15px;">Você não pode confirmar a entrega total enquanto existirem <strong>${emPreparo.length} itens</strong> sendo feitos na cozinha.</p>
+          <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2; text-align: left; font-size: 0.9rem;">
+            ${emPreparo.map(i => `• ${i.quantidade}x ${i.nome}`).join('<br>')}
+          </div>
+          <p style="font-size: 0.8rem; color: #666; margin-top: 15px;">Aguarde a cozinha finalizar para poder entregar.</p>
+        </div>
+      `;
+      return await mostrarAlerta(msgHtml, "Atenção: Cozinha Ativa");
     }
 
     // Se não tem nada em preparo, confirmação normal
