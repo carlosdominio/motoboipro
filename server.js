@@ -51,11 +51,11 @@ if (process.env.WHATSAPP_BOT_URL) {
 
       console.log(`ðŸ“© [WhatsApp] Mensagem de ${nome} (${from}): ${msg}`);
 
-      // Processa as opÃ§Ãµes do menu
+      // Processa as opções do menu
       if (msg === '1') {
-        await sendWhatsAppMessage(`ðŸ“– *CARDÃPIO DIGITAL*\n\nAcesse nosso cardÃ¡pio por aqui: https://garconnexpress.vercel.app/cardapio/`, from);
+        await sendWhatsAppMessage(`📖 *CARDÁPIO DIGITAL*\n\nPara visualizar nossos produtos, você pode acessar nosso link: https://garconnexpress.vercel.app/cardapio/\n\n💡 *Dica:* Se você estiver em uma de nossas mesas, utilize o *QR Code* fixado nela para fazer o seu pedido diretamente!`, from);
       } else if (msg === '2') {
-        await sendWhatsAppMessage(`ðŸ›’ *FAZER PEDIDO*\n\nPara fazer um pedido, basta escolher os itens no nosso cardÃ¡pio digital: https://garconnexpress.vercel.app/cardapio/\n\nSe preferir, pode me dizer o que deseja por aqui mesmo!`, from);
+        await sendWhatsAppMessage(`🛒 *FAZER UM PEDIDO*\n\nPara sua maior comodidade, pedimos que utilize o *QR Code* localizado na sua mesa. Ele abrirá o cardápio completo e você poderá realizar seu pedido de forma rápida! 🚀\n\n💬 *Dúvidas?* Em caso de dúvida, basta chamar o garçom mais próximo ou dirigir-se ao balcão. Estamos aqui para ajudar!`, from);
       } else if (msg === '3') {
         const promoVal = isPostgres ? true : 1;
         const promos = await query("SELECT nome, preco, preco_original FROM menu WHERE em_promocao = ? AND visivel = ?", [promoVal, promoVal]);
