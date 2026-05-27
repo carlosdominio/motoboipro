@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardápio Digital - GarconnExpress</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root { --primary: #ff4757; --primary-dark: #e84118; --bg: #f1f2f6; --card-bg: #ffffff; --text: #2f3542; --text-light: #747d8c; --shadow: 0 4px 12px rgba(0,0,0,0.08); --radius: 16px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 100px; }
+        body.login-active, body.modal-open { overflow: hidden; height: 100vh; overscroll-behavior: none; }
+        #sticky-header-group { position: sticky; top: 0; z-index: 100; background: var(--bg); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        header { background: var(--card-bg); padding: 25px 20px; text-align: center; border-bottom: 1px solid #eee; }
+        header h1 { font-size: 1rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 2px; }
+        header p { font-size: 2.2rem; color: var(--primary); font-weight: 900; }
+        .categories { display: flex; overflow-x: auto; padding: 15px 20px; gap: 12px; background: var(--bg); scrollbar-width: none; }
+        .categories::-webkit-scrollbar { display: none; }
+        .category-pill { background: var(--card-bg); padding: 10px 20px; border-radius: 25px; font-size: 0.9rem; white-space: nowrap; box-shadow: var(--shadow); cursor: pointer; font-weight: 600; color: var(--text-light); border: 2px solid transparent; }
+        .category-pill.active { background: var(--primary); color: white; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 71, 87, 0.3); }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .section-title { margin: 25px 0 15px; font-size: 1.4rem; color: var(--text); font-weight: 800; border-left: 5px solid var(--primary); padding-left: 12px; }
+        .menu-item { background: var(--card-bg); border-radius: var(--radius); padding: 18px; margin-bottom: 20px; display: flex; gap: 15px; box-shadow: var(--shadow); }
+        .item-img { width: 90px; height: 90px; background: #f8f9fa; border-radius: 14px; object-fit: cover; }
+        .item-placeholder { width: 90px; height: 90px; background: #f1f2f6; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 2rem; font-weight: bold; }
+        .item-info { flex: 1; }
+        .item-info h3 { font-size: 1.15rem; margin-bottom: 6px; }
+        .item-info .desc { font-size: 0.85rem; color: var(--text-light); line-height: 1.4; }
+        .item-info .price { font-weight: 800; color: var(--primary); font-size: 1.2rem; margin-top: 8px; }
+        .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+        .btn-qty { width: 32px; height: 32px; border-radius: 10px; border: none; background: #f1f2f6; cursor: pointer; font-weight: bold; font-size: 1.2rem; }
+        .qty { font-weight: 800; font-size: 1.1rem; width: 25px; text-align: center; }
+        .btn-add-initial { background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        .cart-bar { position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%); width: calc(100% - 40px); max-width: 500px; background: #2f3542; color: white; padding: 18px 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 200; cursor: pointer; display: none; }
+        .actions-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 12px 20px; display: flex; justify-content: space-around; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 150; }
+        .action-item { display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--text-light); font-size: 0.8rem; cursor: pointer; background: none; border: none; font-weight: 600; }
+        .action-item.active { color: var(--primary); }
+        .action-item i { font-size: 1.4rem; }
+
+        .modal-cart { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; z-index: 1000; justify-content: flex-end; flex-direction: column; }
+        .modal-content { background: white; border-radius: 40px 40px 0 0; padding: 40px 25px; max-height: 94vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .modal-header h2 { font-size: 1.8rem; font-weight: 900; }
+        .close-modal { font-size: 2rem; color: #ddd; cursor: pointer; padding: 5px; }
+        
+        .value-card { 
+            background: transparent; 
+            padding: 25px 0; 
+            margin: 30px 0 20px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px dashed #e1e1e1;
+            border-bottom: 1px dashed #e1e1e1;
+        }
+        .value-card span { font-size: 0.8rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; }
+        .value-card h3 { font-size: 1.6rem; font-weight: 900; color: var(--primary); }
+
+        .btn-send {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 6px 20px rgba(255, 71, 87, 0.2);
+            transition: 0.3s;
+        }
+        .btn-send:active { transform: scale(0.98); }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 22px 0; border-bottom: 1px solid #f8f9fa; }
+        .item-row h4 { font-size: 1.15rem; font-weight: 800; margin-bottom: 5px; }
+        .item-row p { font-size: 0.95rem; color: var(--text-light); font-weight: 500; }
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 20px; }
+        .spinner { width: 50px; height: 50px; border: 6px solid #f3f3f3; border-top: 6px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #login-screen, #closed-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: white; z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; overflow: hidden; }
+        .login-input { width: 100%; text-align: center; font-size: 2.2rem; padding: 20px; border: 3px solid #f1f2f6; border-radius: 20px; margin-bottom: 30px; font-weight: 900; letter-spacing: 8px; text-transform: uppercase; color: var(--primary); outline: none; }
+        .status-badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 12px; background: #eee; color: #777; font-weight: 700; text-transform: uppercase; }
+        .swal2-container { z-index: 9999 !important; }
+    </style>
+</head>
+<body>
+    <div id="loading"><div class="spinner"></div><p style="font-weight: 700; color: #999;">CARREGANDO...</p></div>
+    
+    <!-- Container para geração de PDF (invisível mas renderizado no DOM para captura) -->
+    <div id="pdf-render-container" style="position: fixed; left: 0; top: 0; width: 450px; background: white; padding: 20px; color: black; font-family: Arial, sans-serif; z-index: -1; visibility: hidden;"></div>
+
+    <div id="closed-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100vh; background:linear-gradient(135deg, #f1f2f6 0%, #ffffff 100%); z-index:3000; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center;">
+        <div style="width:100%; max-width:450px; background:white; padding:60px 40px; border-radius:40px; box-shadow: 0 25px 60px rgba(0,0,0,0.1); display:flex; flex-direction:column; align-items:center;">
+            <div style="width: 120px; height: 120px; background: #fff1f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 30px; font-size: 4rem;">🌙</div>
+            <h1 style="font-weight: 900; font-size: 2rem; color: #2f3542; margin-bottom: 15px; letter-spacing: -0.5px;">Até breve!</h1>
+            <p style="color: #747d8c; line-height: 1.6; font-size: 1.1rem; margin-bottom: 35px;">
+                Nosso atendimento via cardápio digital está <b>encerrado</b> no momento.<br><br>
+                Estamos preparando tudo para te receber com a melhor experiência em breve!
+            </p>
+            <div style="width: 100%; border-top: 1px solid #f1f2f6; padding-top: 30px;">
+                <p style="font-size: 0.9rem; color: #a4b0be; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Horário de Funcionamento</p>
+                <p style="font-size: 1rem; color: #2f3542; margin-top: 5px; font-weight: 700;">Consulte nossas redes sociais</p>
+            </div>
+            <button onclick="location.reload()" class="btn-send" style="margin-top: 40px; background: #2f3542; border-radius: 20px; width: auto; padding: 15px 40px;">TENTAR NOVAMENTE</button>
+        </div>
+        <p style="margin-top: 30px; color: #a4b0be; font-size: 0.8rem; font-weight: 700;">GarconnExpress • Inteligência para o seu bar</p>
+    </div>
+    <div id="login-screen">
+        <div style="width: 100%; max-width: 400px;">
+            <img src="../favicon.svg" style="width: 100px; margin-bottom: 30px;">
+            <h1 style="font-weight: 900; margin-bottom: 10px;">Olá!</h1>
+            <p style="color: var(--text-light); margin-bottom: 40px;">Informe o código da sua mesa.</p>
+            <input type="text" maxlength="4" id="access-code" class="login-input" placeholder="0000">
+            <button onclick="validarAcesso()" id="btn-login" class="btn-send">ACESSAR CARDÁPIO</button>
+        </div>
+    </div>
+    <div id="main-content" style="display: none;">
+        <!-- Container para geração de PDF (invisível mas renderizado no DOM para captura) -->
+        <div id="pdf-render-container" style="position: fixed; left: 0; top: 0; width: 450px; background: white; padding: 20px; color: black; font-family: Arial, sans-serif; z-index: -1; visibility: hidden;"></div>
+        
+        <div id="sticky-header-group"><header><h1>GarconnExpress</h1><p id="mesa-label">Mesa --</p></header><div class="categories" id="categories-container"></div></div>
+        <div class="container" id="menu-container"></div>
+        <div class="cart-bar" id="cart-bar" onclick="toggleCartModal(true)">
+            <div class="info"><span id="cart-qty">0 itens</span><span id="cart-total" style="display: block; font-weight: 900; font-size: 1.2rem;">R$ 0,00</span></div>
+            <div style="font-weight: 800; font-size: 0.9rem;">RASCUNHO <i class="fas fa-chevron-right"></i></div>
+        </div>
+        <div class="actions-bar">
+            <button class="action-item active" onclick="location.reload()"><i class="fas fa-book-open"></i><span>Menu</span></button>
+            <button class="action-item" onclick="chamarGarcom()"><i class="fas fa-bell"></i><span>Garçom</span></button>
+            <button class="action-item" onclick="verMeusPedidos()"><i class="fas fa-receipt"></i><span>Pedidos</span></button>
+        </div>
+    </div>
+    <div class="modal-cart" id="modal-cart">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Rascunho</h2><i class="fas fa-times close-modal" onclick="toggleCartModal(false)"></i></div>
+            <div id="modal-cart-items"></div>
+            <div id="cart-footer-logic" style="margin-top:35px;">
+                <div class="value-card">
+                    <span>Total Estimado</span>
+                    <h3 id="modal-cart-total">R$ 0,00</h3>
+                </div>
+                <button class="btn-send" onclick="enviarRascunho()">ENVIAR PEDIDO</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-cart" id="modal-pedidos">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Meus Pedidos</h2><i class="fas fa-times close-modal" onclick="togglePedidosModal(false)"></i></div>
+            <div id="pedidos-lista"></div>
+            <div id="pedidos-footer" style="margin-top:25px;">
+                <div class="value-card">
+                    <span>Total Consumido</span>
+                    <h3 id="pedidos-total">R$ 0,00</h3>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-send" style="background: #95a5a6; flex: 1;" onclick="carregarMeusPedidos()"><i class="fas fa-sync"></i></button>
+                    <button id="btn-solicitar-fechamento" class="btn-send" style="background: #f1c40f; color: #2f3542; flex: 4;" onclick="solicitarFechamento()">PEDIR CONTA</button>
+                </div>
+                <p style="text-align: center; font-size: 0.8rem; color: #999; margin-top: 15px;">O garçom deve confirmar todos os itens para liberar a conta.</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        let fullMenu = [], cart = [], pusher, currentCategory = null, isClosingSession = false;
+        let sessionMesa = JSON.parse(localStorage.getItem('sessionMesa'));
+        document.addEventListener('DOMContentLoaded', async () => {
+            await verificarCaixa(); initPusher(); setInterval(verificarCaixa, 30000);
+
+            // LÓGICA DE QR CODE: Verifica se há mesa na URL para acesso automático
+            const urlParams = new URLSearchParams(window.location.search);
+            const mesaIdFromUrl = urlParams.get('mesa') || urlParams.get('mesa_id');
+            
+            if (mesaIdFromUrl && (!sessionMesa || sessionMesa.mesa_id != mesaIdFromUrl)) {
+                showLoading(true);
+                try {
+                    const res = await fetch('/api/acesso/qr', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ mesa_id: mesaIdFromUrl }) 
+                    });
+                    const d = await res.json();
+                    if (d.success) {
+                        sessionMesa = { 
+                            mesa_id: d.mesa_id, 
+                            mesa_numero: d.mesa_numero, 
+                            token: d.token_acesso, 
+                            pedido_id: d.pedido_id 
+                        };
+                        localStorage.setItem('sessionMesa', JSON.stringify(sessionMesa));
+                        // Limpa os parâmetros da URL para evitar loops
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    } else {
+                        // Se falhar o QR (ex: sem garçom online), avisa e segue para login manual se não tiver sessão
+                        Swal.fire({
+                            title: 'QR Code',
+                            text: d.error,
+                            icon: 'warning',
+                            confirmButtonColor: '#ff4757'
+                        });
+                    }
+                } catch (e) {
+                    console.error('Erro QR Code:', e);
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            if (!sessionMesa) { showLoading(false); document.body.classList.add('login-active'); document.getElementById('login-screen').style.display='flex'; return; }
+            if (!await validarSessaoAtiva()) { localStorage.removeItem('sessionMesa'); window.location.reload(); return; }
+            showMainContent();
+        });
+        async function verificarCaixa() {
+            try { const res = await fetch('/api/caixa/status'); const cx = await res.json(); const s = document.getElementById('closed-screen'); if(!cx){ s.style.display='flex'; return false; } s.style.display='none'; return true; } catch(e){ return true; }
+        }
+        async function validarSessaoAtiva() {
+            if (!sessionMesa) return false;
+            try { const res = await fetch('/api/acesso/check', { headers: { 'Authorization': `Bearer ${sessionMesa.token}` } }); const d = await res.json(); return d.valid === true; } catch(e) { return false; }
+        }
+        async function validarAcesso() {
+            const codigo = document.getElementById('access-code').value.trim();
+            if (codigo.length < 4) return Swal.fire('Aviso', 'Código de 4 dígitos.', 'warning');
+            const btn = document.getElementById('btn-login'); btn.disabled = true;
+            try {
+                const res = await fetch('/api/acesso/validar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo }) });
+                const d = await res.json();
+                if (d.success) {
+                    sessionMesa = { mesa_id: d.mesa_id, mesa_numero: d.mesa_numero, token: d.token_acesso, pedido_id: d.pedido_id };
+                    localStorage.setItem('sessionMesa', JSON.stringify(sessionMesa));
+                    showMainContent();
+                } else { Swal.fire('Erro', d.error, 'error'); }
+            } catch(err){ Swal.fire('Erro', 'Conexão falhou.', 'error'); } finally { btn.disabled = false; }
+        }
+        function showMainContent() {
+            document.body.classList.remove('login-active'); document.getElementById('login-screen').style.display = 'none'; document.getElementById('main-content').style.display = 'block';
+            document.getElementById('mesa-label').innerText = `Mesa ${sessionMesa.mesa_numero}`;
+            showLoading(true); adicionarOuvintesMesa(); loadMenu();
+        }
+        function initPusher() {
+            if (pusher) return;
+            fetch('/api/pusher-config').then(r => r.json()).then(c => {
+                pusher = new Pusher(c.key, { cluster: c.cluster }); const ch = pusher.subscribe('garconnexpress');
+                ch.bind('status-caixa-atualizado', (d) => { 
+                    // Se o caixa abrir ou fechar, recarregamos para aplicar o bloqueio/desbloqueio
+                    if(d.status === 'fechado' || d.status === 'aberto') location.reload(); 
+                });
+                ch.bind('status-atualizado', (d) => { if (sessionMesa && d.mesa_id == sessionMesa.mesa_id) carregarMeusPedidos(); });
+                adicionarOuvintesMesa();
+            });
+        }
+        function adicionarOuvintesMesa() {
+            if (!pusher || !sessionMesa) return; const ch = pusher.channel('garconnexpress') || pusher.subscribe('garconnexpress');
+            ch.bind(`fechamento-liberado-mesa-${sessionMesa.mesa_id}`, () => { Swal.fire({ title: 'Conta Liberada!', icon: 'success' }).then(() => carregarMeusPedidos()); });
+            ch.bind(`deslogar-mesa-${sessionMesa.mesa_id}`, (d) => {
+                if (isClosingSession) return; 
+                isClosingSession = true;
+                
+                const isCancelado = d.status === 'cancelado';
+                Swal.fire({
+                    title: isCancelado ? 'Sessão Encerrada' : 'Mesa Finalizada',
+                    text: d.mensagem || (isCancelado ? 'Seu acesso foi cancelado pelo estabelecimento.' : 'Deseja baixar seu comprovante final?'),
+                    icon: isCancelado ? 'warning' : 'success',
+                    showCancelButton: !isCancelado,
+                    confirmButtonText: isCancelado ? 'OK, ENTENDI' : 'BAIXAR NOTA (PDF)',
+                    cancelButtonText: 'SAIR AGORA',
+                    confirmButtonColor: isCancelado ? '#ff4757' : '#27ae60',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    timer: 60000, // 60 segundos de tempo
+                    timerProgressBar: true
+                }).then((result) => {
+                    if (!isCancelado && result.isConfirmed) {
+                        gerarPDFNota(true).then(() => {
+                            setTimeout(() => {
+                                localStorage.removeItem('sessionMesa');
+                                location.reload();
+                            }, 2500);
+                        });
+                    } else { 
+                        localStorage.removeItem('sessionMesa');
+                        location.reload();
+                    }
+                });
+            });
+        }
+        async function carregarMeusPedidos() {
+            const container = document.getElementById('pedidos-lista'); const totalSpan = document.getElementById('pedidos-total');
+            const footer = document.getElementById('pedidos-footer');
+            container.innerHTML = '<p style="text-align:center;">Buscando consumo...</p>';
+            try {
+                const res = await fetch('/api/cliente/meus-pedidos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: sessionMesa.token }) });
+                const d = await res.json();
+                if (d.success && d.pedido && d.itens && d.itens.length > 0) {
+                    if (footer) footer.style.display = 'block';
+                    container.innerHTML = `<div style="background:#f8f9fa; padding:12px; border-radius:12px; margin-bottom:15px; border:1px solid #eee; display:flex; justify-content:space-between; font-weight:800; font-size:0.8rem; color:#777;"><span>PEDIDO: #${d.pedido.id}</span><span>${d.pedido.status.toUpperCase()}</span></div>`;
+                    container.innerHTML += d.itens.map(i => {
+                        const pr = i.preco || i.menu_preco || 0; return `<div class="cart-item"><div><h4>${i.quantidade}x ${i.menu_nome}</h4><p>R$ ${pr.toFixed(2)} | <b>R$ ${(i.quantidade*pr).toFixed(2)}</b></p></div><span class="status-badge">${i.status}</span></div>`;
+                    }).join('');
+                    totalSpan.innerText = `R$ ${Number(d.pedido.total).toFixed(2)}`;
+                    const btn = document.getElementById('btn-solicitar-fechamento'); const todosEnt = d.itens.every(i => ['entregue','servido','cancelado'].includes(i.status));
+                    if (btn) {
+                        btn.disabled = false; btn.style.opacity = '1';
+                        if (d.pedido.fechamento_liberado) { btn.style.background = '#27ae60'; btn.style.color = '#fff'; btn.innerHTML = 'BAIXAR NOTA'; btn.onclick = ()=>gerarPDFNota(false); }
+                        else if (d.pedido.solicitou_fechamento) { btn.disabled = true; btn.style.opacity = '0.5'; btn.innerHTML = 'AGUARDANDO GARÇOM'; }
+                        else if (!todosEnt) { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.background = '#95a5a6'; btn.innerHTML = 'AGUARDE ENTREGA'; }
+                        else { btn.style.background = '#f1c40f'; btn.innerHTML = 'PEDIR CONTA'; btn.onclick = solicitarFechamento; }
+                    }
+                } else { container.innerHTML = '<p style="text-align:center; padding:30px; color:#999;">Nenhum pedido ativo.</p>'; if (footer) footer.style.display = 'none'; }
+            } catch (e) { container.innerHTML = '<p>Erro ao carregar.</p>'; if (footer) footer.style.display = 'none'; }
+        }
+        async function gerarPDFNota(isFinal) {
+            showLoading(true);
+            try {
+                const res = await fetch('/api/cliente/meus-pedidos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: sessionMesa.token }) });
+                const d = await res.json();
+                
+                if (!d.success || !d.pedido || !d.itens || d.itens.length === 0) {
+                    showLoading(false);
+                    return Swal.fire('Aviso', 'Não há consumo registrado para gerar nota.', 'info');
+                }
+
+                // Usamos jsPDF direto para evitar problemas com renderização de HTML
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // Cabeçalho Simples
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(22);
+                doc.text("GarconnExpress", 105, 20, { align: "center" });
+                
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(12);
+                doc.text("COMPROVANTE DE CONSUMO (CONFERÊNCIA)", 105, 28, { align: "center" });
+                
+                doc.setDrawColor(0);
+                doc.line(20, 35, 190, 35);
+                
+                doc.setFontSize(10);
+                doc.text(`MESA: ${sessionMesa.mesa_numero}`, 20, 45);
+                doc.text(`PEDIDO: #${d.pedido.id}`, 20, 50);
+                doc.text(`DATA: ${new Date().toLocaleString('pt-BR')}`, 20, 55);
+
+                // Cálculo de Segurança do Total no Frontend
+                let subtotalManual = 0;
+                const tableData = d.itens.map(i => {
+                    const preco = i.preco || i.menu_preco || 0;
+                    const sub = i.quantidade * preco;
+                    subtotalManual += sub;
+                    return [
+                        i.menu_nome,
+                        `${i.quantidade}x`,
+                        `R$ ${preco.toFixed(2)}`,
+                        `R$ ${sub.toFixed(2)}`
+                    ];
+                });
+
+                // Tabela de Itens
+                doc.autoTable({
+                    startY: 62,
+                    head: [['Item', 'Qtd', 'Preço Unit.', 'Subtotal']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255] },
+                    styles: { fontSize: 9 }
+                });
+
+                // Total Final
+                const totalFinal = d.pedido.cobrar_taxa ? (subtotalManual * 1.1) : subtotalManual;
+                const finalY = doc.lastAutoTable.finalY + 10;
+                
+                doc.setFontSize(14);
+                doc.setFont("helvetica", "bold");
+                if (d.pedido.cobrar_taxa) {
+                    doc.setFontSize(10);
+                    doc.text(`Subtotal: R$ ${subtotalManual.toFixed(2)}`, 190, finalY, { align: "right" });
+                    doc.text(`Taxa de Serviço (10%): R$ ${(subtotalManual * 0.1).toFixed(2)}`, 190, finalY + 5, { align: "right" });
+                    doc.setFontSize(14);
+                    doc.text(`TOTAL: R$ ${totalFinal.toFixed(2)}`, 190, finalY + 12, { align: "right" });
+                } else {
+                    doc.text(`TOTAL: R$ ${totalFinal.toFixed(2)}`, 190, finalY, { align: "right" });
+                }
+
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "italic");
+                doc.text("Obrigado pela preferência! Volte sempre.", 105, doc.internal.pageSize.height - 15, { align: "center" });
+
+                // Download
+                doc.save(`comprovante-mesa-${sessionMesa.mesa_numero}.pdf`);
+                
+                showLoading(false);
+                if (!isFinal) Swal.fire('Sucesso', 'Sua nota foi baixada!', 'success');
+                return true;
+            } catch (e) {
+                console.error('Erro PDF Crítico:', e);
+                showLoading(false);
+                Swal.fire('Erro', 'Falha ao gerar o arquivo. Tente novamente.', 'error');
+                return false;
+            }
+        }
+        async function solicitarFechamento() {
+            if (await Swal.fire({ title: 'Pedir conta?', icon: 'question', showCancelButton: true, confirmButtonColor: '#f1c40f' }).then(r => r.isConfirmed)) {
+                showLoading(true); try { await fetch('/api/cliente/solicitar-conta', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:sessionMesa.token}) }); carregarMeusPedidos(); } finally { showLoading(false); }
+            }
+        }
+        async function chamarGarcom() {
+            if (await Swal.fire({ title: 'Chamar Garçom?', icon: 'question', showCancelButton: true, confirmButtonColor: '#ff4757' }).then(r => r.isConfirmed)) {
+                showLoading(true); try { await fetch('/api/cliente/chamar-garcom', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mesa_id:sessionMesa.mesa_id, mesa_numero:sessionMesa.mesa_numero }) }); Swal.fire('Enviado','Garçom notificado!','success'); } finally { showLoading(false); }
+            }
+        }
+        async function loadMenu() { try { const res = await fetch('/api/menu'); fullMenu = await res.json(); renderCategories(); renderMenu(); showLoading(false); } catch(e){} }
+        function renderCategories() {
+            const cats = ['Tudo', ...new Set(fullMenu.map(i => i.categoria.trim().toUpperCase()))];
+            document.getElementById('categories-container').innerHTML = cats.map(c => `<div class="category-pill ${(currentCategory===null && c==='Tudo')||currentCategory===c?'active':''}" onclick="filterCategory('${c}')">${c}</div>`).join('');
+        }
+        function filterCategory(c) { currentCategory = c === 'Tudo' ? null : c; renderCategories(); renderMenu(); }
+        function renderMenu() {
+            const container = document.getElementById('menu-container'); container.innerHTML = '';
+            const menuToShow = currentCategory ? fullMenu.filter(i => i.categoria.trim().toUpperCase() === currentCategory) : fullMenu;
+            const groups = menuToShow.reduce((acc, i) => { const n = i.categoria.trim().toUpperCase(); if(!acc[n]) acc[n]=[]; acc[n].push(i); return acc; }, {});
+            for (const cat in groups) {
+                const section = document.createElement('div'); section.innerHTML = `<h2 class="section-title">${cat}</h2>`;
+                groups[cat].forEach(i => {
+                    const cartI = cart.find(c => c.id === i.id); const qty = cartI ? cartI.qty : 0;
+                    section.innerHTML += `
+                        <div class="menu-item">
+                            ${i.imagem ? `<img src="${i.imagem}" class="item-img" onerror="this.onerror=null;this.src='https://placehold.co/100x100?text=${i.nome[0]}'">` : `<div class="item-placeholder">${i.nome[0]}</div>`}
+                            <div class="item-info"><h3>${i.nome}</h3><p class="desc">${i.descricao||''}</p><div class="price">R$ ${i.preco.toFixed(2)}</div>
+                                <div class="controls">${qty>0 ? `<button class="btn-qty" onclick="updateCart(${i.id},-1)">-</button><span class="qty">${qty}</span><button class="btn-qty" onclick="updateCart(${i.id},1)">+</button>` : `<button class="btn-add-initial" onclick="updateCart(${i.id},1)">Adicionar</button>`}</div>
+                            </div>
+                        </div>`;
+                });
+                container.appendChild(section);
+            }
+        }
+        function updateCart(id, delta) {
+            const i = fullMenu.find(x => x.id === id); const cI = cart.find(x => x.id === id);
+            if (cI) { cI.qty += delta; if (cI.qty <= 0) cart = cart.filter(x => x.id !== id); }
+            else if (delta > 0) cart.push({ ...i, qty: 1 });
+            renderMenu(); updateCartBar(); renderCartModal();
+        }
+        function updateCartBar() {
+            const bar = document.getElementById('cart-bar'); const q = cart.reduce((s, x) => s + x.qty, 0); const v = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
+            if (q > 0) { bar.style.display = 'flex'; document.getElementById('cart-qty').innerText = `${q} itens`; document.getElementById('cart-total').innerText = `R$ ${v.toFixed(2)}`; }
+            else { bar.style.display = 'none'; }
+        }
+        function toggleCartModal(s) { document.getElementById('modal-cart').style.display=s?'flex':'none'; if(s){document.body.classList.add('modal-open');renderCartModal();}else{document.body.classList.remove('modal-open');} }
+        function renderCartModal() {
+            const c = document.getElementById('modal-cart-items'); if (cart.length === 0) { c.innerHTML = '<p style="text-align:center; padding:30px; color:#999; font-weight:700;">Rascunho vazio.</p>'; return; }
+            c.innerHTML = cart.map(i => `<div class="item-row"><div><h4>${i.nome}</h4><p>${i.qty}x R$ ${i.preco.toFixed(2)}</p></div><div class="controls"><button class="btn-qty" onclick="updateCart(${i.id},-1)">-</button><span class="qty">${i.qty}</span><button class="btn-qty" onclick="updateCart(${i.id},1)">+</button></div></div>`).join('');
+            const total = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
+            document.getElementById('modal-cart-total').innerText = `R$ ${total.toFixed(2)}`;
+        }
+        async function enviarRascunho() { 
+            const btn = document.querySelector('.modal-cart .btn-send'); btn.disabled = true; btn.innerText = 'ENVIANDO...';
+            try { await fetch('/api/cliente/enviar-rascunho', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mesa_id:sessionMesa.mesa_id, mesa_numero:sessionMesa.mesa_numero, itens:cart.map(i=>({menu_id:i.id, nome:i.nome, quantidade:i.qty, preco:i.preco})) }) }); Swal.fire({title:'Enviado!', icon:'success', timer:1500, showConfirmButton:false}); cart=[]; updateCartBar(); toggleCartModal(false); renderMenu(); } finally { btn.disabled = false; btn.innerText = 'ENVIAR PEDIDO'; }
+        }
+        function verMeusPedidos() { togglePedidosModal(true); }
+        function togglePedidosModal(s) { document.getElementById('modal-pedidos').style.display=s?'flex':'none'; if(s){document.body.classList.add('modal-open');carregarMeusPedidos();}else{document.body.classList.remove('modal-open');} }
+        function showLoading(s) { document.getElementById('loading').style.display=s?'flex':'none'; }
+    </script>
+</body>
+</html>
