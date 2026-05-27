@@ -443,8 +443,8 @@ function switchTab(tab) {
   const scrollPos = window.scrollY;
   abaAtiva = tab;
   
-  // BLOQUEIO DE SCROLL GLOBAL: Na aba de ativos e lançamento para manter o app fixo
-  if (tab === 'lancar' || tab === 'ativos') {
+  // BLOQUEIO DE SCROLL GLOBAL: Na aba de ativos, lançamento e whatsapp para manter o app fixo
+  if (tab === 'lancar' || tab === 'ativos' || tab === 'whatsapp') {
       document.body.classList.add('modal-open');
       window.scrollTo({ top: 0, behavior: 'instant' }); 
       document.documentElement.style.overflow = 'hidden'; // Força trava extra no HTML
