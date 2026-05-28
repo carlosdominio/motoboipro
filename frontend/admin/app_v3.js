@@ -224,7 +224,7 @@ async function realizarLoginAdmin() {
     localStorage.setItem('admin_logado', JSON.stringify(adminLogado));
     if (data.token) localStorage.setItem('admin_token', data.token); // Salva token
     location.reload();
-  } else await mostrarAlerta("Credenciais inválidas", "Erro de Login");
+  } else await mostrarAlerta("Credenciais inválidas", "Erro de Login", "❌");
 }
 
 async function logoutAdmin() {
@@ -322,7 +322,7 @@ async function mudarQtdItem(index, qtd) {
 
   if (novaQtd > itemNoPedido.quantidade && itemNoMenu && itemNoMenu.estoque !== -1) {
     if (novaQtd > itemNoMenu.estoque + itemNoPedido.quantidade) {
-      await mostrarAlerta(`Estoque insuficiente! Você pode adicionar no máximo mais ${itemNoMenu.estoque} unidades deste item.`, "Estoque");
+      await mostrarAlerta(`Estoque insuficiente! Você pode adicionar no máximo mais ${itemNoMenu.estoque} unidades deste item.`, "Estoque", "📦");
       renderizarItensEdicao();
       return;
     }
@@ -666,7 +666,7 @@ async function adicionarAoCarrinhoLancar(itemId) {
   const noCarrinho = carrinhoLancar.filter(c => c.menu_id === itemId).reduce((s, i) => s + i.quantidade, 0);
   
   if (item.estoque !== -1 && (noCarrinho + 1) > item.estoque) {
-    return await mostrarAlerta("Limite de estoque atingido!", "Estoque");
+    return await mostrarAlerta("Limite de estoque atingido!", "Estoque", "📦");
   }
 
   const exist = carrinhoLancar.find(c => c.menu_id === itemId);
@@ -748,7 +748,7 @@ function renderizarCarrinhoLancar() {
 
 async function limparCarrinhoLancar() {
   if (carrinhoLancar.length === 0) return;
-  if (await mostrarConfirmacao("Deseja esvaziar todo o carrinho?", "Limpar Tudo")) {
+  if (await mostrarConfirmacao("Deseja esvaziar todo o carrinho?", "Limpar Tudo", "Confirmar", "Cancelar", "🗑️")) {
     carrinhoLancar = [];
     renderizarCarrinhoLancar();
     // Força atualização do estoque no cardápio
@@ -765,7 +765,7 @@ async function alterarQtdCarrinhoLancar(index, qtd) {
 
   const itemMenu = cardapio.find(m => m.id === carrinhoLancar[index].menu_id);
   if (itemMenu && itemMenu.estoque !== -1 && novaQtd > itemMenu.estoque) {
-    await mostrarAlerta("Estoque insuficiente!", "Estoque");
+    await mostrarAlerta("Estoque insuficiente!", "Estoque", "📦");
     return;
   }
   
@@ -794,13 +794,13 @@ async function enviarPedidoLoteAdmin() {
   if (enviandoPedidoLote) return;
 
   let mesaId = document.getElementById('lancar-mesa-select').value;
-  if (!mesaId) return await mostrarAlerta("Selecione a mesa ou BALCÃO!", "Aviso");
-  if (carrinhoLancar.length === 0) return await mostrarAlerta("Carrinho vazio!", "Aviso");
+  if (!mesaId) return await mostrarAlerta("Selecione a mesa ou BALCÃO!", "Aviso", "⚠️");
+  if (carrinhoLancar.length === 0) return await mostrarAlerta("Carrinho vazio!", "Aviso", "⚠️");
 
   const cobrarTaxa = document.getElementById('lancar-taxa-toggle').checked;
   const subtotal = carrinhoLancar.reduce((s,i) => s + (i.preco * i.quantidade), 0);
 
-  if (!await mostrarConfirmacao(`Confirmar lançamento de R$ ${(cobrarTaxa ? subtotal * 1.10 : subtotal).toFixed(2)}?`, "Novo Pedido")) return;
+  if (!await mostrarConfirmacao(`Confirmar lançamento de R$ ${(cobrarTaxa ? subtotal * 1.10 : subtotal).toFixed(2)}?`, "Novo Pedido", "Confirmar", "Cancelar", "🚀")) return;
 
   enviandoPedidoLote = true;
   const btn = document.querySelector("button[onclick='enviarPedidoLoteAdmin()']");
@@ -858,10 +858,10 @@ async function enviarPedidoLoteAdmin() {
       };
     } else {
       const err = await res.json();
-      await mostrarAlerta("Erro: " + err.error, "Erro");
+      await mostrarAlerta("Erro: " + err.error, "Erro", "❌");
     }
   } catch (e) {
-    await mostrarAlerta("Erro de conexão", "Erro");
+    await mostrarAlerta("Erro de conexão", "Erro", "❌");
   } finally {
     enviandoPedidoLote = false;
     if (btn) { btn.disabled = false; btn.innerText = "🚀 LANÇAR NA MESA"; }
@@ -926,7 +926,7 @@ async function abrirCaixa() {
 }
 
 async function confirmarFechamentoCaixa() {
-  if (!await mostrarConfirmacao("Tem certeza que deseja FECHAR O CAIXA e encerrar o expediente?", "Fechar Caixa")) return;
+  if (!await mostrarConfirmacao("Tem certeza que deseja FECHAR O CAIXA e encerrar o expediente?", "Fechar Caixa", "Confirmar", "Cancelar", "💰")) return;
   
   // Guardamos uma cópia dos dados do caixa antes de fechar para o relatório
   const dadosCaixaParaRelatorio = { ...caixaAtual };
@@ -939,7 +939,7 @@ async function confirmarFechamentoCaixa() {
   });
   
   if (res.ok) {
-    await mostrarAlerta(`Caixa fechado com sucesso!\n\nTotal de Vendas: R$ ${dadosCaixaParaRelatorio.total_vendas.toFixed(2)}\nDinheiro em Caixa: R$ ${(dadosCaixaParaRelatorio.valor_inicial + dadosCaixaParaRelatorio.total_dinheiro).toFixed(2)}`, "Sucesso");
+    await mostrarAlerta(`Caixa fechado com sucesso!\n\nTotal de Vendas: R$ ${dadosCaixaParaRelatorio.total_vendas.toFixed(2)}\nDinheiro em Caixa: R$ ${(dadosCaixaParaRelatorio.valor_inicial + dadosCaixaParaRelatorio.total_dinheiro).toFixed(2)}`, "Sucesso", "✅");
     
     // Zera os indicadores de faturamento e vendas no topo imediatamente
     const elFat = document.getElementById('faturamento-resumo');
@@ -954,12 +954,12 @@ async function confirmarFechamentoCaixa() {
     
     await carregarHistorico(); // Garante que o histórico está carregado
     
-    if (await mostrarConfirmacao("Deseja imprimir o resumo diário (PDF) do histórico de vendas?", "Imprimir Resumo", "Sim, Imprimir", "Não agora")) {
+    if (await mostrarConfirmacao("Deseja imprimir o resumo diário (PDF) do histórico de vendas?", "Imprimir Resumo", "Sim, Imprimir", "Não agora", "💰")) {
         await imprimirResumoDiario();
     }
 
     // Pergunta se deseja limpar o histórico
-    if (await mostrarConfirmacao("Deseja LIMPAR o histórico de pedidos entregues e cancelados agora?", "Limpar Histórico", "Sim, Limpar", "Não")) {
+    if (await mostrarConfirmacao("Deseja LIMPAR o histórico de pedidos entregues e cancelados agora?", "Limpar Histórico", "Sim, Limpar", "Não", "🗑️")) {
         await limparHistoricoTotal();
     }
 
@@ -968,7 +968,7 @@ async function confirmarFechamentoCaixa() {
     carregarStatusCaixa();
   } else {
     const err = await res.json();
-    await mostrarAlerta("⚠️ Erro ao fechar caixa: " + (err.error || "Erro desconhecido"), "Erro");
+    await mostrarAlerta("⚠️ Erro ao fechar caixa: " + (err.error || "Erro desconhecido"), "Erro", "❌");
   }
 }
 
@@ -1043,15 +1043,15 @@ async function salvarOrdemCategorias() {
     });
 
     if (res.ok) {
-      await mostrarAlerta("✅ Ordem das categorias salva com sucesso!", "Sucesso");
+      await mostrarAlerta("✅ Ordem das categorias salva com sucesso!", "Sucesso", "✅");
       // Recarrega o menu globalmente
       if (typeof carregarMenu === 'function') await carregarMenu();
     } else {
-      await mostrarAlerta("❌ Erro ao salvar ordem das categorias.", "Erro");
+      await mostrarAlerta("❌ Erro ao salvar ordem das categorias.", "Erro", "❌");
     }
   } catch (e) {
     console.error('Erro ao salvar ordem:', e);
-    await mostrarAlerta("❌ Erro de conexão ao salvar.", "Erro");
+    await mostrarAlerta("❌ Erro de conexão ao salvar.", "Erro", "❌");
   }
 }
 
@@ -1102,13 +1102,13 @@ async function salvarConfigCategoriasCozinha() {
     if (res.ok) {
       configCozinhaCategorias = categorias; // Atualiza localmente
       await carregarCardapio(); // RECARREGA O CARDÁPIO PARA SINCRONIZAR OS ITENS
-      await mostrarAlerta("✅ Configuração de cozinha salva com sucesso! Todos os itens do cardápio foram sincronizados automaticamente.", "Sucesso");
+      await mostrarAlerta("✅ Configuração de cozinha salva com sucesso! Todos os itens do cardápio foram sincronizados automaticamente.", "Sucesso", "✅");
     } else {
       throw new Error('Falha ao salvar');
     }
   } catch (e) {
     console.error(e);
-    await mostrarAlerta("❌ Erro ao salvar configuração.", "Erro");
+    await mostrarAlerta("❌ Erro ao salvar configuração.", "Erro", "❌");
   }
 }
 
@@ -1133,7 +1133,7 @@ async function adicionarMesa() {
 }
 
 async function excluirMesa(id) {
-  if (await mostrarConfirmacao("Remover mesa?", "Configuração")) { await fetch(`/api/mesas/${id}`, { method: 'DELETE' }); exibirMesasConfig(); }
+  if (await mostrarConfirmacao("Remover mesa?", "Configuração", "Confirmar", "Cancelar", "🗑️")) { await fetch(`/api/mesas/${id}`, { method: 'DELETE' }); exibirMesasConfig(); }
 }
 
 // GARÇONS
@@ -1177,7 +1177,7 @@ async function exibirGarconsConfig() {
 
 async function toggleStatusGarcom(id, currentStatus) {
   const acao = currentStatus ? "PAUSAR" : "ATIVAR";
-  const confirm = await mostrarConfirmacao(`Deseja realmente ${acao} este garçom na fila de atendimento?`, "Controle de Fila");
+  const confirm = await mostrarConfirmacao(`Deseja realmente ${acao} este garçom na fila de atendimento?`, "Controle de Fila", "Confirmar", "Cancelar", "⚙️");
   if (!confirm) return;
 
   try {
@@ -1185,10 +1185,10 @@ async function toggleStatusGarcom(id, currentStatus) {
     if (res.ok) {
       exibirGarconsConfig(); // Recarrega a lista
     } else {
-      mostrarAlerta("Erro ao alterar status do garçom.", "Erro");
+      mostrarAlerta("Erro ao alterar status do garçom.", "Erro", "❌");
     }
   } catch (e) {
-    mostrarAlerta("Erro de conexão.", "Erro");
+    mostrarAlerta("Erro de conexão.", "Erro", "❌");
   }
 }
 
@@ -1237,7 +1237,7 @@ async function processarAcaoGarcom() {
   const comissao = parseFloat(document.getElementById('garcom-comissao').value) || 0;
   const senha = document.getElementById('garcom-senha').value;
 
-  if (!nome || !usuario) return await mostrarAlerta("Nome e usuário são obrigatórios", "Aviso");
+  if (!nome || !usuario) return await mostrarAlerta("Nome e usuário são obrigatórios", "Aviso", "⚠️");
 
   const payload = { nome, usuario, telefone, comissao, senha };
   const url = idGarcomEdicao ? `/api/garcons/${idGarcomEdicao}` : '/api/garcons';
@@ -1256,7 +1256,7 @@ async function processarAcaoGarcom() {
   }
 }
 async function excluirGarcom(id) {
-  if (await mostrarConfirmacao("Excluir este garçom?", "Configuração")) {
+  if (await mostrarConfirmacao("Excluir este garçom?", "Configuração", "Confirmar", "Cancelar", "🗑️")) {
     const res = await fetch(`/api/garcons/${id}`, { method: 'DELETE' });
     if (res.ok) exibirGarconsConfig();
   }
@@ -1383,7 +1383,7 @@ async function abrirModalItemMenu(item = null) {
 
 async function excluirDoMenuAtual() {
     if (!idItemEdicaoMenu) return;
-    if (await mostrarConfirmacao("Deseja realmente excluir este item do cardápio permanentemente?", "Excluir Item")) {
+    if (await mostrarConfirmacao("Deseja realmente excluir este item do cardápio permanentemente?", "Excluir Item", "Confirmar", "Cancelar", "🗑️")) {
         try {
             const res = await fetch(`/api/menu/${idItemEdicaoMenu}`, { method: 'DELETE' });
             if (res.ok) {
@@ -1392,10 +1392,10 @@ async function excluirDoMenuAtual() {
                 carregarCardapio();
             } else {
                 const err = await res.json();
-                mostrarAlerta("Erro ao excluir: " + (err.error || "Erro desconhecido"));
+                mostrarAlerta("Erro ao excluir: " + (err.error || "Erro desconhecido"), "Erro", "❌");
             }
         } catch (e) {
-            mostrarAlerta("Erro de conexão ao excluir item.");
+            mostrarAlerta("Erro de conexão ao excluir item.", "Erro", "❌");
         }
     }
 }
@@ -1431,7 +1431,7 @@ async function processarAcaoMenu() {
   const em_promocao = document.getElementById('menu-promocao').checked;
 
   if (!nome || !categoria || isNaN(preco) || isNaN(estoque)) {
-    return await mostrarAlerta("Por favor, preencha o nome, categoria e preço corretamente.", "Aviso");
+    return await mostrarAlerta("Por favor, preencha o nome, categoria e preço corretamente.", "Aviso", "⚠️");
   }
 
   const payload = { nome, descricao, categoria: categoria.toUpperCase(), preco, preco_original, imagem, estoque, validade, enviar_cozinha, visivel, em_promocao };
@@ -1450,7 +1450,7 @@ async function processarAcaoMenu() {
     carregarCardapio();
   } else {
     const err = await res.json();
-    mostrarAlerta("Erro ao salvar: " + (err.error || "Desconhecido"), "Erro");
+    mostrarAlerta("Erro ao salvar: " + (err.error || "Desconhecido"), "Erro", "❌");
   }
 }
 
@@ -1554,7 +1554,7 @@ async function exibirMenuConfig() {
               const statusHeader = hasStatus ? `
                 <div style="display: flex; width: 100%; height: 22px;">
                   ${m.em_promocao ? '<div style="flex: 1; background: #f1c40f; color: #2c3e50; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">🔥 PROMOÇÃO</div>' : ''}
-                  ${isItemParaCozinha(m) ? '<div style="flex: 1; background: #3498db; color: white; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">👨‍🍳 COZINHA</div>' : ''}
+                  ${isItemParaCozinha(m) ? '<div style="flex: 1; background: #3498db; color: white; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">🍳 COZINHA</div>' : ''}
                   ${(m.visivel === false || m.visivel === 0) ? '<div style="flex: 1; background: #e74c3c; color: white; font-size: 0.65rem; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 0.5px;">🚫 OCULTO</div>' : ''}
                 </div>` : '';
 
@@ -1606,18 +1606,18 @@ function prepararEdicaoMenuById(id) {
 }
 
 async function excluirDoMenu(id) {
-  if (await mostrarConfirmacao("Excluir item do cardápio?", "Configuração")) { await fetch(`/api/menu/${id}`, { method: 'DELETE' }); carregarCardapio(); }
+  if (await mostrarConfirmacao("Excluir item do cardápio?", "Configuração", "Confirmar", "Cancelar", "🗑️")) { await fetch(`/api/menu/${id}`, { method: 'DELETE' }); carregarCardapio(); }
 }
 
 async function excluirCategoria(categoria) {
-  if (await mostrarConfirmacao(`⚠️ ATENÇÃO: Deseja realmente EXCLUIR TODOS os itens da categoria "${categoria}"?\n\nEsta ação não pode ser desfeita.`, "Excluir Categoria")) {
+  if (await mostrarConfirmacao(`⚠️ ATENÇÃO: Deseja realmente EXCLUIR TODOS os itens da categoria "${categoria}"?\n\nEsta ação não pode ser desfeita.`, "Excluir Categoria", "Confirmar", "Cancelar", "🗑️")) {
     const res = await fetch(`/api/menu/categoria/${encodeURIComponent(categoria)}`, { method: 'DELETE' });
     if (res.ok) {
       mostrarToast(`✅ Categoria "${categoria}" e seus itens foram removidos.`);
       carregarCardapio();
     } else {
       const err = await res.json();
-      mostrarAlerta("Erro ao excluir categoria: " + (err.error || "Erro desconhecido"), "Erro");
+      mostrarAlerta("Erro ao excluir categoria: " + (err.error || "Erro desconhecido"), "Erro", "❌");
     }
   }
 }
@@ -1663,11 +1663,11 @@ async function confirmarRenomearCategoria() {
       carregarCardapio();
     } else {
       const err = await res.json();
-      mostrarAlerta("❌ Erro ao renomear: " + (err.error || "Desconhecido"), "Erro");
+      mostrarAlerta("❌ Erro ao renomear: " + (err.error || "Desconhecido"), "Erro", "❌");
     }
   } catch (e) {
     console.error(e);
-    mostrarAlerta("❌ Erro de conexão", "Erro");
+    mostrarAlerta("❌ Erro de conexão", "Erro", "❌");
   }
 }
 
@@ -1857,16 +1857,16 @@ function filtrarHistorico(valor) {
 }
 
 async function limparHistoricoTotal() {
-  if (historico.length === 0) return await mostrarAlerta("O histórico já está vazio!", "Aviso");
+  if (historico.length === 0) return await mostrarAlerta("O histórico já está vazio!", "Aviso", "⚠️");
 
-  if (await mostrarConfirmacao("⚠️ ATENÇÃO: Isso apagará TODO o histórico de pedidos entregues e cancelados. Deseja continuar?", "Limpar Histórico")) {
+  if (await mostrarConfirmacao("⚠️ ATENÇÃO: Isso apagará TODO o histórico de pedidos entregues e cancelados. Deseja continuar?", "Limpar Histórico", "Confirmar", "Cancelar", "🗑️")) {
     const res = await fetch('/api/pedidos/limpar', { method: 'DELETE' });
     if (res.ok) { mostrarToast("Histórico limpo!"); carregarHistorico(); }
   }
 }
 
 async function imprimirResumoDiario() {
-  if (historico.length === 0) return await mostrarAlerta('Nenhum pedido no histórico para imprimir.', "Aviso");
+  if (historico.length === 0) return await mostrarAlerta('Nenhum pedido no histórico para imprimir.', "Aviso", "⚠️");
 
   const container = document.getElementById('cupom-impressao');
   if (!container) return;
@@ -2086,7 +2086,7 @@ async function imprimirParcialMesaRapido(idPedido) {
     imprimirCupom({ ...pedido, isImpressaoParcialMesa: true }, itens);
   } catch (e) {
     console.error("Erro na impressão rápida:", e);
-    mostrarAlerta("Erro ao gerar impressão.", "Erro");
+    mostrarAlerta("Erro ao gerar impressão.", "Erro", "❌");
   }
 }
 
@@ -2594,9 +2594,9 @@ function selecionarTodosItens(selecionar) {
 
 async function removerItensSelecionados() {
   const selecionados = itensEmEdicao.filter(i => i.selecionado);
-  if (selecionados.length === 0) return await mostrarAlerta("Selecione pelo menos um item!", "Aviso");
+  if (selecionados.length === 0) return await mostrarAlerta("Selecione pelo menos um item!", "Aviso", "⚠️");
   
-  if (await mostrarConfirmacao(`Deseja remover os ${selecionados.length} itens selecionados?`, "Remover Itens")) {
+  if (await mostrarConfirmacao(`Deseja remover os ${selecionados.length} itens selecionados?`, "Remover Itens", "Confirmar", "Cancelar", "🗑️")) {
     itensEmEdicao = itensEmEdicao.filter(i => !i.selecionado);
     renderizarItensEdicao();
     mostrarToast("✅ Itens selecionados removidos!");
@@ -2606,7 +2606,7 @@ async function removerItensSelecionados() {
 // Funções de edição de itens consolidadas na parte inferior do arquivo
 
 async function excluirPedido(id) {
-  if (await mostrarConfirmacao("⚠️ EXCLUIR PERMANENTEMENTE?\n\nIsso removerá o pedido do banco de dados e do histórico. Esta ação não pode ser desfeita.", "Excluir Registro")) {
+  if (await mostrarConfirmacao("⚠️ EXCLUIR PERMANENTEMENTE?\n\nIsso removerá o pedido do banco de dados e do histórico. Esta ação não pode ser desfeita.", "Excluir Registro", "Confirmar", "Cancelar", "🗑️")) {
     const res = await fetch(`/api/pedidos/${id}`, { method: 'DELETE' });
     if (res.ok) {
       mostrarToast("🗑️ Pedido excluído!");
@@ -2617,7 +2617,7 @@ async function excluirPedido(id) {
 }
 
 async function atualizarStatus(id, status) {
-  if (status === 'cancelado' && !await mostrarConfirmacao("Deseja realmente CANCELAR este pedido? A mesa será liberada.", "Cancelar Pedido")) return;
+  if (status === 'cancelado' && !await mostrarConfirmacao("Deseja realmente CANCELAR este pedido? A mesa será liberada.", "Cancelar Pedido", "Confirmar", "Cancelar", "🗑️")) return;
   
   const res = await fetch(`/api/pedidos/${id}/status`, { 
     method: 'PUT', 
@@ -2630,7 +2630,7 @@ async function atualizarStatus(id, status) {
     carregarPedidos();
   } else {
     const err = await res.json();
-    await mostrarAlerta("Erro: " + err.error, "Erro");
+    await mostrarAlerta("Erro: " + err.error, "Erro", "❌");
   }
 }
 
@@ -2677,7 +2677,7 @@ async function marcarPedidoEntregue(id) {
         const listaHtml = emPreparo.map(i => `• ${i.quantidade}x ${i.nome}`).join('<br>');
         await mostrarAlerta(`
           <div style="text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">👨‍🍳</div>
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🍳</div>
             <p style="font-weight: bold; color: #e74c3c; font-size: 1.1rem; margin-bottom: 10px;">PEDIDO EM PREPARO NA COZINHA!</p>
             <p style="color: #2c3e50; margin-bottom: 15px;">Este pedido não pode ser marcado como entregue enquanto a cozinha não finalizar os seguintes itens:</p>
             <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2; text-align: left; font-size: 0.9rem; max-height: 100px; overflow-y: auto;">
@@ -2685,13 +2685,13 @@ async function marcarPedidoEntregue(id) {
             </div>
             <p style="font-size: 0.8rem; color: #666; margin-top: 15px;">Aguarde a cozinha finalizar para confirmar a entrega.</p>
           </div>
-        `, "Cozinha Ativa");
+        `, "Cozinha Ativa", "🍳");
       }
       return;
     }
 
     // CASO 2: Não há nada na cozinha em preparo, mas pode haver itens 'prontos' ou 'bebidas'
-    if (await mostrarConfirmacao("Confirmar a entrega de todos os itens deste pedido?", "Entregar Tudo")) {
+    if (await mostrarConfirmacao("Confirmar a entrega de todos os itens deste pedido?", "Entregar Tudo", "Confirmar", "Cancelar", "🚚")) {
       const res = await fetch(`/api/pedidos/${id}/marcar-entregue`, { 
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -2704,7 +2704,7 @@ async function marcarPedidoEntregue(id) {
     }
   } catch (e) {
     console.error("Erro ao marcar entregue:", e);
-    await mostrarAlerta("Erro ao processar entrega.", "Erro");
+    await mostrarAlerta("Erro ao processar entrega.", "Erro", "❌");
   }
 }
 
@@ -2713,7 +2713,7 @@ async function liberarMesa(idPedido, idMesa, temPendentes = false) {
   if (temPendentes) {
     msg = "⚠️ ATENÇÃO: Esta mesa possui itens PENDENTES de entrega! Tem certeza que deseja LIBERAR a mesa e encerrar o pedido sem entregar tudo?";
   }
-  if (await mostrarConfirmacao(msg, "Liberar Mesa")) {
+  if (await mostrarConfirmacao(msg, "Liberar Mesa", "Confirmar", "Cancelar", "🔓")) {
     // Agora chama o modal de fechamento para conferência antes de liberar
     aprovarFechamento(idPedido, idMesa);
   }
@@ -2755,7 +2755,7 @@ async function irParaEdicaoDestePedido() {
   // Comportamento padrão para as outras abas (abre o modal de edição)
   veioDoFechamento = true; // Flag para saber que deve voltar ao fechamento
   fecharModalFechamentoAdmin();
-  fetch(`/api/pedidos/${idPedido}/itens`).then(res => res.json()).then(itens => abrirModalEdicao(pedidoParaFecharAdmin, itens));
+  fetch(`/api/pedidos/${idPedido}/itens`).then(res => res.json()).then(itens => abrirModalEdicao(pedidoParaFecharAdmin, itens, "🔔"));
 }
 
 function abrirModalEdicao(pedido, itens) {
@@ -2941,7 +2941,7 @@ async function adicionarItemNaEdicao(itemId) {
   const selecionadosIndices = itensEmEdicao.map((item, index) => item.selecionado ? index : -1).filter(index => index !== -1);
 
   if (selecionadosIndices.length > 0) {
-    if (await mostrarConfirmacao(`Deseja substituir os ${selecionadosIndices.length} itens selecionados por ${menuItem.nome}?`, "Substituir Itens")) {
+    if (await mostrarConfirmacao(`Deseja substituir os ${selecionadosIndices.length} itens selecionados por ${menuItem.nome}?`, "Substituir Itens", "Confirmar", "Cancelar", "🔄")) {
       selecionadosIndices.forEach(index => {
         const itemOriginal = itensEmEdicao[index];
         if (menuItem.estoque !== -1 && itemOriginal.quantidade > menuItem.estoque) {
@@ -2968,7 +2968,7 @@ async function adicionarItemNaEdicao(itemId) {
   const qtdAtual = exist ? exist.quantidade : 0;
   
   if (menuItem.estoque !== -1 && (qtdAtual + 1) > menuItem.estoque) {
-    return await mostrarAlerta(`Estoque insuficiente! Restam apenas ${menuItem.estoque} unidades.`, "Estoque");
+    return await mostrarAlerta(`Estoque insuficiente! Restam apenas ${menuItem.estoque} unidades.`, "Estoque", "📦");
   }
 
   if (exist) {
@@ -3073,7 +3073,7 @@ async function aprovarFechamento(idPedido, idMesa, mesaNomeForcado = null) {
     const msgHtml = `
       <div style="text-align: center; padding: 10px;">
         <div style="background: #fff5f5; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;">
-          <span style="font-size: 2.5rem;">👨‍🍳</span>
+          <span style="font-size: 2.5rem;">🍳</span>
         </div>
         <h3 style="color: #e74c3c; margin: 0 0 10px 0; font-size: 1.2rem;">COZINHA EM ANDAMENTO</h3>
         <p style="color: #636e72; font-size: 0.95rem; margin-bottom: 20px;">
@@ -3233,7 +3233,7 @@ async function confirmarCancelamentoDesdeFechamento() {
   
   const pagoParcial = pedidoParaFecharAdmin.pago_parcial || 0;
   if (pagoParcial > 0) {
-    return await mostrarAlerta("⚠️ Esta mesa já possui pagamentos parciais (R$ "+pagoParcial.toFixed(2)+"). Não é possível cancelar o pedido inteiro. Você deve concluir o recebimento ou estornar os pagamentos manualmente no banco.", "Aviso de Segurança");
+    return await mostrarAlerta("⚠️ Esta mesa já possui pagamentos parciais (R$ "+pagoParcial.toFixed(2)+"). Não é possível cancelar o pedido inteiro. Você deve concluir o recebimento ou estornar os pagamentos manualmente no banco.", "Aviso de Segurança", "⚠️");
   }
 
   // NOVA TRAVA: Verifica se existem itens já entregues (servidos)
@@ -3429,7 +3429,7 @@ async function confirmarPagamentoAdmin(modo = 'tudo') {
   const idMesa = pedidoParaFecharAdmin.mesa_id;
   const selecionados = itensFechamentoAdmin.filter(i => i.selecionadoFechamento);
 
-  if (selecionados.length === 0) return await mostrarAlerta("Selecione pelo menos um item para pagar!", "Aviso");
+  if (selecionados.length === 0) return await mostrarAlerta("Selecione pelo menos um item para pagar!", "Aviso", "⚠️");
 
   const subtotalLocal = selecionados.reduce((sum, i) => sum + (i.preco * i.quantidade), 0);
   const todosItensSelecionados = selecionados.length === itensFechamentoAdmin.length;
@@ -3465,13 +3465,13 @@ async function confirmarPagamentoAdmin(modo = 'tudo') {
   if (modo !== 'imprimir' && isPagamentoUnicoDinheiro) {
     const valorComparar = modo === 'cota' ? valor_por_pessoa : total;
     if (!valor_recebido || valor_recebido <= 0) {
-      await mostrarAlerta("⚠️ O campo 'Valor Recebido' é obrigatório para pagamentos em Dinheiro!", "Aviso");
+      await mostrarAlerta("⚠️ O campo 'Valor Recebido' é obrigatório para pagamentos em Dinheiro!", "Aviso", "⚠️");
       const inputRec = document.getElementById('fechamento-recebido-admin');
       if (inputRec) { inputRec.focus(); inputRec.select(); }
       return;
     }
     if (valor_recebido < valorComparar) {
-      await mostrarAlerta(`⚠️ Valor insuficiente! O valor a pagar é R$ ${valorComparar.toFixed(2)} e você informou R$ ${valor_recebido.toFixed(2)}.`, "Aviso");
+      await mostrarAlerta(`⚠️ Valor insuficiente! O valor a pagar é R$ ${valorComparar.toFixed(2)} e você informou R$ ${valor_recebido.toFixed(2)}.`, "Aviso", "⚠️");
       const inputRec = document.getElementById('fechamento-recebido-admin');
       if (inputRec) { inputRec.focus(); inputRec.select(); }
       return;
@@ -3636,7 +3636,7 @@ async function confirmarPagamentoAdmin(modo = 'tudo') {
 
   } catch (error) {
     console.error(error);
-    await mostrarAlerta("❌ Erro: " + error.message, "Erro");
+    await mostrarAlerta("❌ Erro: " + error.message, "Erro", "❌");
   }
 }
 
@@ -3827,7 +3827,7 @@ function mostrarModalMultiPagamento(numPessoas, valorPorPessoa) {
         const troco = (forma === 'Dinheiro') ? Math.max(0, recebido - valorPorPessoa) : 0;
         
         if (forma === 'Dinheiro' && recebido < (valorPorPessoa - 0.01)) {
-          mostrarAlerta(`⚠️ Pessoa ${i}: Valor recebido insuficiente!`, "Aviso");
+          mostrarAlerta(`⚠️ Pessoa ${i}: Valor recebido insuficiente!`, "Aviso", "⚠️");
           return;
         }
         
@@ -3977,7 +3977,7 @@ async function configurarPusher() {
       exibirNotificacaoNativa('🛎️ CHAMADO DE CLIENTE', msg, `chamado-${data.mesa_id}`);
       mostrarToast(`🛎️ CHAMADO: Mesa ${mesaNum}`, 'erro'); // Usa cor de destaque
       
-      mostrarAlerta(msg, "🛎️ CHAMADO DE CLIENTE");
+      mostrarAlerta(msg, "🛎️ CHAMADO DE CLIENTE", "🛎️");
     });
 
     // EVENTO: SOLICITAÇÃO DE FECHAMENTO PELO CLIENTE (💰)
@@ -3992,7 +3992,7 @@ async function configurarPusher() {
       exibirNotificacaoNativa('💰 SOLICITAÇÃO DE CONTA', msg, `fechamento-${data.mesa_id}`);
       mostrarToast(`💰 CONTA: Mesa ${mesaNum}`, 'sucesso');
       
-      mostrarAlerta(msg, "💰 FECHAMENTO DE CONTA");
+      mostrarAlerta(msg, "💰 FECHAMENTO DE CONTA", "💰");
       
       clearTimeout(timeoutPusher);
       timeoutPusher = setTimeout(() => carregarPedidos(), 100);
@@ -4019,9 +4019,9 @@ async function configurarPusher() {
       console.log('📢 Admin: Pedido pronto!', data);
       tocarNotificacao(); 
       iniciarPiscarTitulo();
-      exibirNotificacaoNativa('👨‍🍳 PEDIDO PRONTO', data.mensagem, `mesa-${data.mesa_id}`);
-      mostrarToast(`👨‍🍳 PRONTO: ${data.mensagem}`);
-      mostrarAlerta(data.mensagem, "👨‍🍳 Cozinha");
+      exibirNotificacaoNativa('🍳 PEDIDO PRONTO', data.mensagem, `mesa-${data.mesa_id}`);
+      mostrarToast(`🍳 PRONTO: ${data.mensagem}`);
+      mostrarAlerta(data.mensagem, "🍳 Cozinha", "🍳");
 
       clearTimeout(timeoutPusher);
       timeoutPusher = setTimeout(() => carregarPedidos(), 100);
@@ -4199,8 +4199,9 @@ function mostrarToast(msg, tipo = 'sucesso') {
 }
 
 // FUNÇÕES DE SISTEMA (SUBSTITUIÇÃO DE ALERT/CONFIRM)
-function mostrarAlerta(msg, titulo = "Aviso") {
+function mostrarAlerta(msg, titulo = "Aviso", icone = "🔔") {
   return new Promise(resolve => {
+    document.getElementById('modal-sistema-icon').innerText = icone;
     document.getElementById('modal-sistema-titulo').innerText = titulo;
     document.getElementById('modal-sistema-mensagem').innerHTML = msg;
     document.getElementById('btn-sistema-cancelar').classList.add('hidden');
@@ -4221,8 +4222,9 @@ function mostrarAlerta(msg, titulo = "Aviso") {
   });
 }
 
-function mostrarConfirmacao(msg, titulo = "Confirmação", txtConfirmar = "Confirmar", txtCancelar = "Cancelar") {
+function mostrarConfirmacao(msg, titulo = "Confirmação", txtConfirmar = "Confirmar", txtCancelar = "Cancelar", icone = "❓") {
   return new Promise(resolve => {
+    document.getElementById('modal-sistema-icon').innerText = icone;
     document.getElementById('modal-sistema-titulo').innerText = titulo;
     document.getElementById('modal-sistema-mensagem').innerHTML = msg;
     document.getElementById('btn-sistema-cancelar').classList.remove('hidden');
@@ -4295,7 +4297,7 @@ async function reimprimirCupomById(id) {
     await imprimirCupom({ ...pedido, isReimpressao: true }, itens);
   } catch (e) {
     console.error("Erro ao re-imprimir cupom:", e);
-    mostrarAlerta("Não foi possível re-imprimir o cupom: " + e.message, "Erro");
+    mostrarAlerta("Não foi possível re-imprimir o cupom: " + e.message, "Erro", "❌");
   }
 }
 
@@ -4581,7 +4583,7 @@ async function imprimirCupom(pedido, itens) {
 
 // FUNÇÃO PARA IMPRIMIR RELATÓRIO DE CAIXA
 async function imprimirRelatorioCaixa() {
-  if (!caixaAtual) return await mostrarAlerta('Nenhum caixa aberto para imprimir.', "Aviso");
+  if (!caixaAtual) return await mostrarAlerta('Nenhum caixa aberto para imprimir.', "Aviso", "⚠️");
 
   const container = document.getElementById('cupom-impressao');
   if (!container) return;
@@ -4906,10 +4908,10 @@ async function acaoOpcoesMesa(acao) {
   fecharModalOpcoes();
 }
 
-// Escuta mensagens do iframe do WhatsApp para atualizar o contador de não lidas
+// Escuta mensagens do iframe do WhatsApp para atualizar o contador de não lidas e notificações
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'whatsapp_unread') {
-        console.log('📥 Mensagem recebida do WhatsApp Bot:', event.data);
+        console.log('📥 Mensagem recebida do WhatsApp Bot (Contagem):', event.data);
         const badge = document.getElementById('badge-whatsapp-contador');
         if (badge) {
             badge.innerText = event.data.count;
@@ -4917,6 +4919,24 @@ window.addEventListener('message', (event) => {
                 badge.classList.remove('hidden');
             } else {
                 badge.classList.add('hidden');
+            }
+        }
+    }
+
+    if (event.data && event.data.type === 'whatsapp_new_activity') {
+        console.log('📥 Nova atividade no WhatsApp Bot:', event.data);
+        // Toca o som de notificação se não for mensagem enviada por nós
+        if (typeof audioNotificacao !== 'undefined' && audioNotificacao) {
+            audioNotificacao.play().catch(e => console.log('Erro ao tocar som:', e));
+        }
+        
+        // Se a aba do WhatsApp não estiver ativa, incrementa o contador visual
+        if (abaAtiva !== 'whatsapp') {
+            const badge = document.getElementById('badge-whatsapp-contador');
+            if (badge) {
+                const current = parseInt(badge.innerText) || 0;
+                badge.innerText = current + 1;
+                badge.classList.remove('hidden');
             }
         }
     }

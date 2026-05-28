@@ -154,8 +154,9 @@ function verificarSessao() {
   }
 }
 // FUNÇÕES DE SISTEMA (SUBSTITUIÇÃO DE ALERT/CONFIRM)
-function mostrarAlerta(msg, titulo = "Aviso") {
+function mostrarAlerta(msg, titulo = "Aviso", icone = "🔔") {
   return new Promise(resolve => {
+    document.getElementById('modal-sistema-icon').innerText = icone;
     document.getElementById('modal-sistema-titulo').innerText = titulo;
     document.getElementById('modal-sistema-mensagem').innerHTML = msg;
     document.getElementById('btn-sistema-cancelar').classList.add('hidden');
@@ -172,8 +173,9 @@ function mostrarAlerta(msg, titulo = "Aviso") {
   });
 }
 
-function mostrarConfirmacao(msg, titulo = "Confirmação", txtConfirmar = "Confirmar", txtCancelar = "Cancelar") {
+function mostrarConfirmacao(msg, titulo = "Confirmação", txtConfirmar = "Confirmar", txtCancelar = "Cancelar", icone = "❓") {
   return new Promise(resolve => {
+    document.getElementById('modal-sistema-icon').innerText = icone;
     document.getElementById('modal-sistema-titulo').innerText = titulo;
     document.getElementById('modal-sistema-mensagem').innerHTML = msg;
     document.getElementById('btn-sistema-cancelar').classList.remove('hidden');
@@ -199,7 +201,7 @@ function mostrarConfirmacao(msg, titulo = "Confirmação", txtConfirmar = "Confi
 async function realizarLogin() {
   const usuario = document.getElementById('login-usuario').value;
   const senha = document.getElementById('login-senha').value;
-  if (!usuario || !senha) return await mostrarAlerta("Preencha todos os campos", "Aviso");
+  if (!usuario || !senha) return await mostrarAlerta("Preencha todos os campos", "Aviso", "⚠️");
   const res = await fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -211,7 +213,7 @@ async function realizarLogin() {
     localStorage.setItem('garcom_logado', JSON.stringify(garcomLogado));
     if (data.token) localStorage.setItem('garcom_token', data.token); // Salva token
     location.reload();
-  } else await mostrarAlerta("Usuário ou senha incorretos", "Erro de Login");
+  } else await mostrarAlerta("Usuário ou senha incorretos", "Erro de Login", "❌");
 }
 
 async function logout() {
@@ -332,7 +334,7 @@ async function configurarPusher() {
       tocarCampainha();
 
       // Mostra apenas alerta informativo
-      mostrarAlerta(data.mensagem, "👨‍🍳 COZINHA: PEDIDO PRONTO!");
+      mostrarAlerta(data.mensagem, "🍳 COZINHA: PEDIDO PRONTO!", "🍳");
 
       clearTimeout(timeoutPusher);
       timeoutPusher = setTimeout(() => carregarMesas(), 50);
@@ -390,7 +392,7 @@ async function configurarPusher() {
     channel.bind('chamado-garcom', (data) => {
       console.log('📢 Evento recebido: chamado-garcom', data);
       tocarCampainha();
-      mostrarAlerta(data.mensagem, "🛎️ CHAMADO DE CLIENTE");
+      mostrarAlerta(data.mensagem, "🛎️ CHAMADO DE CLIENTE", "🛎️");
     });
 
     channel.bind('menu-atualizado', (data) => {
@@ -408,7 +410,7 @@ async function configurarPusher() {
     channel.bind('solicitacao-fechamento-cliente', (data) => {
       console.log('📢 Evento recebido: solicitacao-fechamento-cliente', data);
       tocarCampainha();
-      mostrarAlerta(data.mensagem, "🙋‍♂️ SOLICITAÇÃO DE FECHAMENTO");
+      mostrarAlerta(data.mensagem, "🙋‍♂️ SOLICITAÇÃO DE FECHAMENTO", "💰");
       
       clearTimeout(timeoutPusher);
       timeoutPusher = setTimeout(() => carregarMesas(), 50);
@@ -651,7 +653,7 @@ function exibirMesas() {
   document.querySelectorAll('.mesa').forEach(mesaEl => {
     mesaEl.onclick = async () => {
       if (!caixaAberto) {
-        await mostrarAlerta("O CAIXA ESTÁ FECHADO!", "Aviso");
+        await mostrarAlerta("O CAIXA ESTÁ FECHADO!", "Aviso", "⚠️");
         return;
       }
       const mesaSelecionada = mesas.find(m => m.id == mesaEl.dataset.id);
@@ -661,7 +663,7 @@ function exibirMesas() {
         const eMeuPedido = mesaSelecionada.garcom_id === garcomLogado.usuario;
         // BLOQUEIO REFORÇADO: Se a mesa tem um garçom e não é você, bloqueia o clique
         if (!eMeuPedido && mesaSelecionada.garcom_id) {
-          await mostrarAlerta(`Atendida por: ${mesaSelecionada.garcom_id}`, "Mesa Ocupada");
+          await mostrarAlerta(`Atendida por: ${mesaSelecionada.garcom_id}`, "Mesa Ocupada", "⚠️");
           return;
         }
       }
@@ -731,7 +733,7 @@ async function verItensDaMesa() {
   try {
     const resPedido = await fetch(`/api/pedidos/mesa/${mesaAtual.id}`);
     pedidoAbertoNaMesa = await resPedido.json();
-    if (!pedidoAbertoNaMesa) return await mostrarAlerta("Nenhum pedido ativo.", "Aviso");
+    if (!pedidoAbertoNaMesa) return await mostrarAlerta("Nenhum pedido ativo.", "Aviso", "⚠️");
     const resItens = await fetch(`/api/pedidos/${pedidoAbertoNaMesa.id}/itens`);
     const itens = await resItens.json();
     
@@ -821,18 +823,18 @@ async function verItensDaMesa() {
     
     fecharOpcoes();
     document.getElementById('modal-resumo-mesa').style.display = 'block';
-  } catch (error) { await mostrarAlerta("Erro ao carregar dados.", "Erro"); }
+  } catch (error) { await mostrarAlerta("Erro ao carregar dados.", "Erro", "❌"); }
 }
 
 async function removerItemDoPedido(itemId) {
-  if (!await mostrarConfirmacao("Remover este item do pedido?", "Remover Item")) return;
+  if (!await mostrarConfirmacao("Remover este item do pedido?", "Remover Item", "Confirmar", "Cancelar", "🗑️")) return;
   try {
     const res = await fetch(`/api/pedidos/itens/${itemId}`, { method: 'DELETE' });
     if (res.ok) {
       // Recarrega o resumo da mesa para mostrar os dados atualizados
       verItensDaMesa();
     }
-  } catch (error) { await mostrarAlerta("Erro ao excluir item.", "Erro"); }
+  } catch (error) { await mostrarAlerta("Erro ao excluir item.", "Erro", "❌"); }
 }
 
 async function marcarComoServido(idPedido) {
@@ -868,7 +870,7 @@ async function marcarComoServido(idPedido) {
         });
 
         if (res.ok) {
-          await mostrarAlerta("Itens prontos marcados como entregues! Os demais continuam em preparo.", "Entrega Realizada");
+          await mostrarAlerta("Itens prontos marcados como entregues! Os demais continuam em preparo.", "Entrega Realizada", "🚚");
           verItensDaMesa();
           carregarMesas();
         }
@@ -876,7 +878,7 @@ async function marcarComoServido(idPedido) {
         // Se SÓ houver itens de cozinha em preparo, bloqueio total
         const msgHtml = `
           <div style="text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">👨‍🍳</div>
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🍳</div>
             <p style="font-weight: bold; color: #e74c3c; font-size: 1.1rem; margin-bottom: 10px;">AGUARDANDO COZINHA!</p>
             <p style="color: #2c3e50; margin-bottom: 15px;">Todos os itens deste pedido estão sendo feitos na cozinha agora.</p>
             <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2; text-align: left; font-size: 0.9rem;">
@@ -885,13 +887,13 @@ async function marcarComoServido(idPedido) {
             <p style="font-size: 0.8rem; color: #666; margin-top: 15px;">Você só poderá confirmar a entrega quando a cozinha finalizar ou quando houver bebidas prontas.</p>
           </div>
         `;
-        return await mostrarAlerta(msgHtml, "Cozinha Ativa");
+        return await mostrarAlerta(msgHtml, "Cozinha Ativa", "🍳");
       }
       return;
     }
 
     // Se não tem nada em preparo na cozinha, confirmação normal de tudo
-    if (!await mostrarConfirmacao("Deseja marcar todos os itens como entregues?", "Entregar Pedido")) return;
+    if (!await mostrarConfirmacao("Deseja marcar todos os itens como entregues?", "Entregar Pedido", "Confirmar", "Cancelar", "🚚")) return;
 
     const res = await fetch(`/api/pedidos/${idPedido}/marcar-entregue`, {
       method: 'PUT',
@@ -900,11 +902,11 @@ async function marcarComoServido(idPedido) {
     });
 
     if (res.ok) {
-      await mostrarAlerta("Sucesso! Todos os itens foram entregues.", "Sucesso");
+      await mostrarAlerta("Sucesso! Todos os itens foram entregues.", "Sucesso", "✅");
       document.getElementById('modal-resumo-mesa').style.display = 'none';
       carregarMesas();
     }
-  } catch (error) { await mostrarAlerta("Erro ao atualizar status de entrega.", "Erro"); }
+  } catch (error) { await mostrarAlerta("Erro ao atualizar status de entrega.", "Erro", "❌"); }
 }
 function fecharResumoMesa() {
   document.getElementById('modal-resumo-mesa').style.display = 'none';
@@ -953,7 +955,7 @@ function toggleCarrinho() {
     document.body.style.overflow = ''; // Destrava o scroll
   } else {
     if (pedidoAtual.length === 0) {
-      mostrarAlerta("O carrinho está vazio!", "Aviso");
+      mostrarAlerta("O carrinho está vazio!", "Aviso", "⚠️");
       return;
     }
     modal.style.display = 'flex';
@@ -987,7 +989,7 @@ async function finalizarEDesocupar() {
     if (!resItens.ok) {
       const errorText = await resItens.text();
       console.error("Erro do servidor:", errorText);
-      return await mostrarAlerta("O servidor demorou para responder (Timeout). Tente novamente em alguns segundos.", "Erro de Conexão");
+      return await mostrarAlerta("O servidor demorou para responder (Timeout). Tente novamente em alguns segundos.", "Erro de Conexão", "❌");
     }
     const itens = await resItens.json();
     
@@ -1000,7 +1002,7 @@ async function finalizarEDesocupar() {
       // MODAL ESPECÍFICO PARA COZINHA (SOLICITADO PELO USUÁRIO)
       const msgHtml = `
         <div style="text-align: center;">
-          <div style="font-size: 3rem; margin-bottom: 1rem;">👨‍🍳</div>
+          <div style="font-size: 3rem; margin-bottom: 1rem;">🍳</div>
           <p style="font-weight: bold; color: #e74c3c; font-size: 1.1rem; margin-bottom: 10px;">PEDIDO EM PREPARO NA COZINHA!</p>
           <p style="color: #2c3e50; margin-bottom: 15px;">Existem <strong>${emPreparo.length} itens</strong> sendo preparados agora. Você não pode fechar a conta enquanto a cozinha não finalizar!</p>
           <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2; text-align: left; font-size: 0.9rem;">
@@ -1008,12 +1010,12 @@ async function finalizarEDesocupar() {
           </div>
         </div>
       `;
-      return await mostrarAlerta(msgHtml, "Atenção: Cozinha Ativa");
+      return await mostrarAlerta(msgHtml, "Atenção: Cozinha Ativa", "⚠️");
     }
 
     if (prontosParaEntrega.length > 0) {
       // Outras situações de pendência (bebidas ou prontos)
-      return await mostrarAlerta(`Existem <strong>${prontosParaEntrega.length} itens</strong> que já estão prontos mas ainda não foram marcados como entregues. Entregue-os primeiro para poder fechar a conta!`, "Itens não Entregues");
+      return await mostrarAlerta(`Existem <strong>${prontosParaEntrega.length} itens</strong> que já estão prontos mas ainda não foram marcados como entregues. Entregue-os primeiro para poder fechar a conta!`, "Itens não Entregues", "⚠️");
     }
 
     const subtotal = itens.reduce((sum, i) => sum + (i.preco * i.quantidade), 0);
@@ -1045,7 +1047,7 @@ async function finalizarEDesocupar() {
 
   } catch (error) {
     console.error("Erro no fechamento:", error);
-    await mostrarAlerta("Erro ao carregar dados do pedido.", "Erro");
+    await mostrarAlerta("Erro ao carregar dados do pedido.", "Erro", "❌");
   }
 }
 
@@ -1101,7 +1103,7 @@ async function confirmarSolicitacaoFechamento() {
   const valor_por_pessoa = total / num_pessoas;
 
   if (forma === 'Dinheiro' && recebido < total && recebido > 0) {
-    if (!await mostrarConfirmacao("O valor recebido é menor que o total. Deseja continuar?", "Aviso")) return;
+    if (!await mostrarConfirmacao("O valor recebido é menor que o total. Deseja continuar?", "Aviso", "Confirmar", "Cancelar", "⚠️")) return;
   }
 
   try {
@@ -1123,13 +1125,13 @@ async function confirmarSolicitacaoFechamento() {
       const modalFechamento = document.getElementById('modal-fechamento-garcom');
       if (modalFechamento) modalFechamento.style.display = 'none';
       
-      await mostrarAlerta("Solicitação de fechamento enviada ao caixa!", "Sucesso");
+      await mostrarAlerta("Solicitação de fechamento enviada ao caixa!", "Sucesso", "✅");
       carregarMesas();
     } else {
       throw new Error("Falha na solicitação");
     }
   } catch (error) {
-    await mostrarAlerta("Erro ao enviar solicitação.", "Erro");
+    await mostrarAlerta("Erro ao enviar solicitação.", "Erro", "❌");
   }
 }
 
@@ -1176,7 +1178,7 @@ async function exibirMenu(categoria) {
           ${emPromocao ? '<div class="promo-badge">PROMOÇÃO</div>' : ''}
           
           <!-- COZINHA -->
-          ${item.enviar_cozinha ? '<div style="background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-top: 2px;">👨‍🍳 COZINHA</div>' : ''}
+          ${item.enviar_cozinha ? '<div style="background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-top: 2px;">🍳 COZINHA</div>' : ''}
         </div>
 
         <img src="${item.imagem}" alt="${item.nome}">
@@ -1194,7 +1196,7 @@ async function exibirMenu(categoria) {
       const estoqueDisponivel = (menuItem.estoque !== -1) ? (menuItem.estoque - qtdNoCarrinho) : 999;
 
       if (menuItem.estoque !== -1 && estoqueDisponivel <= 0) {
-        return await mostrarAlerta("Este item está esgotado ou você já pegou todo o estoque disponível!", "Estoque");
+        return await mostrarAlerta("Este item está esgotado ou você já pegou todo o estoque disponível!", "Estoque", "📦");
       }
       
       adicionarItemPedido(menuItem);
@@ -1209,7 +1211,7 @@ async function adicionarItemPedido(item) {
 
   // Verifica se tem estoque para adicionar mais um (se não for ilimitado)
   if (item.estoque !== -1 && (quantidadeNoCarrinho + 1) > item.estoque) {
-    return await mostrarAlerta(`Estoque insuficiente! Você já adicionou o limite de ${item.estoque} unidades.`, "Estoque");
+    return await mostrarAlerta(`Estoque insuficiente! Você já adicionou o limite de ${item.estoque} unidades.`, "Estoque", "📦");
   }
 
   if (existing) existing.quantidade++;
@@ -1309,7 +1311,7 @@ async function alterarQuantidadeItem(index, delta) {
 
   if (delta > 0 && itemNoMenu && itemNoMenu.estoque !== -1) {
     if (itemNoPedido.quantidade + delta > itemNoMenu.estoque) {
-      return await mostrarAlerta(`Estoque insuficiente! Restam apenas ${itemNoMenu.estoque} unidades.`, "Estoque");
+      return await mostrarAlerta(`Estoque insuficiente! Restam apenas ${itemNoMenu.estoque} unidades.`, "Estoque", "📦");
     }
   }
 
@@ -1331,7 +1333,7 @@ function removerItemPedido(index) {
 }
 
 async function enviarPedido() {
-  if (pedidoAtual.length === 0) return await mostrarAlerta('Adicione pelo menos um item', "Aviso");
+  if (pedidoAtual.length === 0) return await mostrarAlerta('Adicione pelo menos um item', "Aviso", "⚠️");
   
   const btnEnviar = document.getElementById('enviar-pedido');
   const originalTexto = btnEnviar.innerText;
@@ -1372,7 +1374,7 @@ async function enviarPedido() {
     });
     
     if (res.ok) {
-      await mostrarAlerta(pedidoAbertoNaMesa ? 'Itens adicionados!' : 'Pedido enviado!', "Sucesso");
+      await mostrarAlerta(pedidoAbertoNaMesa ? 'Itens adicionados!' : 'Pedido enviado!', "Sucesso", "✅");
       pedidoAtual = [];
       pedidoAbertoNaMesa = null;
       mesaAtual = null; // Limpa mesa atual
@@ -1390,11 +1392,11 @@ async function enviarPedido() {
       carregarMesas();
     } else {
       const errorData = await res.json();
-      await mostrarAlerta(errorData.error || 'Erro ao enviar pedido', "Erro");
+      await mostrarAlerta(errorData.error || 'Erro ao enviar pedido', "Erro", "❌");
     }
   } catch (error) { 
     console.error("Erro ao enviar pedido:", error);
-    await mostrarAlerta('Erro de conexão com o servidor', "Erro"); 
+    await mostrarAlerta('Erro de conexão com o servidor', "Erro", "❌"); 
   } finally {
     // Reabilita o botão em caso de erro ou ao finalizar
     btnEnviar.disabled = false;
@@ -1415,19 +1417,19 @@ async function gerarCodigoAcesso() {
     const data = await res.json();
     if (data.success) {
       fecharOpcoes();
-      await mostrarAlerta(`CÓDIGO DE ACESSO: ${data.codigo}\n\nInforme este código ao cliente para liberar o cardápio digital na Mesa ${mesaAtual.numero}.`, "Código Gerado");
+      await mostrarAlerta(`CÓDIGO DE ACESSO: ${data.codigo}\n\nInforme este código ao cliente para liberar o cardápio digital na Mesa ${mesaAtual.numero}.`, "Código Gerado", "🔑");
     } else {
-      await mostrarAlerta("Erro ao gerar código.", "Erro");
+      await mostrarAlerta("Erro ao gerar código.", "Erro", "❌");
     }
   } catch (error) {
-    await mostrarAlerta("Erro de conexão.", "Erro");
+    await mostrarAlerta("Erro de conexão.", "Erro", "❌");
   }
 }
 
 async function cancelarCodigoAcesso() {
   if (!mesaAtual) return;
   
-  const confirm = await mostrarConfirmacao(`Deseja realmente CANCELAR o acesso digital da Mesa ${mesaAtual.numero}? O cliente será deslogado e a mesa ficará livre.`, "Confirmar Cancelamento");
+  const confirm = await mostrarConfirmacao(`Deseja realmente CANCELAR o acesso digital da Mesa ${mesaAtual.numero}? O cliente será deslogado e a mesa ficará livre.`, "Confirmar Cancelamento", "Confirmar", "Cancelar", "❓");
   if (!confirm) return;
 
   try {
@@ -1439,12 +1441,12 @@ async function cancelarCodigoAcesso() {
     const data = await res.json();
     if (data.success) {
       fecharOpcoes();
-      await mostrarAlerta("Acesso cancelado e mesa liberada com sucesso.", "Cancelado");
+      await mostrarAlerta("Acesso cancelado e mesa liberada com sucesso.", "Cancelado", "❌");
     } else {
-      await mostrarAlerta("Erro ao cancelar acesso.", "Erro");
+      await mostrarAlerta("Erro ao cancelar acesso.", "Erro", "❌");
     }
   } catch (error) {
-    await mostrarAlerta("Erro de conexão.", "Erro");
+    await mostrarAlerta("Erro de conexão.", "Erro", "❌");
   }
 }
 
@@ -1495,5 +1497,5 @@ function verQRCodeMesa() {
   `;
   
   fecharOpcoes();
-  mostrarAlerta(html, "📱 QR CODE DA MESA");
+  mostrarAlerta(html, "QR CODE DA MESA", "📱");
 }
