@@ -73,6 +73,7 @@ let subAbaAtiva = 'garcom';
 let adminLogado = null;
 let configCozinhaCategorias = []; // Estado global das categorias da cozinha
 let configCozinhaLoaded = false; // Flag para saber se já carregou do servidor
+let mensagensNaoLidasWhatsapp = 0; // Controle local do badge do WhatsApp
 
 // Helper para verificar se um item deve ir para a cozinha (Sincronizado com Backend)
 function isItemParaCozinha(item) {
@@ -451,6 +452,18 @@ function switchTab(tab) {
   } else {
       document.body.classList.remove('modal-open'); 
       document.documentElement.style.overflow = ''; // Libera para histórico/config
+  }
+
+  // Se entrou na aba do WhatsApp, zera a notificação local para obrigar nova contagem
+  if (tab === 'whatsapp') {
+      mensagensNaoLidasWhatsapp = 0;
+      const badge = document.getElementById('badge-whatsapp-contador');
+      const icon = document.getElementById('whatsapp-tab-icon');
+      if (badge) {
+          badge.innerText = '0';
+          badge.classList.add('hidden');
+      }
+      if (icon) icon.classList.remove('hidden');
   }
 
   // Remove classe active de todos os botões
@@ -4912,13 +4925,25 @@ async function acaoOpcoesMesa(acao) {
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'whatsapp_unread') {
         console.log('📥 Mensagem recebida do WhatsApp Bot (Contagem):', event.data);
+        const count = parseInt(event.data.count) || 0;
+        
+        if (abaAtiva === 'whatsapp') {
+            mensagensNaoLidasWhatsapp = count;
+        } else {
+            mensagensNaoLidasWhatsapp = Math.max(mensagensNaoLidasWhatsapp, count);
+        }
+
         const badge = document.getElementById('badge-whatsapp-contador');
+        const icon = document.getElementById('whatsapp-tab-icon');
+        
         if (badge) {
-            badge.innerText = event.data.count;
-            if (event.data.count > 0) {
+            badge.innerText = mensagensNaoLidasWhatsapp;
+            if (mensagensNaoLidasWhatsapp > 0) {
                 badge.classList.remove('hidden');
+                if (icon) icon.classList.add('hidden');
             } else {
                 badge.classList.add('hidden');
+                if (icon) icon.classList.remove('hidden');
             }
         }
     }
@@ -4932,11 +4957,14 @@ window.addEventListener('message', (event) => {
         
         // Se a aba do WhatsApp não estiver ativa, incrementa o contador visual
         if (abaAtiva !== 'whatsapp') {
+            mensagensNaoLidasWhatsapp++;
+            
             const badge = document.getElementById('badge-whatsapp-contador');
+            const icon = document.getElementById('whatsapp-tab-icon');
             if (badge) {
-                const current = parseInt(badge.innerText) || 0;
-                badge.innerText = current + 1;
+                badge.innerText = mensagensNaoLidasWhatsapp;
                 badge.classList.remove('hidden');
+                if (icon) icon.classList.add('hidden');
             }
         }
     }
