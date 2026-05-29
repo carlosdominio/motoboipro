@@ -23,7 +23,8 @@
         .container { padding: 20px; max-width: 600px; margin: 0 auto; }
         .section-title { margin: 25px 0 15px; font-size: 1.4rem; color: var(--text); font-weight: 800; border-left: 5px solid var(--primary); padding-left: 12px; }
         .menu-item { background: var(--card-bg); border-radius: var(--radius); padding: 18px; margin-bottom: 20px; display: flex; gap: 15px; box-shadow: var(--shadow); position: relative; }
-        .promo-badge { position: absolute; top: 10px; right: 10px; background: #ff4757; color: white; padding: 4px 10px; border-radius: 8px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; z-index: 10; box-shadow: 0 4px 8px rgba(255, 71, 87, 0.3); }
+        .promo-badge { background: #ff4757; color: white; padding: 4px 10px; border-radius: 8px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; width: fit-content; margin-bottom: 8px; box-shadow: 0 4px 8px rgba(255, 71, 87, 0.2); }
+        .item-img-container { display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .item-img { width: 90px; height: 90px; background: #f8f9fa; border-radius: 14px; object-fit: cover; }
         .item-placeholder { width: 90px; height: 90px; background: #f1f2f6; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 2rem; font-weight: bold; }
         .item-info { flex: 1; }
@@ -179,8 +180,10 @@
                     
                     section.innerHTML += `
                         <div class="menu-item">
-                            ${emPromo ? '<div class="promo-badge">PROMOÇÃO</div>' : ''}
-                            ${i.imagem ? `<img src="${i.imagem}" class="item-img" onerror="this.onerror=null;this.src='https://placehold.co/100x100?text=${i.nome[0]}'">` : `<div class="item-placeholder">${i.nome[0]}</div>`}
+                            <div class="item-img-container">
+                                ${i.imagem ? `<img src="${i.imagem}" class="item-img" onerror="this.onerror=null;this.src='https://placehold.co/100x100?text=${i.nome[0]}'">` : `<div class="item-placeholder">${i.nome[0]}</div>`}
+                                ${emPromo ? '<div class="promo-badge">PROMOÇÃO</div>' : ''}
+                            </div>
                             <div class="item-info">
                                 <h3>${i.nome}</h3>
                                 <p class="desc">${i.descricao||''}</p>
