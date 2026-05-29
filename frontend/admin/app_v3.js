@@ -3198,10 +3198,14 @@ function renderizarListaItensFechamento() {
   if (!container) return;
   
   container.innerHTML = itensFechamentoAdmin.map((item, index) => `
-    <div style="display: flex; align-items: center; gap: 8px; padding: 6px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; ${item.status === 'entregue' ? 'background: #f0fff4;' : ''}">
-      <input type="checkbox" ${item.selecionadoFechamento ? 'checked' : ''} onchange="alternarItemFechamento(${index})" style="width:16px; height:16px;">
-      <span style="flex-grow: 1; font-weight: 500;">${item.quantidade}x ${item.nome}</span>
-      <span style="font-weight: bold; color: #2c3e50;">R$ ${(item.preco * item.quantidade).toFixed(2)}</span>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; ${item.status === 'entregue' ? 'background: #f0fff4;' : ''}">
+      <input type="checkbox" ${item.selecionadoFechamento ? 'checked' : ''} onchange="alternarItemFechamento(${index})" style="width:18px; height:18px; cursor: pointer;">
+      <img src="${item.imagem || 'https://placehold.co/50'}" style="width: 35px; height: 35px; border-radius: 6px; object-fit: cover; border: 1px solid #eee; flex-shrink: 0;">
+      <div style="flex-grow: 1; display: flex; flex-direction: column;">
+        <span style="font-weight: 600; color: #1e293b;">${item.quantidade}x ${item.nome}</span>
+        ${item.observacao ? `<small style="color: #d35400; font-weight: bold; font-size: 0.7rem;">📝 ${item.observacao}</small>` : ''}
+      </div>
+      <span style="font-weight: 800; color: #2c3e50; white-space: nowrap;">R$ ${(item.preco * item.quantidade).toFixed(2)}</span>
     </div>
   `).join('');
 }
@@ -4776,19 +4780,26 @@ async function abrirModalOpcoes(pedidoId) {
   const mesaId = pedido.mesa_id;
   
   // 1. DADOS BÁSICOS E CORES
-  document.getElementById('modal-opcoes-titulo').innerText = mesaNome;
-  document.getElementById('modal-opcoes-info').innerText = `Pedido #${pedido.id} | Garçom: ${pedido.garcom_id || 'Admin'}`;
-  
-  // Exibir observação do pedido se existir
-  const infoExtra = document.getElementById('modal-opcoes-info-extra');
-  if (infoExtra) {
-    infoExtra.innerHTML = pedido.observacao ? `<div style="background:#fff3cd; color:#856404; padding:8px 12px; border-radius:8px; margin-top:10px; font-weight:bold; font-size:0.9rem; border:1px solid #ffeeba;">📝 OBS: ${pedido.observacao}</div>` : '';
-  }
-  
   const headerBg = document.getElementById('modal-opcoes-header-bg');
   const itens = await fetch(`/api/pedidos/${pedidoId}/itens`).then(res => res.json());
   const hasPend = itens.some(i => i.status === 'pendente' || i.status === 'pronto');
+  const hasCozinha = itens.some(i => (i.status === 'pendente' || i.status === 'pronto') && isItemParaCozinha(i));
   const isAguardando = pedido.status === 'aguardando_fechamento';
+  
+  // Exibir banner de cozinha se houver itens pendentes na cozinha
+  const bannerCozinha = hasCozinha ? `
+    <div style="background: #e74c3c; color: white; padding: 10px; border-radius: 12px; margin-bottom: 12px; font-weight: 900; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 10px; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 4px 10px rgba(0,0,0,0.1); animation: alerta-borda-pisca 1.5s infinite;">
+      <span style="font-size: 1.2rem;">👨‍🍳</span> PEDIDO EM PREPARO NA COZINHA
+    </div>` : '';
+
+  document.getElementById('modal-opcoes-titulo').innerText = mesaNome;
+  document.getElementById('modal-opcoes-info').innerText = `Pedido #${pedido.id} | Garçom: ${pedido.garcom_id || 'Admin'}`;
+
+  // Exibir observação do pedido se existir
+  const infoExtra = document.getElementById('modal-opcoes-info-extra');
+  if (infoExtra) {
+    infoExtra.innerHTML = bannerCozinha + (pedido.observacao ? `<div style="background:#fff3cd; color:#856404; padding:8px 12px; border-radius:8px; margin-top:10px; font-weight:bold; font-size:0.9rem; border:1px solid #ffeeba;">📝 OBS: ${pedido.observacao}</div>` : '');
+  }
   
   // Cores dinâmicas conforme status
   if (isAguardando) headerBg.style.background = '#f1c40f'; // Amarelo Atenção
@@ -4849,14 +4860,21 @@ async function abrirModalOpcoes(pedidoId) {
     htmlItens += `<small style="color: #e74c3c; font-weight: 900; display:block; margin-bottom:5px;">⏳ PENDENTES:</small>`;
     itensPendentes.forEach(i => {
       const isPronto = i.status === 'pronto';
+      const isCozinha = isItemParaCozinha(i);
       htmlItens += `
-        <div style="border-left:4px solid ${isPronto ? '#2ecc71' : '#e74c3c'}; background:white; border-radius:8px; padding:8px 12px; margin-bottom:6px; border:1px solid ${isPronto ? '#d4edda' : '#fee2e2'}; display:flex; justify-content:space-between; align-items:center;">
+        <div style="border-left:4px solid ${isPronto ? '#2ecc71' : '#e74c3c'}; background:white; border-radius:8px; padding:8px 12px; margin-bottom:6px; border:1px solid ${isPronto ? '#d4edda' : '#fee2e2'}; display:flex; align-items:center; gap: 10px;">
+          <img src="${i.imagem || 'https://placehold.co/50'}" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; flex-shrink: 0; border: 1px solid #eee;">
           <div style="flex: 1;">
-            <span style="font-weight: 700; font-size: 0.9rem;">${i.quantidade}x ${i.nome}</span>
-            ${isPronto ? '<br><small style="color:#27ae60; font-weight:bold;">🔥 PRONTO</small>' : ''}
-            ${i.observacao ? `<br><small style="color:#d35400; font-weight:bold; font-size:0.75rem;">📝 ${i.observacao}</small>` : ''}
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <span style="font-weight: 700; font-size: 0.9rem;">${i.quantidade}x ${i.nome}</span>
+              <span style="font-size: 0.8rem; font-weight: 900; color: ${isPronto ? '#27ae60' : '#e74c3c'};">R$ ${(i.preco * i.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)}</span>
+            </div>
+            <div style="display: flex; gap: 5px; align-items: center; margin-top: 2px;">
+              ${isPronto ? '<small style="background: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 0.65rem;">🔥 PRONTO</small>' : ''}
+              ${isCozinha ? '<small style="background: #fee2e2; color: #e74c3c; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 0.65rem;">🍳 COZINHA</small>' : ''}
+            </div>
+            ${i.observacao ? `<small style="color:#d35400; font-weight:bold; font-size:0.75rem; display:block; margin-top: 2px;">📝 ${i.observacao}</small>` : ''}
           </div>
-          <span style="font-size: 0.8rem; font-weight: 900; color: ${isPronto ? '#27ae60' : '#e74c3c'};">R$ ${(i.preco * i.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)}</span>
         </div>
       `;
     });
@@ -4865,12 +4883,15 @@ async function abrirModalOpcoes(pedidoId) {
     htmlItens += `<small style="color: #27ae60; font-weight: 900; display:block; margin: 10px 0 5px 0;">✅ NA MESA:</small>`;
     itensEntregues.forEach(i => {
       htmlItens += `
-        <div style="border-left:4px solid #27ae60; background:white; border-radius:8px; padding:8px 12px; margin-bottom:6px; border:1px solid #dcfce7; display:flex; justify-content:space-between; align-items:center; opacity: 0.7;">
+        <div style="border-left:4px solid #27ae60; background:white; border-radius:8px; padding:8px 12px; margin-bottom:6px; border:1px solid #dcfce7; display:flex; align-items:center; gap: 10px; opacity: 0.85;">
+          <img src="${i.imagem || 'https://placehold.co/50'}" style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; border: 1px solid #eee; filter: grayscale(0.5);">
           <div style="flex: 1;">
-            <span style="font-size: 0.85rem;">${i.quantidade}x ${i.nome}</span>
-            ${i.observacao ? `<br><small style="color:#d35400; font-weight:bold; font-size:0.7rem;">📝 ${i.observacao}</small>` : ''}
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <span style="font-size: 0.85rem; font-weight: 600;">${i.quantidade}x ${i.nome}</span>
+              <span style="font-size: 0.75rem; font-weight: bold; color: #27ae60;">R$ ${(i.preco * i.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)}</span>
+            </div>
+            ${i.observacao ? `<small style="color:#d35400; font-weight:bold; font-size:0.7rem; display:block;">📝 ${i.observacao}</small>` : ''}
           </div>
-          <span style="font-size: 0.75rem; font-weight: bold; color: #27ae60;">R$ ${(i.preco * i.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)}</span>
         </div>
       `;
     });
