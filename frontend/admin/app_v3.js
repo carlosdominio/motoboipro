@@ -2045,14 +2045,17 @@ async function carregarPedidos() {
 
 function atualizarContadorAtivos() {
   const badge = document.getElementById('badge-ativos-contador');
+  const icon = document.getElementById('ativos-tab-icon');
   if (!badge) return;
-  
+
   const totalAtivos = pedidos.length;
   if (totalAtivos > 0) {
     badge.textContent = totalAtivos;
     badge.classList.remove('hidden');
+    if (icon) icon.classList.add('hidden');
   } else {
     badge.classList.add('hidden');
+    if (icon) icon.classList.remove('hidden');
   }
 }
 
