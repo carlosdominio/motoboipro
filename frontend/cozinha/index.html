@@ -56,6 +56,28 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmação de Pedido Pronto -->
+    <div id="modal-confirmacao-pronto" class="modal">
+        <div class="modal-content" style="border-top: 10px solid #2ecc71;">
+            <div class="modal-header">
+                <span class="modal-icon">✅</span>
+                <h2>CONCLUIR PEDIDO?</h2>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 20px;">
+                <p id="confirmacao-pronto-msg" style="font-size: 1.2rem; color: #2c3e50; font-weight: 500;">
+                    Deseja marcar o pedido da <strong>Mesa X</strong> como pronto?
+                </p>
+                <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">
+                    Isso enviará um alerta imediato para o <strong>ADM</strong> e para o <strong>GARÇOM</strong>.
+                </p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 15px; justify-content: center;">
+                <button onclick="fecharModalPronto()" class="btn-fechar-modal" style="background: #95a5a6; border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">VOLTAR</button>
+                <button id="btn-confirmar-pronto" class="btn-fechar-modal" style="background: #2ecc71; border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">SIM, ENVIAR AVISO!</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script src="app.js?v=1.0.5"></script>
 </body>

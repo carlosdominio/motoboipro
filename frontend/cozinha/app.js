@@ -240,7 +240,42 @@ function atualizarCronometros() {
         }
     });
 }
-async function marcarComoPronto(pedidoId, btn) {
+let pedidoParaConcluir = null;
+let botaoParaConcluir = null;
+
+function marcarComoPronto(pedidoId, btn) {
+    const card = btn.closest('.card-pedido');
+    const mesa = card ? card.dataset.mesa : 'Desconhecida';
+    
+    pedidoParaConcluir = pedidoId;
+    botaoParaConcluir = btn;
+
+    const modal = document.getElementById('modal-confirmacao-pronto');
+    const msg = document.getElementById('confirmacao-pronto-msg');
+    
+    if (modal && msg) {
+        msg.innerHTML = `Deseja marcar o pedido da <strong>Mesa ${mesa}</strong> como pronto?`;
+        modal.classList.add('active');
+        
+        document.getElementById('btn-confirmar-pronto').onclick = confirmarConclusaoPedido;
+    }
+}
+
+function fecharModalPronto() {
+    const modal = document.getElementById('modal-confirmacao-pronto');
+    if (modal) modal.classList.remove('active');
+    pedidoParaConcluir = null;
+    botaoParaConcluir = null;
+}
+
+async function confirmarConclusaoPedido() {
+    if (!pedidoParaConcluir || !botaoParaConcluir) return;
+    
+    const pedidoId = pedidoParaConcluir;
+    const btn = botaoParaConcluir;
+    
+    fecharModalPronto();
+    
     const originalText = btn.innerText;
     btn.innerText = 'CONCLUINDO...';
     btn.disabled = true;
