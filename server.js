@@ -1880,14 +1880,18 @@ app.post('/api/cliente/meus-pedidos', async (req, res) => {
     const acesso = (await query("SELECT id, status, criado_at FROM codigos_acesso WHERE id = ?", [acessoId])).rows[0];
     if (!acesso) return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
 
-    // 3. Busca todos os pedidos vinculados a esta sessão (Isolamento de Sessão)
-    // Buscamos todos os pedidos criados APÃ“S a geração do código de acesso.
+    // 3. Busca todos os pedidos vinculados a esta mesa que ainda não foram finalizados (PAGOS)
+    // Buscamos pedidos com status 'aberto' ou 'pendente', mas também incluímos pedidos 'entregues' 
+    // que tenham sido criados após a geração do código de acesso para que o cliente veja seu histórico.
     const pedidosSessao = (await query(`
       SELECT id, total, status, cobrar_taxa, desconto, acrescimo, solicitou_fechamento, fechamento_liberado 
       FROM pedidos 
       WHERE mesa_id = ? 
-      AND STRFTIME('%Y-%m-%d %H:%M:%S', created_at) >= STRFTIME('%Y-%m-%d %H:%M:%S', ?)
-      AND status != 'cancelado'
+      AND (
+        status NOT IN ('entregue', 'cancelado') -- Pedidos ativos na mesa (lançados pelo garçom ou cliente)
+        OR 
+        (status = 'entregue' AND STRFTIME('%Y-%m-%d %H:%M:%S', created_at) >= STRFTIME('%Y-%m-%d %H:%M:%S', ?)) -- Pedidos já entregues nesta sessão
+      )
       ORDER BY id ASC
     `, [mesaId, acesso.criado_at])).rows;
 
