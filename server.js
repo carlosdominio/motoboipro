@@ -1883,6 +1883,10 @@ app.post('/api/cliente/meus-pedidos', async (req, res) => {
     // 3. Busca todos os pedidos vinculados a esta mesa que ainda não foram finalizados (PAGOS)
     // Buscamos pedidos com status 'aberto' ou 'pendente', mas também incluímos pedidos 'entregues' 
     // que tenham sido criados após a geração do código de acesso para que o cliente veja seu histórico.
+    const dateComparison = isPostgres 
+      ? "created_at >= ?" 
+      : "STRFTIME('%Y-%m-%d %H:%M:%S', created_at) >= STRFTIME('%Y-%m-%d %H:%M:%S', ?)";
+
     const pedidosSessao = (await query(`
       SELECT id, total, status, cobrar_taxa, desconto, acrescimo, solicitou_fechamento, fechamento_liberado 
       FROM pedidos 
@@ -1890,7 +1894,7 @@ app.post('/api/cliente/meus-pedidos', async (req, res) => {
       AND (
         status NOT IN ('entregue', 'cancelado') -- Pedidos ativos na mesa (lançados pelo garçom ou cliente)
         OR 
-        (status = 'entregue' AND STRFTIME('%Y-%m-%d %H:%M:%S', created_at) >= STRFTIME('%Y-%m-%d %H:%M:%S', ?)) -- Pedidos já entregues nesta sessão
+        (status = 'entregue' AND ${dateComparison}) -- Pedidos já entregues nesta sessão
       )
       ORDER BY id ASC
     `, [mesaId, acesso.criado_at])).rows;
