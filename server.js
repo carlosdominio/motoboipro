@@ -71,7 +71,7 @@ if (process.env.WHATSAPP_BOT_URL) {
         }
         await sendWhatsAppMessage(promoMsg, from);
       } else if (msg === '4') {
-        await sendWhatsAppMessage(`📍 *ENDEREÇO E HORÁRIO*\n\n🏠 Endereço: rua democrito gracindo 132 ponta grossa\n⏰ Horário: Diariamente das 18h às 02:00`, from);
+        await sendWhatsAppMessage(`📍 *ENDEREÇO E HORÁRIO*\n\n🏠 Endereço: rua democrito gracindo 132 ponta grossa\n⏰ Horário: Diariamente das 18h às 02:00 de Terça a Domingo`, from);
       } else if (msg === '5') {
         await sendWhatsAppMessage(`👨‍💼 *ATENDIMENTO*\n\nUm momento, ${nome}. Já avisei a nossa equipe e alguém falará com você em instantes!`, from);
         // Notifica o painel admin via Pusher
