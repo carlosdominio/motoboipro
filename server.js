@@ -1238,9 +1238,9 @@ app.post('/api/pedidos', async (req, res) => {
     await Promise.all([
       notifyStatus(pedidoId, mesa_id, 'recebido', mesaNum),
       safePusherTrigger('garconnexpress', 'menu-atualizado', {}),
-      safePusherTrigger('garconnexpress', 'novo-pedido', { 
+      safePusherTrigger('garconnexpress', 'novo-pedido', {
         para_cozinha: temItemCozinha,
-        pedido: { id: pedidoId, mesa_id, mesa_numero: mesaNum, status: 'recebido' } 
+        pedido: { id: pedidoId, mesa_id, mesa_numero: mesaNum, status: 'recebido', garcom_id }
       })
     ]);
 
