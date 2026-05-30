@@ -340,45 +340,47 @@ async function verificarEstoqueBaixo(menuId) {
 
 async function notifyStatus(pedidoId, mesaDbId, status, mesaNumPredefined = null) {
   try {
-    let mesaNum = mesaNumPredefined || 'BALCÃO';
+    let mesaNum = mesaNumPredefined;
     let finalMesaId = mesaDbId;
     let garcomId = null;
 
-    if (!finalMesaId || !mesaNumPredefined) {
-      if (mesaDbId) {
-        const res = await query("SELECT numero FROM mesas WHERE id = ?", [mesaDbId]);
-        mesaNum = res.rows[0] ? res.rows[0].numero : 'BALCÃO';
-      } else if (pedidoId) {
-        const res = await query("SELECT m.id, m.numero, p.garcom_id FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [pedidoId]);
-        if (res.rows[0]) {
-          garcomId = res.rows[0].garcom_id;
-          if (garcomId === 'DELIVERY') {
-            mesaNum = `DELIVERY #${pedidoId}`;
-          } else {
-            mesaNum = res.rows[0].numero || 'BALCÃO';
-          }
-          finalMesaId = res.rows[0].id || null;
+    // Prioridade: Se temos o ID do pedido, buscamos os dados reais para evitar rotular Delivery como Balcão
+    if (pedidoId) {
+      const res = await query("SELECT m.id as mesa_id, m.numero as mesa_numero, p.garcom_id FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [pedidoId]);
+      if (res.rows[0]) {
+        garcomId = res.rows[0].garcom_id;
+        finalMesaId = finalMesaId || res.rows[0].mesa_id;
+        
+        if (garcomId === 'DELIVERY') {
+          mesaNum = `DELIVERY #${pedidoId}`;
+        } else if (!mesaNum) {
+          mesaNum = res.rows[0].mesa_numero ? `Mesa ${res.rows[0].mesa_numero}` : 'BALCÃO';
         }
       }
-    } else if (pedidoId) {
-       // Se os parâmetros foram passados, ainda precisamos do garcom_id
-       const res = await query("SELECT garcom_id FROM pedidos WHERE id = ?", [pedidoId]);
-       if (res.rows[0]) garcomId = res.rows[0].garcom_id;
     }
+
+    // Caso não tenha pedidoId ou a busca falhou, tenta buscar pela mesaDbId
+    if (!mesaNum && finalMesaId) {
+      const res = await query("SELECT numero FROM mesas WHERE id = ?", [finalMesaId]);
+      mesaNum = res.rows[0] ? `Mesa ${res.rows[0].numero}` : 'BALCÃO';
+    }
+
+    // Fallback final
+    if (!mesaNum) mesaNum = 'BALCÃO';
     
     const payload = { pedido_id: pedidoId, mesa_id: finalMesaId, mesa_numero: mesaNum, status: status, garcom_id: garcomId };
-    console.log(`🔔 Notificando status: Mesa ${mesaNum} (ID: ${finalMesaId}), Status ${status}`);
+    console.log(`🔔 [Notificação] ${status.toUpperCase()}: ${mesaNum} (ID Pedido: ${pedidoId || 'N/A'})`);
 
     // Dispara Pusher IMEDIATAMENTE (Prioridade)
     await safePusherTrigger('garconnexpress', 'status-atualizado', payload);
     // Notificação WhatsApp em paralelo/background
     if (status === 'aguardando_fechamento') {
-      sendWhatsAppMessage(`🛎️ *SOLICITAÇÃO DE FECHAMENTO*\n📍 Mesa: ${mesaNum}\n💰 O cliente solicitou a conta.`).catch(e => console.error('Erro Wpp:', e.message));
+      sendWhatsAppMessage(`🛎️ *SOLICITAÇÃO DE FECHAMENTO*\n📍 Local: ${mesaNum}\n💰 O cliente solicitou a conta.`).catch(e => console.error('Erro Wpp:', e.message));
     } else if (status === 'cancelado') {
-      sendWhatsAppMessage(`❌ *PEDIDO CANCELADO*\n📍 Mesa: ${mesaNum}\n🗑️ O pedido foi removido do sistema.`).catch(e => console.error('Erro Wpp:', e.message));
+      sendWhatsAppMessage(`❌ *PEDIDO CANCELADO*\n📍 Local: ${mesaNum}\n🗑️ O pedido foi removido do sistema.`).catch(e => console.error('Erro Wpp:', e.message));
     }
 
-  } catch (e) { console.error('Erro notificar:', e.message); }
+  } catch (e) { console.error('Erro ao notificar status:', e.message); }
 }
 
 let dbInitError = null;
