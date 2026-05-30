@@ -28,6 +28,10 @@ let whatsappSocket = null;
 const clientesEmAtendimento = new Map(); // Armazena { numero: timestamp } - ESCOPO GLOBAL
 
 if (process.env.WHATSAPP_BOT_URL) {
+  whatsappSocket = ioClient(process.env.WHATSAPP_BOT_URL, {
+    reconnection: true,
+    reconnectionAttempts: Infinity
+  });
 
   whatsappSocket.on('new_msg', async (data) => {
     try {
