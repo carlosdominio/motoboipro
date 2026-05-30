@@ -37,7 +37,9 @@ if (process.env.WHATSAPP_BOT_URL) {
   whatsappSocket.on('connect_error', (err) => console.log('❌ Erro de conexão com Bot WhatsApp:', err.message));
   whatsappSocket.on('disconnect', () => console.log('⚠️ Desconectado do Bot WhatsApp'));
 
-  // --- LÃ“GICA DO MENU INTERATIVO ---
+// --- LÃ“GICA DO MENU INTERATIVO ---
+  const clientesEmAtendimento = new Map(); // Armazena { numero: timestamp }
+
   whatsappSocket.on('new_msg', async (data) => {
     try {
       if (!data || !data.from || !data.body) return;
@@ -50,6 +52,41 @@ if (process.env.WHATSAPP_BOT_URL) {
       if (data.fromMe) return;
 
       console.log(`📩 [WhatsApp] Mensagem de ${nome} (${from}): ${msg}`);
+
+      // 1. DETECÇÃO DE PEDIDO DE DELIVERY
+      if (msg.includes('🛍️ *NOVO PEDIDO - DELIVERY*') || msg.includes('🛵 DELIVERY')) {
+        console.log(`🚀 [WhatsApp] Pedido detectado de ${from}. Ativando modo humano.`);
+        
+        // Coloca o cliente em modo "Atendimento Humano" por 4 horas
+        clientesEmAtendimento.set(from, Date.now() + (4 * 60 * 60 * 1000));
+        
+        // Envia confirmação automática
+        await sendWhatsAppMessage(`Obrigado, *${nome}*! 🙌\n\nSeu pedido já foi recebido no nosso sistema e está sendo preparado! 🚀\n\nUm atendente humano irá te responder aqui em breve caso precise de algo.`, from);
+        
+        // Notifica o painel admin
+        await safePusherTrigger('garconnexpress', 'atendimento-whatsapp', { 
+            number: from, 
+            name: nome, 
+            mensagem: 'Fez um pedido de Delivery e está aguardando.' 
+        });
+        return; // Sai para não mandar o menu
+      }
+
+      // 2. VERIFICA SE ESTÁ EM ATENDIMENTO HUMANO
+      if (clientesEmAtendimento.has(from)) {
+        const expira = clientesEmAtendimento.get(from);
+        if (Date.now() < expira) {
+          console.log(`🤫 [WhatsApp] Cliente ${from} em modo humano. Ignorando robô.`);
+          return; // Não envia o menu
+        } else {
+          clientesEmAtendimento.delete(from); // Expirou
+        }
+      }
+
+      // 3. COMANDO PARA VOLTAR AO MENU (OPCIONAL)
+      if (msg.toUpperCase() === '#MENU') {
+        clientesEmAtendimento.delete(from);
+      }
 
       // Processa as opções do menu
       if (msg === '1') {
@@ -691,13 +728,18 @@ app.put('/api/pedidos/:id/cozinha-pronto', async (req, res) => {
     }
 
     // Notifica admin e garçom
-    const pedido = (await query("SELECT m.numero as mesa_numero FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [id])).rows[0];
-    const mesaNum = pedido ? pedido.mesa_numero || 'BALCÃO' : 'BALCÃO';
+    const pedido = (await query("SELECT p.garcom_id, m.numero as mesa_numero FROM pedidos p LEFT JOIN mesas m ON p.mesa_id = m.id WHERE p.id = ?", [id])).rows[0];
+    let mesaExibicao = 'BALCÃO';
+    if (pedido) {
+      if (pedido.garcom_id === 'DELIVERY') mesaExibicao = `DELIVERY #${id}`;
+      else mesaExibicao = pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO';
+    }
     
     await safePusherTrigger('garconnexpress', 'pedido-pronto', { 
       pedido_id: id, 
-      mesa_numero: mesaNum,
-      mensagem: `🍳 Pedido da Mesa ${mesaNum} está pronto!` 
+      mesa_numero: mesaExibicao,
+      garcom_id: pedido ? pedido.garcom_id : null,
+      mensagem: `🍳 Pedido ${mesaExibicao} está pronto!` 
     });
 
     await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
@@ -1204,6 +1246,8 @@ app.post('/api/pedidos', async (req, res) => {
     if (mesa_id) { 
       const rm = await query("SELECT numero FROM mesas WHERE id = ?", [mesa_id]); 
       mesaNum = rm.rows[0] ? rm.rows[0].numero : 'BALCÃO'; 
+    } else if (garcom_id === 'DELIVERY') {
+      mesaNum = `DELIVERY #${pedidoId}`;
     }
 
     // NOTIFICAÇÃO WHATSAPP DETALHADA
