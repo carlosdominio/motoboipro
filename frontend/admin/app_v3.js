@@ -156,7 +156,9 @@ function switchSubTab(sub) {
   const activeBtn = document.getElementById(`tab-sub-${sub}`);
   if (activeBtn) {
     activeBtn.classList.add('active');
-    activeBtn.style.background = sub === 'garcom' ? '#3498db' : '#27ae60';
+    if (sub === 'garcom') activeBtn.style.background = '#3498db';
+    else if (sub === 'balcao') activeBtn.style.background = '#27ae60';
+    else if (sub === 'delivery') activeBtn.style.background = '#e67e22';
     activeBtn.style.color = 'white';
   }
 
@@ -609,6 +611,7 @@ async function carregarMesasLancar() {
   
   select.innerHTML = '<option value="">Selecione a Mesa</option>' + 
     '<option value="BALCAO" style="font-weight:bold; color:#27ae60;">🏪 BALCÃO / VENDA DIRETA</option>' +
+    '<option value="DELIVERY" style="font-weight:bold; color:#e67e22;">🛵 DELIVERY</option>' +
     mesas.map(m => `<option value="${m.id}">Mesa ${m.numero} (${m.status.toUpperCase()})</option>`).join('');
 }
 
@@ -813,8 +816,11 @@ async function enviarPedidoLoteAdmin() {
   if (enviandoPedidoLote) return;
 
   let mesaId = document.getElementById('lancar-mesa-select').value;
-  if (!mesaId) return await mostrarAlerta("Selecione a mesa ou BALCÃO!", "Aviso", "⚠️");
+  if (!mesaId) return await mostrarAlerta("Selecione a mesa, BALCÃO ou DELIVERY!", "Aviso", "⚠️");
   if (carrinhoLancar.length === 0) return await mostrarAlerta("Carrinho vazio!", "Aviso", "⚠️");
+
+  const isDelivery = (mesaId === 'DELIVERY');
+  const garcomId = isDelivery ? 'DELIVERY' : 'ADMIN';
 
   const cobrarTaxa = document.getElementById('lancar-taxa-toggle').checked;
   const subtotal = carrinhoLancar.reduce((s,i) => s + (i.preco * i.quantidade), 0);
@@ -826,7 +832,7 @@ async function enviarPedidoLoteAdmin() {
   if (btn) { btn.disabled = true; btn.innerText = "⏳ ENVIANDO..."; }
 
   let pedidoExistente = null;
-  if (mesaId !== 'BALCAO') {
+  if (mesaId !== 'BALCAO' && mesaId !== 'DELIVERY') {
     const resMesa = await fetch(`/api/pedidos/mesa/${mesaId}`);
     pedidoExistente = await resMesa.json();
   } else {
@@ -835,9 +841,9 @@ async function enviarPedidoLoteAdmin() {
 
   const url = pedidoExistente ? `/api/pedidos/${pedidoExistente.id}/adicionar` : '/api/pedidos';
   const method = pedidoExistente ? 'PUT' : 'POST';
-  const body = pedidoExistente 
-    ? { itens: carrinhoLancar, cobrar_taxa: cobrarTaxa } 
-    : { mesa_id: mesaId, garcom_id: 'ADMIN', itens: carrinhoLancar, cobrar_taxa: cobrarTaxa };
+  const body = pedidoExistente
+    ? { itens: carrinhoLancar, cobrar_taxa: cobrarTaxa }
+    : { mesa_id: mesaId, garcom_id: garcomId, itens: carrinhoLancar, cobrar_taxa: cobrarTaxa };
 
   try {
     const res = await fetch(url, {
@@ -883,7 +889,7 @@ async function enviarPedidoLoteAdmin() {
     await mostrarAlerta("Erro de conexão", "Erro", "❌");
   } finally {
     enviandoPedidoLote = false;
-    if (btn) { btn.disabled = false; btn.innerText = "🚀 LANÇAR NA MESA"; }
+    if (btn) { btn.disabled = false; btn.innerText = "🚀 LANÇAR PEDIDO"; }
   }
 }
 async function carregarStatusCaixa() {
@@ -1737,7 +1743,9 @@ async function exibirHistorico() {
 
     const card = document.createElement('div');
     card.className = `pedido-card status-${pedido.status}`;
-    const mesaNomeExibicao = pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO';
+    
+    const isDelivery = (pedido.garcom_id === 'DELIVERY');
+    const mesaNomeExibicao = isDelivery ? `🛵 DELIVERY #${pedido.id}` : (pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO');
 
     let htmlPagamentos = '';
     if (pagamentos.length > 0) {
@@ -1758,6 +1766,9 @@ async function exibirHistorico() {
       `;
     }
 
+    // Não mostra a observação crua (com os dados do cliente) se for um pedido de delivery
+    const obsHtml = (pedido.observacao && !isDelivery) ? `<small style="display:block; color:#e67e22; font-weight:bold; margin-top:2px;">📝 ${pedido.observacao}</small>` : '';
+
     card.innerHTML = `
       <div class="pedido-header">
         <div>
@@ -1765,8 +1776,8 @@ async function exibirHistorico() {
           <span class="status-badge ${pedido.status}">${pedido.status === 'entregue' ? 'PAGO' : pedido.status.toUpperCase()}</span>
           <small style="display:block; margin-top:4px;">📅 ${formatarData(pedido.created_at)}</small>
           <small style="display:block; font-weight:bold; color: #2c3e50;">👤 Garçom: ${pedido.garcom_nome || pedido.garcom_id || 'Administrador'}</small>
-          ${pedido.observacao ? `<small style="display:block; color:#e67e22; font-weight:bold; margin-top:2px;">📝 ${pedido.observacao}</small>` : ''}
-          ${(pagamentos.length > 1 || pedido.num_pessoas > 1) ? `<small style="display:block; color:#2980b9; font-weight:bold; margin-top:2px;">👥 DIVIDIDO POR: ${Math.max(pagamentos.length, pedido.num_pessoas || 1)} PESSOAS</small>` : ''}
+          ${obsHtml}
+          ${(pagamentos.length > 1 || pedido.num_pessoas > 1) && !isDelivery ? `<small style="display:block; color:#2980b9; font-weight:bold; margin-top:2px;">👥 DIVIDIDO POR: ${Math.max(pagamentos.length, pedido.num_pessoas || 1)} PESSOAS</small>` : ''}
         </div>
         <div style="text-align: right;">
           <div class="pedido-valor">R$ ${valorConsolidado.toFixed(2)}</div>
@@ -2292,10 +2303,15 @@ async function exibirPedidos() {
     balcao: {
       pendentes: document.getElementById('list-pendentes-balcao'),
       servidos: document.getElementById('list-servidos-balcao')
+    },
+    delivery: {
+      pendentes: document.getElementById('list-pendentes-delivery'),
+      servidos: document.getElementById('list-servidos-delivery'),
+      fechamento: document.getElementById('list-fechamento-delivery')
     }
   };
 
-  if (!lists.garcom.pendentes || !lists.balcao.pendentes) return;
+  if (!lists.garcom.pendentes || !lists.balcao.pendentes || !lists.delivery.pendentes) return;
   
   isRenderingPedidos = true;
 
@@ -2306,7 +2322,8 @@ async function exibirPedidos() {
 
   const counts = {
     garcom: { pendentes: 0, servidos: 0, fechamento: 0 },
-    balcao: { pendentes: 0, servidos: 0 }
+    balcao: { pendentes: 0, servidos: 0 },
+    delivery: { pendentes: 0, servidos: 0, fechamento: 0 }
   };
 
   // ORDENAÇÃO: Mais antigos primeiro, priorizando quem já pediu a conta (aguardando_fechamento)
@@ -2318,7 +2335,8 @@ async function exibirPedidos() {
 
   try {
     for (const pedido of pedidosOrdenados) {
-      const mesaNomeExibicao = pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO';
+      const isDelivery = (pedido.garcom_id === 'DELIVERY');
+      const mesaNomeExibicao = isDelivery ? `🛵 DELIVERY #${pedido.id}` : (pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO');
       
       if (pedidosStatusTaxa[pedido.id] === undefined) {
         pedidosStatusTaxa[pedido.id] = (pedido.cobrar_taxa !== undefined) ? pedido.cobrar_taxa : true;
@@ -2345,7 +2363,7 @@ async function exibirPedidos() {
       }
 
       const subtotal = itens.reduce((sum, i) => sum + (i.preco * i.quantidade), 0);
-      const taxaServico = cobrarTaxaNoPedido ? (subtotal * 0.10) : 0;
+      const taxaServico = cobrarTaxaNoPedido ? (isDelivery ? 3.00 : (subtotal * 0.10)) : 0;
       const pagoParcial = pedido.pago_parcial || 0;
       const totalConsumo = (subtotal + taxaServico);
       const totalExibicao = (isAguardando ? pedido.total : (totalConsumo - pagoParcial)) || 0;
@@ -2365,9 +2383,15 @@ async function exibirPedidos() {
       const pedidoIdStr = String(pedido.id);
       const isExpanded = expandedPedidoIds.has(pedidoIdStr);
 
+      let statusBadgeLabel = statusGeral === 'servido' ? 'EM ANDAMENTO' : 'PENDENTE';
+      if (isDelivery) {
+        if (isAguardando) statusBadgeLabel = 'ENTREGUE';
+        else if (statusGeral === 'servido') statusBadgeLabel = 'A CAMINHO';
+      }
+
       card.className = `pedido-card ${isExpanded ? '' : 'minimized'} status-${statusGeral} ${pedido.id === pedidoAtualizadoId ? 'destaque-atualizacao' : ''} ${classeAlertaAtraso} ${isAguardando ? 'alerta-fechamento' : ''} ${isPronto ? 'pedido-pronto-admin' : ''}`;
       card.dataset.pedidoId = pedido.id;
-      card.dataset.mesa = mesaNomeExibicao; // Adicionado para facilitar o filtro exato
+      card.dataset.mesa = mesaNomeExibicao;
 
       // Abrir modal de opções ao clicar em qualquer lugar do card (exceto botões/inputs)
       card.addEventListener('click', (e) => {
@@ -2385,7 +2409,8 @@ async function exibirPedidos() {
               <span class="pedido-cronometro" data-created-at="${pedido.created_at || ''}" style="font-size:0.8rem; background:#2c3e50; padding:2px 8px; border-radius:12px; color:#fff; ${minutosCronometro === null ? 'display:none;' : ''}">
                 ⏱️ ${minutosCronometro === null ? '' : `${minutosCronometro} min`}
               </span>
-            </h3>            <span class="status-badge ${statusGeral}">${statusGeral === 'servido' ? 'EM ANDAMENTO' : 'PENDENTE'}</span>
+            </h3>
+            <span class="status-badge ${statusGeral}">${statusBadgeLabel}</span>
             <small style="display:block; margin-top:4px; opacity:0.6;">📅 ${formatarData(pedido.created_at)}</small>
             <small style="display:block; font-weight:bold; color: #34495e; margin-top:2px;">👤 Garçom: ${pedido.garcom_id || 'Admin'}</small>
           </div>
@@ -2401,7 +2426,7 @@ async function exibirPedidos() {
               </button>
 
               <div class="toggle-container">
-                <span style="font-size:0.7rem;">10% TAXA</span>
+                <span style="font-size:0.7rem;">${isDelivery ? 'R$ 3.00 ENTREGA' : '10% TAXA'}</span>
                 <label class="switch" style="${pagoParcial > 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
                   <input type="checkbox" ${cobrarTaxaNoPedido ? 'checked' : ''} ${pagoParcial > 0 ? 'disabled' : ''} onchange="alternarTaxaPedido(${pedido.id}, this)">
                   <span class="slider"></span>
@@ -2418,7 +2443,7 @@ async function exibirPedidos() {
               ${itensPendentes.map(item => `
                 <div class="pedido-item" style="border-left:4px solid #e74c3c; background:#fff5f5; border-radius:6px; padding:6px 10px; margin-bottom:5px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="font-size:0.95rem;">${item.quantidade}x ${item.nome} <span class="item-valor" data-base-valor="${(item.preco * item.quantidade).toFixed(2)}" style="font-size:0.75rem; color:#7f8c8d; font-weight:normal;">(R$ ${(item.preco * item.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)})</span></strong>
+                    <strong style="font-size:0.95rem;">${item.quantidade}x ${item.nome} <span class="item-valor" data-base-valor="${(item.preco * item.quantidade).toFixed(2)}" style="font-size:0.75rem; color:#7f8c8d; font-weight:normal;">(R$ ${(item.preco * item.quantidade * (cobrarTaxaNoPedido && !isDelivery ? 1.1 : 1)).toFixed(2)})</span></strong>
                     <span style="font-size:0.65rem; font-weight:bold; background:#e74c3c; color:white; padding:2px 6px; border-radius:4px;">⏳ PENDENTE</span>
                   </div>
                   ${item.observacao ? `<small style="color:#d35400; display:block; margin-top:2px; font-weight:bold;">📝 Obs: ${item.observacao}</small>` : ''}
@@ -2429,11 +2454,11 @@ async function exibirPedidos() {
 
           ${itensEntregues.length > 0 ? `
             <div style="opacity: 0.7;">
-              <small style="color: #27ae60; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px;">✅ JÁ NA MESA:</small>
+              <small style="color: #27ae60; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; display:block; margin-bottom:5px;">${isDelivery ? '✅ JÁ ENTREGUE:' : '✅ JÁ NA MESA:'}</small>
               ${itensEntregues.map(item => `
                 <div class="pedido-item" style="border-left:4px solid #27ae60; background:#f0fff4; border-radius:6px; padding:4px 10px; margin-bottom:4px; text-decoration: line-through;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.85rem;">${item.quantidade}x ${item.nome} <span class="item-valor" data-base-valor="${(item.preco * item.quantidade).toFixed(2)}" style="font-size:0.7rem; color:#7f8c8d;">(R$ ${(item.preco * item.quantidade * (cobrarTaxaNoPedido ? 1.1 : 1)).toFixed(2)})</span></span>
+                    <span style="font-size:0.85rem;">${item.quantidade}x ${item.nome} <span class="item-valor" data-base-valor="${(item.preco * item.quantidade).toFixed(2)}" style="font-size:0.7rem; color:#7f8c8d;">(R$ ${(item.preco * item.quantidade * (cobrarTaxaNoPedido && !isDelivery ? 1.1 : 1)).toFixed(2)})</span></span>
                     <span style="font-size:0.6rem; color:#27ae60; font-weight:bold; text-decoration:none !important;">✓</span>
                   </div>
                 </div>
@@ -2445,16 +2470,19 @@ async function exibirPedidos() {
         <div class="pedido-footer">
           <div class="pedido-actions" style="width: 100%; margin-top: 8px;">
             ${pedido.status === 'aguardando_fechamento' ? 
-              `<button style="background:#27ae60; font-size:1.1rem; border:none; padding: 1.2rem; width: 100%; border-radius:12px; box-shadow:0 5px 0 #219150; cursor:pointer;" onclick="aprovarFechamento(${pedido.id}, ${pedido.mesa_id})">💰 CONFIRMAR PAGAMENTO E LIBERAR</button>` : 
+              `<button style="background:#27ae60; font-size:1.1rem; border:none; padding: 1.2rem; width: 100%; border-radius:12px; box-shadow:0 5px 0 #219150; cursor:pointer;" onclick="aprovarFechamento(${pedido.id}, ${pedido.mesa_id})">${isDelivery ? '💰 FINALIZAR DELIVERY' : '💰 CONFIRMAR PAGAMENTO E LIBERAR'}</button>` : 
               (hasPend ? 
-                `<button style="background:#e67e22; width: 100%; padding:12px; font-weight:bold; border-radius:10px; box-shadow:0 4px 0 #d35400; border:none; color:white; cursor:pointer;" onclick="marcarPedidoEntregue(${pedido.id})">🚚 ENTREGAR TUDO AGORA</button>` :
-                `<button style="background:#27ae60; width: 100%; padding:12px; font-weight:bold; border-radius:10px; box-shadow:0 4px 0 #219150; border:none; color:white; cursor:pointer;" onclick="liberarMesa(${pedido.id}, ${pedido.mesa_id}, false)">🔓 LIBERAR MESA</button>`
+                `<button style="background:#e67e22; width: 100%; padding:12px; font-weight:bold; border-radius:10px; box-shadow:0 4px 0 #d35400; border:none; color:white; cursor:pointer;" onclick="marcarPedidoEntregue(${pedido.id})">${isDelivery ? '🛵 ENVIAR PARA ENTREGA' : '🚚 ENTREGAR TUDO AGORA'}</button>` :
+                (isDelivery ?
+                  `<button style="background:#3498db; width: 100%; padding:12px; font-weight:bold; border-radius:10px; box-shadow:0 4px 0 #2980b9; border:none; color:white; cursor:pointer;" onclick="confirmarEntregaDelivery(${pedido.id})">✅ CONFIRMAR ENTREGA</button>` :
+                  `<button style="background:#27ae60; width: 100%; padding:12px; font-weight:bold; border-radius:10px; box-shadow:0 4px 0 #219150; border:none; color:white; cursor:pointer;" onclick="liberarMesa(${pedido.id}, ${pedido.mesa_id}, false)">🔓 LIBERAR MESA</button>`
+                )
               )
             }
           </div>
         </div>`;
       
-      const group = (pedido.garcom_id === 'ADMIN') ? 'balcao' : 'garcom';
+      const group = isDelivery ? 'delivery' : (pedido.garcom_id === 'ADMIN' ? 'balcao' : 'garcom');
       let targetCol = 'pendentes';
       if (isAguardando) targetCol = 'fechamento';
       else if (statusGeral === 'servido') targetCol = 'servidos';
@@ -2477,8 +2505,10 @@ async function exibirPedidos() {
     // Atualiza contadores das sub-tabs
     const bGarcom = document.getElementById('badge-sub-garcom');
     const bBalcao = document.getElementById('badge-sub-balcao');
+    const bDelivery = document.getElementById('badge-sub-delivery');
     if (bGarcom) bGarcom.textContent = counts.garcom.pendentes + counts.garcom.servidos + counts.garcom.fechamento;
     if (bBalcao) bBalcao.textContent = counts.balcao.pendentes + counts.balcao.servidos;
+    if (bDelivery) bDelivery.textContent = counts.delivery.pendentes + counts.delivery.servidos + counts.delivery.fechamento;
 
     // Estados vazios por coluna se necessário
     const checkEmpty = (group, col, icon, text) => {
@@ -2497,6 +2527,9 @@ async function exibirPedidos() {
     checkEmpty('garcom', 'fechamento', '💰', 'Sem fechamentos');
     checkEmpty('balcao', 'pendentes', '🔥', 'Sem pedidos pendentes');
     checkEmpty('balcao', 'servidos', '🍽️', 'Ninguém consumindo');
+    checkEmpty('delivery', 'pendentes', '🔥', 'Sem pedidos pendentes');
+    checkEmpty('delivery', 'servidos', '🛵', 'Nada a caminho');
+    checkEmpty('delivery', 'fechamento', '✅', 'Sem entregues');
 
     // RE-APLICA OS FILTROS APÓS RENDERIZAR TUDO
     aplicarFiltrosVisuais();
@@ -2653,6 +2686,26 @@ async function atualizarStatus(id, status) {
   } else {
     const err = await res.json();
     await mostrarAlerta("Erro: " + err.error, "Erro", "❌");
+  }
+}
+
+async function confirmarEntregaDelivery(id) {
+  if (await mostrarConfirmacao("Confirmar que o pedido foi ENTREGUE pelo motoboy?", "Confirmação de Entrega", "Sim, Entregue", "Não", "🛵")) {
+    try {
+      // Move para aguardando_fechamento, que no Delivery chamamos de "ENTREGUE"
+      const res = await fetch(`/api/pedidos/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'aguardando_fechamento' })
+      });
+      if (res.ok) {
+        mostrarToast("✅ Pedido marcado como ENTREGUE!");
+        carregarPedidos();
+      }
+    } catch (e) {
+      console.error("Erro ao confirmar entrega:", e);
+      mostrarAlerta("Erro ao confirmar entrega.");
+    }
   }
 }
 
@@ -3149,8 +3202,14 @@ async function aprovarFechamento(idPedido, idMesa, mesaNomeForcado = null) {
   
   renderizarListaItensFechamento();
 
-  const mesaLabel = pedidoParaFecharAdmin.mesa_numero ? `Mesa ${pedidoParaFecharAdmin.mesa_numero}` : 'BALCÃO';
+  const isDelivery = (pedidoParaFecharAdmin.garcom_id === 'DELIVERY');
+  const mesaLabel = isDelivery ? `DELIVERY #${pedidoParaFecharAdmin.id}` : (pedidoParaFecharAdmin.mesa_numero ? `Mesa ${pedidoParaFecharAdmin.mesa_numero}` : 'BALCÃO');
   document.getElementById('fechamento-mesa-admin').textContent = mesaLabel;
+
+  const lblTaxaFechamento = document.getElementById('lbl-fechamento-taxa');
+  if (lblTaxaFechamento) {
+    lblTaxaFechamento.textContent = isDelivery ? "Taxa de Entrega (R$ 3,00):" : "Taxa de Serviço (10%):";
+  }
   
   let cobrarTaxaNoPedido = true;
   if (pedidoParaFecharAdmin.cobrar_taxa !== undefined) {
@@ -3288,7 +3347,8 @@ function recalcularTotalFechamentoAdmin() {
   subtotalConsumoAdmin = selecionados.reduce((sum, i) => sum + (i.preco * i.quantidade), 0);
 
   const cobrarTaxa = document.getElementById('fechamento-taxa-admin').checked;
-  const taxa = cobrarTaxa ? subtotalConsumoAdmin * 0.10 : 0;
+  const isDelivery = (pedidoParaFecharAdmin && pedidoParaFecharAdmin.garcom_id === 'DELIVERY');
+  const taxa = cobrarTaxa ? (isDelivery ? 3.00 : subtotalConsumoAdmin * 0.10) : 0;
   const acrescimo = parseFloat(document.getElementById('fechamento-acrescimo-admin').value) || 0;
 
   const descontoInput = parseFloat(document.getElementById('fechamento-desconto-admin').value) || 0;
@@ -3346,6 +3406,9 @@ function recalcularTotalFechamentoAdmin() {
     }
     const txtTrocoTudo = trocoTotal > 0 ? ` | TROCO: R$ ${trocoTotal.toFixed(2)}` : '';
     if (lblTudo) lblTudo.textContent = `R$ ${saldoRestante.toFixed(2)}${txtTrocoTudo}`;
+    
+    const lblTextoTudo = document.getElementById('lbl-pagar-tudo-texto');
+    if (lblTextoTudo) lblTextoTudo.textContent = isDelivery ? 'FINALIZAR E LIBERAR DELIVERY' : 'FINALIZAR TUDO';
   }
 
   // CONTROLE DINÂMICO DE VISIBILIDADE DO TROCO
@@ -4530,17 +4593,34 @@ async function imprimirCupom(pedido, itens) {
     }
   }
 
+  const isDelivery = (pedido.garcom_id === 'DELIVERY');
+  const nomeExibicaoCupom = isDelivery ? `🛵 PEDIDO DELIVERY #${pedido.id}` : (pedido.mesa_numero ? `MESA ${pedido.mesa_numero}` : 'BALCÃO / VENDA DIRETA');
+
+  let dadosDeliveryHtml = '';
+  if (isDelivery && pedido.observacao) {
+      // Converte as quebras de linha da observação para <br>
+      const obsFormatada = pedido.observacao.replace(/\n/g, '<br>');
+      dadosDeliveryHtml = `
+        <div style="margin: 10px 0; padding: 10px; border: 1px solid #000; font-size: 9pt; text-align: left;">
+            <strong style="display:block; text-align:center; border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px;">DADOS DA ENTREGA</strong>
+            ${obsFormatada}
+        </div>
+      `;
+  }
+
   const html = `
     <div class="cupom-header" style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px;">
       <h2 style="margin:0; font-size: 14pt; font-weight: 900;">GuGA Bebidas</h2>
       <p style="margin:2px 0; font-size: 10pt; font-weight: 700;">
         ${pedido.status === 'cancelado' ? '*** PEDIDO CANCELADO ***' : (isConferencia ? '*** CONTA PARCIAL ***' : 'Comprovante de Pedido')}
       </p>
-      <p style="margin:2px 0; font-weight: 900; font-size: 12pt;">${mesaNomeCupom}</p>
+      <p style="margin:2px 0; font-weight: 900; font-size: 12pt;">${nomeExibicaoCupom}</p>
       <p style="margin:2px 0; font-size: 9pt;"><strong>ABERTURA:</strong> ${formatarData(pedido.created_at)}</p>
       <p style="margin:2px 0; font-size: 8pt;"><strong>EMISSÃO:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-      ${numPessoasExibicao > 1 ? `<p style="margin:2px 0; font-size: 10pt; font-weight:bold;">DIVIDIDO POR: ${numPessoasExibicao} PESSOAS</p>` : ''}
+      ${numPessoasExibicao > 1 && !isDelivery ? `<p style="margin:2px 0; font-size: 10pt; font-weight:bold;">DIVIDIDO POR: ${numPessoasExibicao} PESSOAS</p>` : ''}
     </div>
+
+    ${dadosDeliveryHtml}
     
     <div style="font-size: 10pt; margin-bottom: 10px; ${pedido.status === 'cancelado' ? 'text-decoration: line-through; opacity: 0.7;' : ''}">
       ${itens.map(i => `
@@ -4785,7 +4865,8 @@ async function abrirModalOpcoes(pedidoId) {
   if (!pedido) return;
   
   pedidoEmOpcoes = pedido;
-  const mesaNome = pedido.mesa_numero ? 'Mesa ' + pedido.mesa_numero : 'Balcão';
+  const isDelivery = (pedido.garcom_id === 'DELIVERY');
+  const mesaNome = isDelivery ? '🛵 DELIVERY #' + pedido.id : (pedido.mesa_numero ? 'Mesa ' + pedido.mesa_numero : 'Balcão');
   const mesaId = pedido.mesa_id;
   
   // 1. DADOS BÁSICOS E CORES
@@ -4796,6 +4877,9 @@ async function abrirModalOpcoes(pedidoId) {
   
   document.getElementById('modal-opcoes-titulo').innerText = mesaNome;
   document.getElementById('modal-opcoes-info').innerText = `Pedido #${pedido.id} | Garçom: ${pedido.garcom_id || 'Admin'}`;
+  
+  const lblTaxa = document.getElementById('modal-taxa-label-text');
+  if (lblTaxa) lblTaxa.innerText = isDelivery ? 'R$ 3.00 ENTREGA' : '10% TAXA';
 
   // Exibir observação do pedido se existir
   const infoExtra = document.getElementById('modal-opcoes-info-extra');
@@ -4811,7 +4895,7 @@ async function abrirModalOpcoes(pedidoId) {
   // 2. TOTAIS E TAXA
   const cobrarTaxaNoPedido = (pedidosStatusTaxa[pedidoId] !== undefined) ? pedidosStatusTaxa[pedidoId] : (pedido.cobrar_taxa || true);
   const subtotal = itens.reduce((sum, i) => sum + (i.preco * i.quantidade), 0);
-  const taxaServico = cobrarTaxaNoPedido ? (subtotal * 0.10) : 0;
+  const taxaServico = cobrarTaxaNoPedido ? (isDelivery ? 3.00 : (subtotal * 0.10)) : 0;
   const pagoParcial = pedido.pago_parcial || 0;
   const totalExibicao = (pedido.status === 'aguardando_fechamento' ? pedido.total : (subtotal + taxaServico - pagoParcial)) || 0;
 
@@ -4905,7 +4989,7 @@ async function abrirModalOpcoes(pedidoId) {
   if (isAguardando) {
     htmlFooter = `
       <button onclick="fecharModalOpcoes(); aprovarFechamento(${pedidoId}, ${mesaId})" style="background:#27ae60; color:white; border:none; padding: 1.2rem; width: 100%; border-radius:12px; font-weight: 900; font-size: 1.1rem; box-shadow:0 5px 0 #219150; cursor:pointer;">
-        💰 CONFIRMAR PAGAMENTO E LIBERAR
+        ${isDelivery ? '💰 LIBERA DELIVERY' : '💰 CONFIRMAR PAGAMENTO E LIBERAR'}
       </button>
     `;
   } else {
@@ -4913,16 +4997,24 @@ async function abrirModalOpcoes(pedidoId) {
       // Se ainda houver itens pendentes, mostra APENAS a opção de Entregar Tudo (conforme solicitado pelo usuário)
       htmlFooter = `
         <button onclick="fecharModalOpcoes(); marcarPedidoEntregue(${pedidoId})" style="background:#e67e22; color:white; border:none; padding: 1.2rem; width: 100%; font-weight: 900; border-radius:12px; font-size: 1.1rem; box-shadow:0 5px 0 #d35400; cursor:pointer;">
-          🚚 ENTREGAR TUDO AGORA
+          ${isDelivery ? '🛵 ENVIAR PARA ENTREGA' : '🚚 ENTREGAR TUDO AGORA'}
         </button>
       `;
     } else {
-      // Se tudo já foi entregue, mostra apenas o botão de Liberar Mesa em destaque (Verde)
-      htmlFooter = `
-        <button onclick="fecharModalOpcoes(); aprovarFechamento(${pedidoId}, ${mesaId})" style="background:#27ae60; color:white; border:none; padding: 1.2rem; width: 100%; border-radius:12px; font-weight: 900; font-size: 1.1rem; box-shadow:0 5px 0 #219150; cursor:pointer;">
-          🔓 LIBERAR MESA
-        </button>
-      `;
+      if (isDelivery) {
+        htmlFooter = `
+          <button onclick="fecharModalOpcoes(); confirmarEntregaDelivery(${pedidoId})" style="background:#3498db; color:white; border:none; padding: 1.2rem; width: 100%; border-radius:12px; font-weight: 900; font-size: 1.1rem; box-shadow:0 5px 0 #2980b9; cursor:pointer;">
+            ✅ CONFIRMAR ENTREGA
+          </button>
+        `;
+      } else {
+        // Se tudo já foi entregue, mostra apenas o botão de Liberar Mesa em destaque (Verde)
+        htmlFooter = `
+          <button onclick="fecharModalOpcoes(); aprovarFechamento(${pedidoId}, ${mesaId})" style="background:#27ae60; color:white; border:none; padding: 1.2rem; width: 100%; border-radius:12px; font-weight: 900; font-size: 1.1rem; box-shadow:0 5px 0 #219150; cursor:pointer;">
+            🔓 LIBERAR MESA
+          </button>
+        `;
+      }
     }
   }
   document.getElementById('modal-opcoes-footer-acoes').innerHTML = htmlFooter;

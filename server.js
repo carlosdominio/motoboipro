@@ -53,17 +53,17 @@ if (process.env.WHATSAPP_BOT_URL) {
 
       // Processa as opções do menu
       if (msg === '1') {
-        await sendWhatsAppMessage(`📖 *CARDÁPIO DIGITAL*\n\nPara visualizar nossos produtos, você pode acessar nosso link: https://garconnexpress.vercel.app/cardapio/\n\n💡 *Dica:* Se você estiver em uma de nossas mesas, utilize o *QR Code* fixado nela para fazer o seu pedido diretamente!`, from);
+        await sendWhatsAppMessage(`📖 *CARDÁPIO DIGITAL*\n\nPara visualizar nossos produtos, você pode acessar nosso link:\nhttps://garconnexpress.vercel.app/cardapio/\n\n🏠 *Dica:* Se você estiver no estabelecimento, pode fazer o pedido diretamente pelo link acima para agilizar seu atendimento!`, from);
       } else if (msg === '2') {
-        await sendWhatsAppMessage(`🛒 *FAZER UM PEDIDO*\n\nPara sua maior comodidade, pedimos que utilize o *QR Code* localizado na sua mesa. Ele abrirá o cardápio completo e você poderá realizar seu pedido de forma rápida! 🚀\n\n💬 *Dúvidas?* Em caso de dúvida, basta chamar o garçom mais próximo ou dirigir-se ao balcão. Estamos aqui para ajudar!`, from);
+        await sendWhatsAppMessage(`🛒 *FAZER UM PEDIDO*\n\nPara sua maior comodidade, pedimos que utilize o *QR Code* localizado na sua mesa.\n\nEle abrirá o cardápio completo e você poderá realizar seu pedido de forma rápida!\n\n🚀💡 *Dúvidas?*\nEm caso de dúvida, basta chamar o garçom mais próximo ou dirigir-se ao balcão.\n\nEstamos aqui para ajudar!`, from);
       } else if (msg === '3') {
         const promoVal = isPostgres ? true : 1;
         const promos = await query("SELECT nome, preco, preco_original FROM menu WHERE em_promocao = ? AND visivel = ?", [promoVal, promoVal]);
-        let promoMsg = "🔥 *PROMOÇÕES DO DIA*\n\nConfira nossas ofertas de hoje:\n\n";
+        let promoMsg = "🔥 *PROMOÇÕES DO DIA*\n\n";
         if (promos.rows && promos.rows.length > 0) {
           promos.rows.forEach(p => {
             const precoOriginal = p.preco_original ? `~R$ ${p.preco_original.toFixed(2)}~ ` : "";
-            promoMsg += `✅ *${p.nome}*\n💰 ${precoOriginal}*R$ ${p.preco.toFixed(2)}*\n\n`;
+            promoMsg += `✨ *${p.nome}*\n💰 ${precoOriginal}*R$ ${p.preco.toFixed(2)}*\n\n`;
           });
           promoMsg += "_Aproveite que é por tempo limitado!_";
         } else {
@@ -71,14 +71,14 @@ if (process.env.WHATSAPP_BOT_URL) {
         }
         await sendWhatsAppMessage(promoMsg, from);
       } else if (msg === '4') {
-        await sendWhatsAppMessage(`📍 *ENDEREÇO E HORÁRIO*\n\n🏠 Endereço: rua democrito gracindo 132 ponta grossa\n⏰ Horário: Diariamente das 18h às 02:00 de Terça a Domingo`, from);
+        await sendWhatsAppMessage(`📍 *ENDEREÇO E HORÁRIO*\n\n🏠 *Endereço:* Rua Demócrito Gracindo, 132 - Ponta Grossa\n\n⏰ *Horário:* Diariamente das 18h às 02:00 de Terça a Domingo`, from);
       } else if (msg === '5') {
-        await sendWhatsAppMessage(`👨‍💼 *ATENDIMENTO*\n\nUm momento, ${nome}. Já avisei a nossa equipe e alguém falará com você em instantes!`, from);
+        await sendWhatsAppMessage(`👨‍💻 *ATENDIMENTO HUMANO*\n\nAguarde um momento.\n\nUm atendente humano já foi notificado e irá falar com você em breve!`, from);
         // Notifica o painel admin via Pusher
         await safePusherTrigger('garconnexpress', 'atendimento-whatsapp', { number: from, name: nome, mensagem: 'O cliente solicitou atendimento humano.' });
       } else {
         // Envia o Menu Principal para qualquer outra mensagem
-        const menu = `Olá ${nome}! 👋 Seja bem-vindo ao *GuGA Bebidas*.\nComo posso te ajudar hoje?\n\n1️⃣ - Ver Cardápio Digital 📖\n2️⃣ - Fazer um Pedido 🛒\n3️⃣ - Promoções do Dia 🔥\n4️⃣ - Endereço e Horário 📍\n5️⃣ - Falar com o Atendente 👨‍💼\n\n_Digite apenas o número da opção desejada._`;
+        const menu = `Olá ${nome}! 👋 Seja bem-vindo ao *GuGA Bebidas*.\n\nComo posso te ajudar hoje?\n\n1️⃣ - Ver Cardápio Digital 📖\n\n2️⃣ - Fazer um Pedido 🛒\n\n3️⃣ - Promoções do Dia 🔥\n\n4️⃣ - Endereço e Horário 📍\n\n5️⃣ - Falar com o Atendente 👨‍💻\n\n_Digite apenas o número da opção desejada._`;
         await sendWhatsAppMessage(menu, from);
       }
     } catch (err) {

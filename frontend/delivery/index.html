@@ -145,13 +145,13 @@
                     <h3 id="modal-cart-total" style="font-size: 1.6rem; font-weight: 900; color: var(--primary);">R$ 0,00</h3>
                 </div>
             </div>
-            <button class="btn-finish" onclick="enviarWhatsApp()"><i class="fab fa-whatsapp"></i> ENVIAR PEDIDO NO ZAP</button>
+            <button class="btn-finish" id="btn-finalizar" onclick="finalizarPedido()"><i class="fas fa-check"></i> FINALIZAR PEDIDO</button>
         </div>
     </div>
 
     <script>
         let fullMenu = [], cart = [], currentCategory = null;
-        const ADMIN_NUMBER = '558293157048'; // Número padrão para receber pedidos
+        const ADMIN_NUMBER = '558293157048'; // Número do Admin para o WhatsApp
         const TAXA_ENTREGA = 3.00; // Taxa de entrega fixa
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -285,7 +285,6 @@
             if (q > 0) {
                 bar.style.display = 'flex';
                 document.getElementById('cart-qty').innerText = `${q} itens`;
-                // No bar mostramos o total final já com a taxa para não ter surpresa
                 document.getElementById('cart-total').innerText = `R$ ${(v + TAXA_ENTREGA).toFixed(2)}`;
             } else {
                 bar.style.display = 'none';
@@ -314,7 +313,7 @@
             document.getElementById('modal-cart-total').innerText = `R$ ${(subtotal + TAXA_ENTREGA).toFixed(2)}`;
         }
 
-        function enviarWhatsApp() {
+        async function finalizarPedido() {
             const name = document.getElementById('cust-name').value.trim();
             const phone = document.getElementById('cust-phone').value.trim();
             const address = document.getElementById('cust-address').value.trim();
@@ -327,40 +326,92 @@
             if (!name || !address || !number) return Swal.fire('Aviso', 'Preencha Nome, Endereço e Número.', 'warning');
             if (cart.length === 0) return Swal.fire('Aviso', 'Seu carrinho está vazio.', 'warning');
 
+            const btn = document.getElementById('btn-finalizar');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO...';
+
             const subtotal = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
             const totalFinal = subtotal + TAXA_ENTREGA;
             
-            let msg = `🛍️ *NOVO PEDIDO - DELIVERY*\n`;
-            msg += `------------------------------\n`;
-            msg += `👤 *Cliente:* ${name}\n`;
-            if(phone) msg += `📞 *Tel:* ${phone}\n`;
-            msg += `🏠 *Endereço:* ${address}, ${number}\n`;
-            if(bairro) msg += `📍 *Bairro/Ref:* ${bairro}\n`;
-            if(obs) msg += `📝 *Obs:* ${obs}\n\n`;
-            
-            msg += `🛒 *ITENS:*\n`;
-            cart.forEach(i => {
-                msg += `- ${i.qty}x ${i.nome} (R$ ${(i.qty*i.preco).toFixed(2)})\n`;
-            });
-            
-            msg += `\n💵 *Subtotal:* R$ ${subtotal.toFixed(2)}\n`;
-            msg += `🛵 *Taxa de Entrega:* R$ ${TAXA_ENTREGA.toFixed(2)}\n`;
-            msg += `💰 *TOTAL: R$ ${totalFinal.toFixed(2)}*\n`;
-            msg += `💳 *Pagamento:* ${payment}`;
-            if(payment === 'Dinheiro' && change) msg += ` (Troco para R$ ${parseFloat(change).toFixed(2)})`;
-            msg += `\n------------------------------\n`;
-            msg += `_Enviado via Cardápio Digital_`;
+            let orderObs = `🛵 DELIVERY\n`;
+            orderObs += `👤 Cliente: ${name}\n`;
+            if(phone) orderObs += `📞 Tel: ${phone}\n`;
+            orderObs += `🏠 End: ${address}, ${number}\n`;
+            if(bairro) orderObs += `📍 Bairro/Ref: ${bairro}\n`;
+            orderObs += `💳 Pagamento: ${payment}`;
+            if(payment === 'Dinheiro' && change) orderObs += ` (Troco R$ ${parseFloat(change).toFixed(2)})`;
+            if(obs) orderObs += `\n📝 Obs: ${obs}`;
 
-            const encoded = encodeURIComponent(msg);
-            window.open(`https://wa.me/${ADMIN_NUMBER}?text=${encoded}`, '_blank');
-            
-            // Limpa o carrinho após enviar
-            cart = [];
-            updateCartBar();
-            toggleCartModal(false);
-            renderMenu();
-            
-            Swal.fire('Sucesso!', 'Seu pedido foi formatado e enviado para o WhatsApp!', 'success');
+            const itemsPayload = cart.map(i => ({
+                menu_id: i.id,
+                quantidade: i.qty,
+                preco: i.preco,
+                nome: i.nome,
+                observacao: "" // Observações individuais de itens poderiam ir aqui se houvesse campo
+            }));
+
+            try {
+                const response = await fetch('/api/pedidos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mesa_id: null,
+                        garcom_id: 'DELIVERY',
+                        itens: itemsPayload,
+                        cobrar_taxa: true, // Ativa a taxa para ser usada como taxa de entrega de R$ 3,00 no Admin
+                        observacao: orderObs
+                    })
+                });
+
+                if (response.ok) {
+                    // Prepara a mensagem para o WhatsApp
+                    let msg = `🛍️ *NOVO PEDIDO - DELIVERY*\n`;
+                    msg += `------------------------------\n`;
+                    msg += `👤 *Cliente:* ${name}\n`;
+                    if(phone) msg += `📞 *Tel:* ${phone}\n`;
+                    msg += `🏠 *Endereço:* ${address}, ${number}\n`;
+                    if(bairro) msg += `📍 *Bairro/Ref:* ${bairro}\n`;
+                    if(obs) msg += `📝 *Obs:* ${obs}\n\n`;
+                    
+                    msg += `🛒 *ITENS:*\n`;
+                    cart.forEach(i => {
+                        msg += `- ${i.qty}x ${i.nome} (R$ ${(i.qty*i.preco).toFixed(2)})\n`;
+                    });
+                    
+                    msg += `\n💵 *Subtotal:* R$ ${subtotal.toFixed(2)}\n`;
+                    msg += `🛵 *Taxa de Entrega:* R$ ${TAXA_ENTREGA.toFixed(2)}\n`;
+                    msg += `💰 *TOTAL: R$ ${totalFinal.toFixed(2)}*\n`;
+                    msg += `💳 *Pagamento:* ${payment}`;
+                    if(payment === 'Dinheiro' && change) msg += ` (Troco para R$ ${parseFloat(change).toFixed(2)})`;
+                    msg += `\n------------------------------\n`;
+                    msg += `_Enviado via Cardápio Digital_`;
+
+                    const encoded = encodeURIComponent(msg);
+                    window.open(`https://wa.me/${ADMIN_NUMBER}?text=${encoded}`, '_blank');
+
+                    Swal.fire({
+                        title: 'Sucesso!',
+                        text: 'Seu pedido foi enviado com sucesso e já está sendo preparado!',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        cart = [];
+                        updateCartBar();
+                        toggleCartModal(false);
+                        renderMenu();
+                        location.reload();
+                    });
+                } else {
+                    const err = await response.json();
+                    Swal.fire('Erro', err.error || 'Falha ao enviar pedido.', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Erro', 'Falha na conexão com o servidor.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> FINALIZAR PEDIDO';
+            }
         }
     </script>
 </body>
