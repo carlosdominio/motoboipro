@@ -4151,21 +4151,31 @@ async function configurarPusher() {
 
       // EVENTO: MENU ATUALIZADO (SINCRONIZAÇÃO DE ESTOQUE)
       channel.bind('menu-atualizado', () => {
-      console.log('🔄 Admin: Estoque atualizado via Pusher!');
-      // Recarrega o menu apenas se estiver na aba de configurações ou se o modal de lançamento estiver aberto
-      if (abaAtiva === 'configuracoes') {
-          exibirMenuConfig();
-      }
-      if (abaAtiva === 'lancar') {
-          // Atualiza as categorias para refletir o que sumiu/apareceu
-          exibirConfigCategoriasCozinha(); 
-          // E atualiza os itens da aba de lançamento
-          const catAtiva = document.querySelector('#lancar-menu-categorias .cat-mini.ativa');
-          const catNome = catAtiva ? catAtiva.id.replace('cat-lancar-', '') : 'todas';
-          exibirMenuLancar(catNome);
-      }
-      // Sempre atualiza a variável global de cardápio
-      carregarCardapio();
+        console.log('🔄 Admin: Estoque atualizado via Pusher!');
+
+        // Adiciona um pequeno delay para garantir que o banco terminou a gravação
+        setTimeout(async () => {
+          // Recarrega a variável global cardapio forçando bypass de qualquer cache
+          try {
+            const res = await fetch('/api/menu?admin=true&t=' + Date.now());
+            if (res.ok) {
+              cardapio = await res.json();
+
+              // Se estiver na aba de configurações, redesenha a lista
+              if (abaAtiva === 'configuracoes') {
+                  exibirMenuConfig();
+              }
+              // Se estiver na aba de lançamento, redesenha os itens
+              if (abaAtiva === 'lancar') {
+                  const catAtiva = document.querySelector('#lancar-menu-categorias .cat-mini.ativa');
+                  const catNome = catAtiva ? catAtiva.id.replace('cat-lancar-', '') : 'todas';
+                  exibirMenuLancar(catNome);
+              }
+            }
+          } catch (err) {
+            console.error('Erro ao atualizar menu via Pusher:', err);
+          }
+        }, 300);
       });
 
       // EVENTO: STATUS ATUALIZADO (Mesa/Pedido)

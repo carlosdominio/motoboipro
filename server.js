@@ -1158,7 +1158,7 @@ app.delete('/api/pedidos/:id', async (req, res) => {
 });
 
 app.post('/api/pedidos', async (req, res) => {
-  const { mesa_id, garcom_id, itens, cobrar_taxa, observacao, cliente_telefone } = req.body;
+  const { mesa_id, garcom_id, itens, cobrar_taxa, observacao, cliente_telefone, forma_pagamento, valor_recebido, troco } = req.body;
   const deveCobrarTaxa = cobrar_taxa !== false;
   try {
     const caixaAberto = (await query("SELECT id FROM fluxo_caixa WHERE status = 'aberto'")).rows[0];
@@ -1171,11 +1171,16 @@ app.post('/api/pedidos', async (req, res) => {
     const total = deveCobrarTaxa ? Math.round(subtotal * 1.10 * 100) / 100 : subtotal;
     let pedidoId;
     let resPedido;
+    
+    const fPag = forma_pagamento || null;
+    const vRec = valor_recebido || 0;
+    const vTrc = troco || 0;
+
     if (isPostgres) {
-      resPedido = await query('INSERT INTO pedidos (mesa_id, garcom_id, total, status, created_at, cobrar_taxa, observacao, cliente_telefone) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id', [mesa_id || null, garcom_id, total, 'recebido', new Date().toISOString(), deveCobrarTaxa, observacao || '', cliente_telefone || null]);
+      resPedido = await query('INSERT INTO pedidos (mesa_id, garcom_id, total, status, created_at, cobrar_taxa, observacao, cliente_telefone, forma_pagamento, valor_recebido, troco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id', [mesa_id || null, garcom_id, total, 'recebido', new Date().toISOString(), deveCobrarTaxa, observacao || '', cliente_telefone || null, fPag, vRec, vTrc]);
       pedidoId = resPedido.rows[0].id;
     } else {
-      resPedido = await query('INSERT INTO pedidos (mesa_id, garcom_id, total, status, created_at, cobrar_taxa, observacao, cliente_telefone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [mesa_id || null, garcom_id, total, 'recebido', new Date().toISOString(), deveCobrarTaxa ? 1 : 0, observacao || '', cliente_telefone || null]);
+      resPedido = await query('INSERT INTO pedidos (mesa_id, garcom_id, total, status, created_at, cobrar_taxa, observacao, cliente_telefone, forma_pagamento, valor_recebido, troco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [mesa_id || null, garcom_id, total, 'recebido', new Date().toISOString(), deveCobrarTaxa ? 1 : 0, observacao || '', cliente_telefone || null, fPag, vRec, vTrc]);
       pedidoId = resPedido.lastInsertRowid;
     }
 

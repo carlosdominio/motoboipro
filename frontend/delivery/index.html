@@ -403,7 +403,10 @@
                         cliente_telefone: phone.replace(/\D/g, ''), // Envia apenas números
                         itens: itemsPayload,
                         cobrar_taxa: true, // Ativa a taxa para ser usada como taxa de entrega de R$ 3,00 no Admin
-                        observacao: orderObs
+                        observacao: orderObs,
+                        forma_pagamento: payment,
+                        valor_recebido: (payment === 'Dinheiro' && change) ? parseFloat(change) : totalFinal,
+                        troco: (payment === 'Dinheiro' && change) ? (parseFloat(change) - totalFinal) : 0
                     })
                 });
 

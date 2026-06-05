@@ -192,9 +192,10 @@
     </div>
 
     <script>
-        let fullMenu = [], cart = [], pusher, currentCategory = null, isClosingSession = false;
+        let fullMenu = [], cart = [], pusher, pusherChannel, currentCategory = null, isClosingSession = false;
         let sessionMesa = JSON.parse(localStorage.getItem('sessionMesa'));
         let lockAtivo = true; // Começa travado por segurança
+        let sessionBindingsAttached = false;
 
         document.addEventListener('DOMContentLoaded', async () => {
             console.log("🚀 Cardápio Digital v2.1 carregado!");
@@ -242,31 +243,68 @@
             document.body.classList.remove('login-active'); document.getElementById('login-screen').style.display = 'none'; document.getElementById('main-content').style.display = 'block';
             document.getElementById('mesa-label').innerText = `Mesa ${sessionMesa.mesa_numero}`;
             showLoading(true); loadMenu();
+            initPusher(); // Garante que bindings de sessão sejam atachados
         }
 
+        let isInitializingPusher = false;
+
         function initPusher() {
-            if (pusher) return;
+            if (pusher) {
+                attachSessionBindings();
+                return;
+            }
+            if (isInitializingPusher) return;
+            isInitializingPusher = true;
+
             fetch('/api/pusher-config').then(r => r.json()).then(c => {
                 pusher = new Pusher(c.key, { cluster: c.cluster }); 
-                const ch = pusher.subscribe('garconnexpress');
+                pusherChannel = pusher.subscribe('garconnexpress');
                 
-                ch.bind('status-caixa-atualizado', (d) => { if(d.status === 'fechado') location.reload(); });
+                pusherChannel.bind('status-caixa-atualizado', (d) => { if(d.status === 'fechado') location.reload(); });
                 
-                // ESCUTA LIBERAÇÃO DO RASCUNHO PELO GARÇOM
-                if (sessionMesa) {
-                    ch.bind(`rascunho-processado-mesa-${sessionMesa.mesa_id}`, () => {
-                        console.log('✅ Botão Liberado pelo Garçom!');
-                        carregarMeusPedidos();
-                    });
-                    
-                    ch.bind(`fechamento-liberado-mesa-${sessionMesa.mesa_id}`, () => { carregarMeusPedidos(); });
-                    
-                    ch.bind(`deslogar-mesa-${sessionMesa.mesa_id}`, (d) => {
-                        localStorage.removeItem('sessionMesa');
-                        location.reload();
-                    });
-                }
+                attachSessionBindings();
+            }).catch(e => {
+                console.error("❌ Erro ao configurar Pusher:", e);
+                isInitializingPusher = false;
             });
+        }
+
+        function attachSessionBindings() {
+            if (!pusherChannel || !sessionMesa || sessionBindingsAttached) return;
+            
+            console.log(`🔗 Conectando eventos para Mesa ${sessionMesa.mesa_id}`);
+            
+            pusherChannel.bind(`rascunho-processado-mesa-${sessionMesa.mesa_id}`, () => {
+                console.log('✅ Botão Liberado pelo Garçom!');
+                carregarMeusPedidos();
+            });
+            
+            pusherChannel.bind(`fechamento-liberado-mesa-${sessionMesa.mesa_id}`, () => { carregarMeusPedidos(); });
+            
+            pusherChannel.bind(`deslogar-mesa-${sessionMesa.mesa_id}`, (d) => {
+                console.log('🚪 Logout remoto recebido!', d);
+                
+                // Limpa a sessão imediatamente para evitar re-acesso automático
+                localStorage.removeItem('sessionMesa');
+                
+                const msg = (d && d.mensagem) ? d.mensagem : "Seu acesso foi encerrado pelo estabelecimento.";
+                const icon = (d && d.status === 'cancelado') ? 'error' : 'info';
+                const title = (d && d.status === 'cancelado') ? 'Acesso Cancelado' : 'Sessão Encerrada';
+
+                Swal.fire({
+                    title: title,
+                    text: msg,
+                    icon: icon,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#ff4757',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                }).then(() => {
+                    location.reload();
+                });
+            });
+
+            sessionBindingsAttached = true;
         }
 
         async function carregarMeusPedidos() {
