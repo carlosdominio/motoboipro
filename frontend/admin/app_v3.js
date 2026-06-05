@@ -4147,9 +4147,28 @@ async function configurarPusher() {
 
       clearTimeout(timeoutPusher);
       timeoutPusher = setTimeout(() => carregarPedidos(), 100);
-    });
+      });
 
-    // EVENTO: STATUS ATUALIZADO (GERAL)
+      // EVENTO: MENU ATUALIZADO (SINCRONIZAÇÃO DE ESTOQUE)
+      channel.bind('menu-atualizado', () => {
+      console.log('🔄 Admin: Estoque atualizado via Pusher!');
+      // Recarrega o menu apenas se estiver na aba de configurações ou se o modal de lançamento estiver aberto
+      if (abaAtiva === 'configuracoes') {
+          exibirMenuConfig();
+      }
+      if (abaAtiva === 'lancar') {
+          // Atualiza as categorias para refletir o que sumiu/apareceu
+          exibirConfigCategoriasCozinha(); 
+          // E atualiza os itens da aba de lançamento
+          const catAtiva = document.querySelector('#lancar-menu-categorias .cat-mini.ativa');
+          const catNome = catAtiva ? catAtiva.id.replace('cat-lancar-', '') : 'todas';
+          exibirMenuLancar(catNome);
+      }
+      // Sempre atualiza a variável global de cardápio
+      carregarCardapio();
+      });
+
+      // EVENTO: STATUS ATUALIZADO (Mesa/Pedido)
     channel.bind('status-atualizado', (data) => {
       console.log('📢 Admin: Status atualizado recebido!', data);
       if (!data) return;
