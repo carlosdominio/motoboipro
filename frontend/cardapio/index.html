@@ -258,6 +258,12 @@
         }
         function adicionarOuvintesMesa() {
             if (!pusher || !sessionMesa) return; const ch = pusher.channel('garconnexpress') || pusher.subscribe('garconnexpress');
+            
+            ch.bind('menu-atualizado', () => {
+                console.log('🔄 Menu atualizado em tempo real!');
+                loadMenu();
+            });
+
             ch.bind(`fechamento-liberado-mesa-${sessionMesa.mesa_id}`, () => { Swal.fire({ title: 'Conta Liberada!', icon: 'success' }).then(() => carregarMeusPedidos()); });
             ch.bind(`deslogar-mesa-${sessionMesa.mesa_id}`, (d) => {
                 if (isClosingSession) return; 

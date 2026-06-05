@@ -149,15 +149,35 @@
         </div>
     </div>
 
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script>
-        let fullMenu = [], cart = [], currentCategory = null;
+        let fullMenu = [], cart = [], currentCategory = null, pusher;
         const ADMIN_NUMBER = '558293157048'; // Número do Admin para o WhatsApp
         const TAXA_ENTREGA = 3.00; // Taxa de entrega fixa
 
         document.addEventListener('DOMContentLoaded', async () => {
             await verificarCaixa();
+            initPusher();
             loadMenu();
         });
+
+        async function initPusher() {
+            try {
+                const res = await fetch('/api/pusher-config');
+                const config = await res.json();
+                pusher = new Pusher(config.key, { cluster: config.cluster });
+                const ch = pusher.subscribe('garconnexpress');
+                
+                ch.bind('menu-atualizado', () => {
+                    console.log('🔄 Menu atualizado em tempo real!');
+                    loadMenu();
+                });
+
+                ch.bind('status-caixa-atualizado', (data) => {
+                    if (data.status === 'fechado') location.reload();
+                });
+            } catch (e) { console.error('Erro Pusher:', e); }
+        }
 
         async function buscarCEP() {
             const cep = document.getElementById('cust-cep').value.replace(/\D/g, '');
