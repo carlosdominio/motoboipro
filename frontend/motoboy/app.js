@@ -133,6 +133,17 @@ function createPedidoCard(p, isReady, isDelivered) {
 
     const time = new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    let statusText = 'PENDENTE';
+    let statusClass = 'pendente';
+
+    if (isDelivered) {
+        statusText = 'ENTREGUE';
+        statusClass = 'entregue';
+    } else if (isReady) {
+        statusText = 'A CAMINHO';
+        statusClass = 'a-caminho';
+    }
+
     let btnHtml = '';
     if (isDelivered) {
         btnHtml = `<button class="btn-entregar" style="background-color: #95a5a6; box-shadow: 0 4px 0 #7f8c8d;" disabled>
@@ -146,7 +157,10 @@ function createPedidoCard(p, isReady, isDelivered) {
 
     card.innerHTML = `
         <div class="pedido-header">
-            <span class="pedido-id">#${p.id}</span>
+            <div>
+                <span class="pedido-id">#${p.id}</span>
+                <span class="status-badge ${statusClass}">${statusText}</span>
+            </div>
             <span class="pedido-time">${time}</span>
         </div>
         <div class="pedido-body">

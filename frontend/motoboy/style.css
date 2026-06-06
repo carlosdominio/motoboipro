@@ -79,7 +79,7 @@ main {
 }
 
 .pedido-card.pendente {
-    border-left-color: var(--danger);
+    border-left-color: #e67e22;
 }
 
 .pedido-card.pronto {
@@ -97,6 +97,28 @@ main {
 .pedido-id {
     font-weight: 900;
     color: var(--primary-dark);
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: white;
+}
+
+.status-badge.pendente {
+    background-color: #e67e22; /* Laranja */
+}
+
+.status-badge.a-caminho {
+    background-color: #27ae60; /* Verde */
+}
+
+.status-badge.entregue {
+    background-color: #f1c40f; /* Amarelo */
+    color: #2c3e50;
 }
 
 .pedido-time {

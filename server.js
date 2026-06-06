@@ -307,17 +307,35 @@ async function notifyStatus(pedidoId, mesaDbId, status, mesaNumPredefined = null
     // Dispara Pusher IMEDIATAMENTE (Prioridade)
     await safePusherTrigger('garconnexpress', 'status-atualizado', payload);
 
-    // NOTIFICAÇÃO PROATIVA PARA CLIENTE DELIVERY
-    if (garcomId === 'DELIVERY' && pedidoId) {
+    const statusMessages = {
+      recebido: '✅ *PEDIDO RECEBIDO!*\n\nOlá! Seu pedido *#{pedidoId}* foi recebido com sucesso!',
+      preparando: '🍳 *PREPARANDO SEU PEDIDO*\n\nSeu pedido *#{pedidoId}* já está sendo preparado pela nossa cozinha!',
+      aguardando_fechamento: '🛎️ *FECHAMENTO SOLICITADO*\n\nOlá! Seu pedido *#{pedidoId}* foi finalizado e está aguardando pagamento.',
+      pronto: '✅ *PEDIDO PRONTO!*\n\nOlá! Seu pedido *#{pedidoId}* já está pronto!',
+      servido: '📝 *PEDIDO SERVIDO!*\n\nOlá! Seu pedido *#{pedidoId}* foi marcado como servido.',
+      saiu_entrega: '🛵 *SAIU PARA ENTREGA!*\n\nBoa notícia! Seu pedido *#{pedidoId}* saiu para entrega agora mesmo!',
+      entregue: '✅ *PEDIDO CONCLUÍDO!*\n\nOlá! Seu pedido *#{pedidoId}* foi finalizado com sucesso. Obrigado pela preferência!',
+      cancelado: '❌ *PEDIDO CANCELADO*\n\nOlá! Seu pedido *#{pedidoId}* foi cancelado pelo estabelecimento.'
+    };
+
+    // NOTIFICAÇÃO PROATIVA VIA WHATSAPP PARA QUALQUER PEDIDO COM TELEFONE CADASTRADO
+    if (pedidoId) {
        try {
-         const pData = (await query("SELECT cliente_telefone FROM pedidos WHERE id = ?", [pedidoId])).rows[0];
-         if (pData && pData.cliente_telefone) {
+         const pData = (await query("SELECT cliente_telefone, garcom_id FROM pedidos WHERE id = ?", [pedidoId])).rows[0];
+         const clienteTelefone = (pData && pData.cliente_telefone) ? pData.cliente_telefone.trim() : null;
+         
+         if (clienteTelefone) {
            let statusBot = status;
-           if (status === 'servido') statusBot = 'saiu_entrega';
-           console.log(`📡 [Notificação Proativa] Enviando '${statusBot}' para ${pData.cliente_telefone}`);
-           notifyDeliveryStatusToBot(pData.cliente_telefone, statusBot, pedidoId).catch(console.error);
+           // Mapeia 'servido' para 'saiu_entrega' se for DELIVERY
+           if (status === 'servido' && pData.garcom_id === 'DELIVERY') {
+             statusBot = 'saiu_entrega';
+           }
+
+           const mensagem = (statusMessages[statusBot] || `📊 Status do pedido *#{pedidoId}*: ${statusBot}`).replace('#{pedidoId}', pedidoId);
+           console.log(`📡 [Notificação Proativa] Enviando status '${statusBot}' para ${clienteTelefone}`);
+           notifyDeliveryStatusToBot(clienteTelefone, statusBot, pedidoId, null, mensagem).catch(console.error);
          }
-       } catch (e) { console.error('Erro notificação proativa:', e.message); }
+       } catch (e) { console.error('Erro notificação cliente:', e.message); }
     }
 
     // Notificação WhatsApp em paralelo/background para o ADMIN
@@ -666,14 +684,14 @@ async function checkTemItemCozinha(itensIds) {
   return false;
 }
 
-async function notifyDeliveryStatusToBot(number, status, pedidoId, tempo = null) {
-  if (!process.env.WHATSAPP_BOT_URL) return;
+async function notifyDeliveryStatusToBot(number, status, pedidoId, tempo = null, mensagem = null) {
+  if (!botUrlFinal) return;
   try {
-    const botUrl = process.env.WHATSAPP_BOT_URL.endsWith('/') ? process.env.WHATSAPP_BOT_URL : `${process.env.WHATSAPP_BOT_URL}/`;
+    const botUrl = botUrlFinal.endsWith('/') ? botUrlFinal : `${botUrlFinal}/`;
     await fetch(`${botUrl}api/notify-delivery`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ number, status, pedidoId, tempo })
+      body: JSON.stringify({ number, status, pedidoId, tempo, mensagem })
     });
     console.log(`✅ [Notificação Bot] Status '${status}' enviado para ${number}`);
   } catch (e) {
@@ -710,7 +728,7 @@ app.put('/api/pedidos/:id/cozinha-pronto', async (req, res) => {
       mensagem: `🍳 Pedido ${mesaExibicao} está pronto!` 
     });
 
-    await notifyStatus(id, null, 'preparando');
+    await notifyStatus(id, null, 'pronto');
     await safePusherTrigger('garconnexpress', 'menu-atualizado', {});
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }

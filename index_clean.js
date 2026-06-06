@@ -46,26 +46,98 @@ const port = 3002;
 app.get('/health', (req, res) => res.send('OK'));
 
 app.post('/api/notify-delivery', async (req, res) => {
-    const { status, pedidoId, tempo } = req.body;
-    const savedJid = pedidoIdToJid[pedidoId];
+    const { status, pedidoId, tempo, number, mensagem } = req.body;
+    console.log(`\n--- [DEBUG NOTIFY START] ---`);
+    console.log(`📦 Pedido: #${pedidoId} | Status: ${status} | Número: ${number}`);
+    console.log(`🔌 Estado do Socket: ${sock ? 'Existe' : 'Nulo'} | Conexão: ${statusConexao}`);
 
-    if (!savedJid || !sock) return res.status(404).json({ error: 'N/A' });
+    // 1. PRIORIDADE: Buscar pelo vínculo de ID de Pedido
+    let savedJid = pedidoIdToJid[pedidoId];
+
+    if (savedJid) {
+        if (!savedJid.startsWith('55') && (savedJid.split('@')[0].length === 10 || savedJid.split('@')[0].length === 11)) {
+            savedJid = '55' + savedJid;
+            console.log(`♻️ Corrigindo JID legado: ${savedJid}`);
+        }
+        console.log(`✅ Vínculo encontrado: ${savedJid}`);
+    } else if (number && sock) {
+        console.log(`🔍 Sem vínculo. Buscando número: ${number}`);
+        let cleaned = number.replace(/\D/g, '');
+        if (cleaned.length === 10 || cleaned.length === 11) cleaned = '55' + cleaned;
+        console.log(`🔍 Formatado para busca: ${cleaned}`);
+
+        try {
+            const validate = async (num) => {
+                console.log(`🛰️ Consultando WhatsApp: ${num}`);
+                const [result] = await sock.onWhatsApp(num);
+                return (result && result.exists) ? result.jid : null;
+            };
+
+            savedJid = await validate(cleaned);
+
+            if (!savedJid && cleaned.startsWith('55')) {
+                let alt;
+                if (cleaned.length === 13) alt = cleaned.slice(0, 4) + cleaned.slice(5);
+                else if (cleaned.length === 12) alt = cleaned.slice(0, 4) + '9' + cleaned.slice(4);
+                
+                if (alt) {
+                    console.log(`🔍 Tentando variação 9º dígito: ${alt}`);
+                    savedJid = await validate(alt);
+                }
+            }
+
+            if (savedJid) {
+                console.log(`✅ JID Localizado via busca: ${savedJid}`);
+                pedidoIdToJid[pedidoId] = savedJid;
+                if (db) await db.set('pedidoIdToJid', pedidoIdToJid).write();
+            }
+        } catch (e) { console.error('❌ Erro na busca por número:', e.message); }
+    }
+
+    if (!savedJid) {
+        console.log(`❌ FALHA: Cliente não localizado para o pedido #${pedidoId}`);
+        console.log(`--- [DEBUG NOTIFY END] ---\n`);
+        return res.status(404).json({ error: 'N/A' });
+    }
+
+    if (!sock || statusConexao !== "CONECTADO") {
+        console.log(`⚠️ FALHA: Socket Offline ou Desconectado (${statusConexao})`);
+        console.log(`--- [DEBUG NOTIFY END] ---\n`);
+        return res.status(503).json({ error: 'Socket Offline' });
+    }
 
     try {
         const tempoEst = tempo || '30-50 min';
-        let msg = `✅ Pedido #${pedidoId} atualizado!`;
-        if (status === 'recebido') msg = `✅ *PEDIDO RECEBIDO!*\n\nOlá! Já recebemos seu pedido *#${pedidoId}*.\n\n1️⃣ - Ver Status 🛵\n2️⃣ - Falar com Atendente 👨‍💻`;
-        else if (status === 'saiu_entrega') msg = `🛵 *SAIU PARA ENTREGA!*\n\nSeu pedido #${pedidoId} está a caminho!\n\n🕒 *Prazo:* ${tempoEst}`;
+        let msg = mensagem || `✅ Pedido #${pedidoId} atualizado!`;
+        if (!mensagem) {
+            const statusMap = {
+                'recebido': `✅ *PEDIDO RECEBIDO!*\n\nOlá! Já recebemos seu pedido *#${pedidoId}*.\n\n1️⃣ - Ver Status 🛵\n2️⃣ - Falar com Atendente 👨‍💻`,
+                'preparando': `🍳 *PREPARANDO SEU PEDIDO*\n\nSeu pedido *#${pedidoId}* já está sendo preparado pela nossa cozinha!`,
+                'pronto': `✅ *PEDIDO PRONTO!*\n\nOlá! Seu pedido *#${pedidoId}* já está pronto!`,
+                'saiu_entrega': `🛵 *SAIU PARA ENTREGA!*\n\nSeu pedido *#${pedidoId}* está a caminho!\n\n🕒 *Prazo:* ${tempoEst}`,
+                'servido': `📝 *PEDIDO SERVIDO!*\n\nOlá! Seu pedido *#${pedidoId}* foi marcado como servido.`,
+                'entregue': `✅ *PEDIDO CONCLUÍDO!*\n\nOlá! Seu pedido *#${pedidoId}* foi finalizado com sucesso. Obrigado pela preferência!`,
+                'cancelado': `❌ *PEDIDO CANCELADO*\n\nOlá! Seu pedido *#${pedidoId}* foi cancelado pelo estabelecimento.`
+            };
+            msg = statusMap[status] || msg;
+        }
 
-        await sock.sendMessage(savedJid, { text: msg });
+        console.log(`📤 Enviando para ${savedJid}...`);
+        const result = await sock.sendMessage(savedJid, { text: msg });
+        console.log(`🚀 SUCESSO! Mensagem ID: ${result.key.id}`);
         
         if (db) {
             chats[savedJid] = chats[savedJid] || { messages: [], unreadCount: 0 };
             chats[savedJid].atendimentoManual = false;
             await db.set('chats', { ...chats }).write();
         }
+        console.log(`--- [DEBUG NOTIFY END] ---\n`);
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        console.error('❌ ERRO NO ENVIO FINAL:', e.message);
+        console.log(`--- [DEBUG NOTIFY END] ---\n`);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 let lastQr = null;
