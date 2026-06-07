@@ -19,6 +19,24 @@
     </div>
   </div>
 
+  <!-- Tela de Estabelecimento Fechado -->
+  <div id="closed-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #f1f2f6; z-index: 99999; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center;">
+    <div style="width:100%; max-width:480px; background:white; padding:50px 30px; border-radius:35px; box-shadow: 0 30px 70px rgba(0,0,0,0.12); display:flex; flex-direction:column; align-items:center; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 8px; background: linear-gradient(90deg, #e74c3c, #c0392b);"></div>
+        <div style="width: 130px; height: 130px; background: #fff1f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 25px; font-size: 4.5rem;">🌙</div>
+        <h1 style="font-weight: 900; font-size: 2.2rem; color: #2f3542; margin-bottom: 10px; letter-spacing: -1px;">Guga Bebidas</h1>
+        <p style="color: #e74c3c; font-weight: 800; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px;">ESTABELECIMENTO FECHADO</p>
+        <div style="background: #f8f9fa; padding: 25px; border-radius: 20px; margin-bottom: 30px; border: 1px solid #eee;">
+            <p style="color: #747d8c; line-height: 1.6; font-size: 1.05rem; margin-bottom: 0;">
+                O caixa está fechado no momento. As funções de pedidos e atendimento estão suspensas até a reabertura.
+            </p>
+        </div>
+        <button onclick="location.reload()" style="width: 100%; background: #2f3542; color: white; border: none; padding: 18px; border-radius: 25px; font-size: 1.1rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <i class="fas fa-sync-alt"></i> Verificar Novamente
+        </button>
+    </div>
+  </div>
+
   <header>
     <div class="header-content" style="display:flex; justify-content: space-between; align-items: center; width: 100%;">
       <div class="header-info">

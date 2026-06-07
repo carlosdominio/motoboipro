@@ -4,6 +4,10 @@ let channel;
 const audioNotificacao = new Audio('/notificacao.mp3');
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Verifica status do caixa primeiro
+    await verificarStatusCaixa();
+    setInterval(verificarStatusCaixa, 30000);
+
     // Força interação inicial para desbloquear áudio no navegador/celular
     Swal.fire({
         title: 'Ativar Alertas?',
@@ -28,6 +32,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadPedidos();
 });
 
+async function verificarStatusCaixa() {
+    try {
+        const res = await fetch('/api/caixa/status');
+        const cx = await res.json();
+        const screen = document.getElementById('closed-screen');
+        if (!screen) return;
+
+        if (!cx) {
+            screen.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        } else {
+            screen.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    } catch (e) { console.error("Erro status caixa motoboy:", e); }
+}
+
 async function initPusher() {
     try {
         const res = await fetch('/api/pusher-config');
@@ -40,6 +61,12 @@ async function initPusher() {
 
         channel = pusher.subscribe('garconnexpress');
         
+        // Sincronia do caixa em tempo real
+        channel.bind('status-caixa-atualizado', (data) => {
+            console.log('📢 Evento de caixa recebido no motoboy:', data);
+            verificarStatusCaixa();
+        });
+
         // Escuta atualizações de status (cozinha/admin)
         channel.bind('status-atualizado', (data) => {
             console.log('🔔 Status atualizado via Pusher:', data);

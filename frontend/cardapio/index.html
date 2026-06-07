@@ -88,7 +88,23 @@
         #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 20px; }
         .spinner { width: 50px; height: 50px; border: 6px solid #f3f3f3; border-top: 6px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #login-screen, #closed-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: white; z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; overflow: hidden; }
+        #login-screen, #closed-screen { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100vh; 
+            background: white; 
+            z-index: 2000; 
+            display: none; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+            text-align: center; 
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch;
+        }
         .login-input { width: 100%; text-align: center; font-size: 2.2rem; padding: 20px; border: 3px solid #f1f2f6; border-radius: 20px; margin-bottom: 30px; font-weight: 900; letter-spacing: 8px; text-transform: uppercase; color: var(--primary); outline: none; }
         .status-badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 12px; background: #eee; color: #777; font-weight: 700; text-transform: uppercase; }
         .swal2-container { z-index: 9999 !important; }
@@ -112,33 +128,26 @@
     <div id="loading"><div class="spinner"></div><p style="font-weight: 700; color: #999;">CARREGANDO...</p></div>
     
     <div id="closed-screen">
-        <div style="width:100%; max-width:480px; background:white; padding:50px 30px; border-radius:35px; box-shadow: 0 30px 70px rgba(0,0,0,0.12); display:flex; flex-direction:column; align-items:center; position: relative; overflow: hidden;">
+        <div style="width:100%; max-width:480px; background:white; padding:30px 20px; border-radius:35px; box-shadow: 0 30px 70px rgba(0,0,0,0.12); display:flex; flex-direction:column; align-items:center; position: relative; overflow: hidden; margin: 20px 0;">
             <!-- Detalhe decorativo no topo -->
             <div style="position: absolute; top: 0; left: 0; width: 100%; height: 8px; background: linear-gradient(90deg, #ff4757, #ff6b81);"></div>
             
-            <div style="width: 130px; height: 130px; background: #fff1f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 25px; font-size: 4.5rem; animation: bounce 2s infinite;">🌙</div>
+            <div style="width: 100px; height: 100px; background: #fff1f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; font-size: 3.5rem; animation: bounce 2s infinite;">🌙</div>
             
-            <h1 style="font-weight: 900; font-size: 2.2rem; color: #2f3542; margin-bottom: 10px; letter-spacing: -1px;">Guga Bebidas</h1>
-            <p style="color: #ff4757; font-weight: 800; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px;">Menu Fechado</p>
+            <h1 style="font-weight: 900; font-size: 2.0rem; color: #2f3542; margin-bottom: 5px; letter-spacing: -1px;">Guga Bebidas</h1>
+            <p style="color: #ff4757; font-weight: 800; font-size: 1.0rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px;">Menu Fechado</p>
             
-            <div style="background: #f8f9fa; padding: 25px; border-radius: 20px; margin-bottom: 30px; border: 1px solid #eee;">
-                <p style="color: #747d8c; line-height: 1.6; font-size: 1.05rem; margin-bottom: 0;">
-                    Olá! No momento nosso cardápio digital está em <b>manutenção ou fora do horário de atendimento</b>.<br><br>
-                    Para pedidos urgentes ou informações, você pode falar conosco diretamente.
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 20px; margin-bottom: 20px; border: 1px solid #eee; width: 100%;">
+                <p style="color: #747d8c; line-height: 1.5; font-size: 0.95rem; margin-bottom: 0;">
+                    Olá! No momento nosso cardápio digital está em <b>manutenção ou fora do horário de atendimento</b>.
                 </p>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
-                <button onclick="window.location.href='https://wa.me/5500000000000'" class="btn-send" style="background: #27ae60; box-shadow: 0 6px 20px rgba(39, 174, 96, 0.2);">
-                    <i class="fab fa-whatsapp"></i> Falar no WhatsApp
-                </button>
-                
-                <button onclick="location.reload()" class="btn-send" style="background: #2f3542; opacity: 0.9;">
-                    <i class="fas fa-sync-alt"></i> Tentar Novamente
-                </button>
-            </div>
+            <button onclick="location.reload()" class="btn-send" style="background: #2f3542; opacity: 0.9; width: 100%; max-width: 320px;">
+                <i class="fas fa-sync-alt"></i> VERIFIQUE NOVAMENTE
+            </button>
             
-            <p style="margin-top: 30px; font-size: 0.8rem; color: #ccc; font-weight: 600; text-transform: uppercase;">Agradecemos a compreensão</p>
+            <p style="margin-top: 20px; font-size: 0.75rem; color: #ccc; font-weight: 600; text-transform: uppercase;">Agradecemos a compreensão</p>
         </div>
     </div>
 

@@ -260,7 +260,20 @@ async function atualizarStatusCaixa() {
     const res = await fetch('/api/caixa/status');
     const caixa = await res.json();
     caixaAberto = !!caixa;
+    
     const badge = document.getElementById('caixa-status-badge');
+    const screenFechado = document.getElementById('closed-screen');
+
+    if (screenFechado) {
+        if (!caixaAberto) {
+            screenFechado.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        } else {
+            screenFechado.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    }
+
     if (!badge) return;
     
     badge.style.display = 'inline-block';
