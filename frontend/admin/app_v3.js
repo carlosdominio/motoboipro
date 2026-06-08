@@ -3492,8 +3492,7 @@ function recalcularTotalFechamentoAdmin() {
     if (pessoas > 1) {
       btnCota.style.display = 'block';
       containerBotoes.style.gridTemplateColumns = '1fr 1fr';
-      const txtTrocoCota = trocoCota > 0 ? ` | TROCO: R$ ${trocoCota.toFixed(2)}` : '';
-      if (lblCota) lblCota.textContent = `R$ ${valorPessoa.toFixed(2)}${txtTrocoCota}`;
+      if (lblCota) lblCota.textContent = `R$ ${valorPessoa.toFixed(2)}`;
     } else {
       btnCota.style.display = 'none';
       containerBotoes.style.gridTemplateColumns = '1fr';
