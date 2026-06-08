@@ -3268,10 +3268,31 @@ async function aprovarFechamento(idPedido, idMesa, mesaNomeForcado = null) {
   else if (fpRaw.toLowerCase().includes('múltiplas') || fpRaw.toLowerCase().includes('multiplas')) fpFinal = 'Múltiplas';
   else if (fpRaw.toLowerCase().includes('dinh')) fpFinal = 'Dinheiro';
 
+  const num_pessoas_ini = pedidoParaFecharAdmin.num_pessoas || 1;
   const selectForma = document.getElementById('fechamento-forma-admin');
+  
   if (selectForma) {
-    selectForma.value = fpFinal;
-    selectForma.disabled = (fpFinal === 'Múltiplas');
+    // SE VEIO DIVIDIDO DO GARÇOM
+    if (fpFinal === 'Múltiplas' || (pedidoParaFecharAdmin.pagamentos_detalhados && num_pessoas_ini > 1)) {
+        selectForma.value = 'Múltiplas';
+        selectForma.disabled = true; // Trava pois é obrigatório usar o modal
+    } 
+    // SE É APENAS 1 PESSOA NO MOMENTO DE ABRIR
+    else if (num_pessoas_ini === 1) {
+        selectForma.value = (fpFinal === 'Múltiplas') ? 'Dinheiro' : fpFinal; // Previne erro lógico
+        selectForma.disabled = false;
+        
+        // Remove 'Múltiplas' da tela temporariamente se num_pessoas = 1
+        const optMulti = selectForma.querySelector('option[value="Múltiplas"]');
+        if (optMulti) optMulti.disabled = true; 
+    } 
+    // SE O ADMIN JÁ TINHA COLOCADO > 1 PESSOA ANTES
+    else {
+        selectForma.value = fpFinal;
+        selectForma.disabled = false;
+        const optMulti = selectForma.querySelector('option[value="Múltiplas"]');
+        if (optMulti) optMulti.disabled = false;
+    }
   }
   
   document.getElementById('fechamento-recebido-admin').value = pedidoParaFecharAdmin.valor_recebido || '';
@@ -3356,12 +3377,33 @@ function mudarPessoasFechamento(delta) {
   val += delta;
   if (val < 1) val = 1;
   input.value = val;
-  
+
   // SALVA O NÚMERO DE PESSOAS NO BANCO IMEDIATAMENTE (Sticky)
   if (pedidoParaFecharAdmin) {
     atualizarPessoasPedido(pedidoParaFecharAdmin.id, val);
   }
-  
+
+  // Lógica Dinâmica: Ativa/Desativa a opção "Múltiplas" baseado no número de pessoas
+  const selectForma = document.getElementById('fechamento-forma-admin');
+  if (selectForma) {
+    const optMulti = selectForma.querySelector('option[value="Múltiplas"]');
+    
+    if (val > 1) {
+      if (optMulti) optMulti.disabled = false;
+      // Seleciona automaticamente para facilitar, mas deixa livre para mudar
+      if (selectForma.value !== 'Múltiplas') {
+          selectForma.value = 'Múltiplas';
+      }
+      selectForma.disabled = false; 
+    } else {
+      if (selectForma.value === 'Múltiplas') {
+        selectForma.value = 'Dinheiro';
+      }
+      selectForma.disabled = false;
+      if (optMulti) optMulti.disabled = true; // Esconde se for só 1 pessoa
+    }
+  }
+
   recalcularTotalFechamentoAdmin();
 }
 
