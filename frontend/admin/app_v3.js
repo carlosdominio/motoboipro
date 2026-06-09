@@ -3860,7 +3860,7 @@ function imprimirCupomParcialFracao(pedido, itens, valorPago, saldoRestante, pes
   const taxa = cobrarTaxa ? (isDelivery ? 3.00 : subtotal * 0.10) : 0;
   const totalMesa = subtotal + taxa;
   const numPessoasTotal = (pessoasRestantes + 1);
-  const mesaNomeCupom = pedido.mesa_numero ? `MESA ${pedido.mesa_numero}` : 'BALCÃO / VENDA DIRETA';
+  const mesaNomeCupom = pedido.mesa_numero ? `MESA ${pedido.mesa_numero}` : `PEDIDO #${pedido.id}`;
 
   const html = `
     <div class="cupom-header">
@@ -3925,7 +3925,7 @@ function imprimirCupomParcialItens(pedido, itensPagos, totalPago, cobrarTaxa) {
     <div class="cupom-header">
       <h2 style="margin:0; font-size: 12pt; font-weight: 900;">GuGA Bebidas</h2>
       <p style="margin:2px 0; font-weight: 900; font-size: 10pt;">*** PAGAMENTO DE ITENS ***</p>
-      <p style="margin:2px 0; font-weight: 900; font-size: 11pt;">${pedido.mesa_numero ? `MESA ${pedido.mesa_numero}` : 'BALCÃO / VENDA DIRETA'}</p>
+      <p style="margin:2px 0; font-weight: 900; font-size: 11pt;">${pedido.mesa_numero ? `MESA ${pedido.mesa_numero}` : `PEDIDO #${pedido.id}`}</p>
       <p style="margin:2px 0; font-size: 9pt;"><strong>ABERTURA:</strong> ${formatarData(pedido.created_at)}</p>
       <p style="margin:2px 0; font-size: 8pt;"><strong>EMISSÃO:</strong> ${new Date().toLocaleString('pt-BR')}</p>
     </div>
@@ -4650,7 +4650,7 @@ async function imprimirCupom(pedido, itens) {
     pagoAgora = totalGeralMesa - pagoAnterior;
   }
 
-  const mesaNomeCupom = pedido.mesa_numero ? `MESA ${pedido.mesa_numero}` : 'BALCÃO / VENDA DIRETA';
+  const mesaNomeCupom = pedido.mesa_numero ? `MESA ${pedido.mesa_numero}` : `PEDIDO #${pedido.id}`;
   
   const numPessoasNoPedido = pedido.num_pessoas || 1;
   
@@ -4810,7 +4810,7 @@ async function imprimirCupom(pedido, itens) {
   }
 
   const isDelivery = (pedido.garcom_id === 'DELIVERY');
-  const nomeExibicaoCupom = isDelivery ? `🛵 PEDIDO DELIVERY #${pedido.id}` : (pedido.mesa_numero ? `MESA ${pedido.mesa_numero}` : 'BALCÃO / VENDA DIRETA');
+  const nomeExibicaoCupom = isDelivery ? `🛵 PEDIDO DELIVERY #${pedido.id}` : (pedido.mesa_numero ? `MESA ${pedido.mesa_numero}` : `PEDIDO #${pedido.id}`);
 
   let dadosDeliveryHtml = '';
   if (isDelivery && pedido.observacao) {
