@@ -666,20 +666,23 @@ function exibirMenuLancar(categoria) {
     const temEstoqueDefinido = estoqueNum !== -1;
 
     return `
-    <div class="item-menu-mini" onclick="adicionarAoCarrinhoLancar(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${disponivelReal === 0 ? '0.6' : '1'}; min-height: 125px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <div class="item-menu-mini" onclick="adicionarAoCarrinhoLancar(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${disponivelReal === 0 ? '0.6' : '1'}; min-height: 155px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
       <!-- Container de Info (TOPO DIREITO) -->
       <div style="position: absolute; top: 6px; right: 6px; z-index: 10; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
         <!-- Preço -->
         <div style="background: #27ae60; color: white; padding: 4px 8px; border-radius: 6px; font-weight: 900; font-size: 1.0rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">R$ ${item.preco.toFixed(2)}</div>
-        
+
         <!-- Info de ESTOQUE -->
         <div style="background: ${disponivelReal <= 0 ? '#e74c3c' : '#3498db'}; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
           ${temEstoqueDefinido ? `<span>📦</span> ${disponivelReal}` : '<span>♾️</span> Ilimitado'}
         </div>
+        
+        <!-- Promoção e Cozinha -->
+        ${item.em_promocao ? `<div style="background: #f1c40f; color: #2c3e50; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🔥 Promo ${item.preco_original ? `<span style="text-decoration: line-through; opacity: 0.75; font-weight: 600; margin-left: 2px;">R$ ${Number(item.preco_original).toFixed(2)}</span>` : ''}</div>` : ''}
+        ${isItemParaCozinha(item) ? `<div style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🍳 Cozinha</div>` : ''}
       </div>
 
-      <img src="${item.imagem}" alt="${item.nome}" style="filter: ${disponivelReal === 0 ? 'grayscale(1)' : 'none'}; height: 80px !important; width: 100%; object-fit: cover; display: block; border-bottom: 1px solid #f0f0f0;">
-
+      <img src="${item.imagem}" alt="${item.nome}" style="filter: ${disponivelReal === 0 ? 'grayscale(1)' : 'none'}; height: 110px !important; width: 100%; object-fit: cover; display: block; border-bottom: 1px solid #f0f0f0;">
       <div style="padding: 4px 8px !important; display: flex; flex-direction: column; flex-grow: 1; justify-content: flex-start;">
         <h4 style="margin: 0 !important; font-size: 0.85rem !important; color: #2c3e50 !important; line-height: 1.1 !important; font-weight: 700 !important; white-space: normal !important; text-align: left !important;">${item.nome}</h4>
       </div>
@@ -3026,7 +3029,7 @@ async function renderizarMenuEdicao(categoria = 'todas') {
     const temEstoqueDefinido = estoqueNum !== -1;
     
     return `
-    <div class="item-menu-mini" onclick="adicionarItemNaEdicao(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${estoqueDisponivel === 0 ? '0.6' : '1'}; min-height: 125px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <div class="item-menu-mini" onclick="adicionarItemNaEdicao(${item.id})" style="position: relative; display: flex; flex-direction: column; opacity: ${estoqueDisponivel === 0 ? '0.6' : '1'}; min-height: 155px !important; height: auto !important; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
       <!-- Container de Info (TOPO DIREITO) -->
       <div style="position: absolute; top: 6px; right: 6px; z-index: 10; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
         <!-- Preço -->
@@ -3036,9 +3039,13 @@ async function renderizarMenuEdicao(categoria = 'todas') {
         <div style="background: ${estoqueDisponivel <= 0 ? '#e74c3c' : '#3498db'}; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
           ${temEstoqueDefinido ? `<span>📦</span> ${estoqueDisponivel}` : '<span>♾️</span> Ilimitado'}
         </div>
+
+        <!-- Promoção e Cozinha -->
+        ${item.em_promocao ? `<div style="background: #f1c40f; color: #2c3e50; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🔥 Promo ${item.preco_original ? `<span style="text-decoration: line-through; opacity: 0.75; font-weight: 600; margin-left: 2px;">R$ ${Number(item.preco_original).toFixed(2)}</span>` : ''}</div>` : ''}
+        ${isItemParaCozinha(item) ? `<div style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🍳 Cozinha</div>` : ''}
       </div>
 
-      <img src="${item.imagem}" alt="${item.nome}" style="filter: ${estoqueDisponivel === 0 ? 'grayscale(1)' : 'none'}; height: 80px !important; width: 100%; object-fit: cover; display: block; border-bottom: 1px solid #f0f0f0;">
+      <img src="${item.imagem}" alt="${item.nome}" style="filter: ${estoqueDisponivel === 0 ? 'grayscale(1)' : 'none'}; height: 110px !important; width: 100%; object-fit: cover; display: block; border-bottom: 1px solid #f0f0f0;">
       <div style="padding: 4px 8px !important; display: flex; flex-direction: column; flex-grow: 1; justify-content: flex-start;">
         <h4 style="margin: 0 !important; font-size: 0.85rem !important; color: #2c3e50 !important; line-height: 1.1 !important; font-weight: 700 !important; white-space: normal !important; text-align: left !important;">${item.nome}</h4>
       </div>

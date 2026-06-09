@@ -317,40 +317,43 @@
     <section id="ativos-section">
       <!-- Barra de Filtros e Sub-Abas (Sticky) -->
       <div class="filters-bar">
-          <!-- Seletor de Grupo (Mesas/Balcão) -->
-          <div class="sub-tabs" style="background: #f1f2f6; padding: 4px; border-radius: 10px; display: flex; gap: 4px; border: 1px solid #e2e8f0;">
-            <button id="tab-sub-garcom" onclick="switchSubTab('garcom')" class="sub-tab-btn active" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
-              🍽️ Mesas <span id="badge-sub-garcom" class="badge-mini">0</span>
-            </button>
-            <button id="tab-sub-balcao" onclick="switchSubTab('balcao')" class="sub-tab-btn" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
-              🏪 Balcão <span id="badge-sub-balcao" class="badge-mini">0</span>
-            </button>
-            <button id="tab-sub-delivery" onclick="switchSubTab('delivery')" class="sub-tab-btn" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
-              🛵 Delivery <span id="badge-sub-delivery" class="badge-mini">0</span>
-            </button>
+          <!-- Lado Esquerdo: Abas de Grupo -->
+          <div class="filters-left">
+            <div class="sub-tabs" style="background: #f1f2f6; padding: 4px; border-radius: 10px; display: flex; gap: 4px; border: 1px solid #e2e8f0;">
+              <button id="tab-sub-garcom" onclick="switchSubTab('garcom')" class="sub-tab-btn active" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                🍽️ Mesas <span id="badge-sub-garcom" class="badge-mini">0</span>
+              </button>
+              <button id="tab-sub-balcao" onclick="switchSubTab('balcao')" class="sub-tab-btn" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                🏪 Balcão <span id="badge-sub-balcao" class="badge-mini">0</span>
+              </button>
+              <button id="tab-sub-delivery" onclick="switchSubTab('delivery')" class="sub-tab-btn" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                🛵 Delivery <span id="badge-sub-delivery" class="badge-mini">0</span>
+              </button>
+            </div>
           </div>
 
-          <div style="width: 1px; height: 30px; background: #e2e8f0; margin: 0 5px;" class="hide-mobile"></div>
+          <!-- Lado Direito: Busca e Filtros -->
+          <div class="filters-right" style="flex: 2; justify-content: flex-end;">
+            <div style="font-weight: 800; color: #2c3e50; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;" class="hide-mobile">
+              <span style="font-size: 1.1rem;">🎯</span> BUSCA:
+            </div>
 
-          <div style="font-weight: 800; color: #2c3e50; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;" class="hide-mobile">
-            <span style="font-size: 1.1rem;">🎯</span> BUSCA:
+            <div style="flex: 1; min-width: 200px; position: relative;">
+              <input type="text" id="filtro-mesas" placeholder="Buscar mesa específica..." 
+                     oninput="filtrarMesasAtivas(this.value)"
+                     style="width: 100%; padding: 10px 15px; border-radius: 8px; border: 2px solid #edf2f7; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box;">
+            </div>
+            
+            <select id="select-mesas-ativas" onchange="filtrarPorSelect(this.value)"
+                    style="padding: 10px; border-radius: 8px; border: 2px solid #edf2f7; background: #f8fafc; outline: none; cursor: pointer; font-size: 0.95rem; font-weight: bold; color: #2d3748; min-width: 150px;">
+              <option value="">Todas</option>
+            </select>
+            
+            <button onclick="document.getElementById('filtro-mesas').value=''; filtrarMesasAtivas(''); document.getElementById('select-mesas-ativas').value=''; filtrarPorSelect('');" 
+                    style="background: #e2e8f0; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; color: #4a5568; font-size: 0.85rem; transition: 0.2s;">
+              LIMPAR
+            </button>
           </div>
-
-          <div style="flex: 2; position: relative;">
-            <input type="text" id="filtro-mesas" placeholder="Buscar mesa específica..." 
-                   oninput="filtrarMesasAtivas(this.value)"
-                   style="width: 100%; padding: 10px 15px; border-radius: 8px; border: 2px solid #edf2f7; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box;">
-          </div>
-          
-          <select id="select-mesas-ativas" onchange="filtrarPorSelect(this.value)"
-                  style="flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #edf2f7; background: #f8fafc; outline: none; cursor: pointer; font-size: 0.95rem; font-weight: bold; color: #2d3748; min-width: 150px;">
-            <option value="">Todas as Mesas</option>
-          </select>
-          
-          <button onclick="document.getElementById('filtro-mesas').value=''; filtrarMesasAtivas(''); document.getElementById('select-mesas-ativas').value=''; filtrarPorSelect('');" 
-                  style="background: #e2e8f0; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; color: #4a5568; font-size: 0.85rem; transition: 0.2s;">
-            LIMPAR
-          </button>
       </div>
 
       <!-- Título 'Pedidos em Andamento' removido -->
@@ -452,39 +455,36 @@
 
     <section id="historico-section" class="hidden">
       <!-- Barra de Busca e Resumo Grande e Acessível -->
-      <div class="filters-bar" style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; padding: 15px 25px;">
+      <div class="filters-bar">
           
           <!-- Lado Esquerdo: Filtro Robusto -->
-          <div style="display: flex; align-items: center; gap: 15px; flex: 1; min-width: 300px;">
-            <div style="font-weight: 900; color: #2c3e50; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+          <div class="filters-left">
+            <div class="label-filtrar">
               <span style="font-size: 1.3rem;">🔍</span> FILTRAR MESA:
             </div>
-            <select id="filtro-historico-select" onchange="filtrarHistorico(this.value)"
-                    style="flex: 0 1 250px; padding: 12px 15px; border-radius: 10px; border: 2.5px solid #e2e8f0; font-size: 1rem; font-weight: bold; outline: none; background: white; cursor: pointer; color: #2c3e50; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); max-width: 250px;">
+            <select id="filtro-historico-select" onchange="filtrarHistorico(this.value)">
               <option value="">Todas</option>
             </select>
             <button onclick="document.getElementById('filtro-historico-select').value=''; filtrarHistorico('');" 
-                    style="background: #f8fafc; color: #64748b; border: 2px solid #e2e8f0; padding: 10px 20px; border-radius: 10px; font-size: 0.85rem; font-weight: 900; cursor: pointer; white-space: nowrap; transition: 0.2s;">
+                    class="btn-ver-tudo">
               VER TUDO
             </button>
           </div>
 
           <!-- Lado Direito: Info e Ações de Destaque -->
-          <div style="display: flex; align-items: center; gap: 25px; flex-wrap: wrap;">
+          <div class="filters-right">
             <!-- Data e Faturamento -->
-            <div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3;">
-              <span id="data-historico" style="font-size: 0.85rem; font-weight: 900; color: #e74c3c; text-transform: uppercase;">00/00/0000</span>
-              <div id="faturamento-total-dia" style="font-weight: 900; font-size: 1.3rem; color: #27ae60; text-shadow: 0 1px 2px rgba(0,0,0,0.05);">R$ 0,00</div>
+            <div class="history-faturamento-box">
+              <span id="data-historico" class="data-historico-label">00/00/0000</span>
+              <div id="faturamento-total-dia" class="faturamento-total-label">R$ 0,00</div>
             </div>
 
             <!-- Botões de Ação Grandes -->
-            <div style="display: flex; gap: 12px;">
-              <button onclick="imprimirResumoDiario()" 
-                      style="background: #3498db; color: white; padding: 12px 20px; border-radius: 12px; font-weight: 900; border: none; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 0 #2980b9; transition: 0.2s;">
+            <div class="history-actions">
+              <button onclick="imprimirResumoDiario()" class="btn-historico-resumo">
                 🖨️ RESUMO DIÁRIO
               </button>
-              <button onclick="limparHistoricoTotal()" 
-                      style="background: #fff; color: #e74c3c; border: 2.5px solid #e74c3c; padding: 12px 20px; border-radius: 12px; font-weight: 900; cursor: pointer; font-size: 0.9rem; transition: 0.2s;">
+              <button onclick="limparHistoricoTotal()" class="btn-historico-limpar">
                 🗑️ LIMPAR
               </button>
             </div>
