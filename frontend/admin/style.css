@@ -1596,18 +1596,20 @@ input:checked + .slider:before {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
-  min-height: 380px; /* Keep height stable during pagination */
+  height: 350px; /* Fixed height to fit exactly 5 cards + gaps */
+  overflow: hidden !important; /* Strictly no scroll */
 }
 
 #lista-finalizados .pedido-card.minimized,
 #lista-cancelados .pedido-card.minimized {
-  max-height: 65px;
-  padding: 12px 15px;
+  height: 60px; /* Exact height for uniformity */
+  padding: 0 15px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   overflow: hidden;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 /* Ocultar elementos específicos no histórico minimizado */
