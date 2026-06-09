@@ -493,11 +493,27 @@
 
       <div id="historico-list" style="display: flex; gap: 2rem; align-items: flex-start;">
         <div id="historico-finalizados">
-          <h3 style="color: #27ae60; border-bottom: 2px solid #27ae60; padding-bottom: 5px; margin-bottom: 15px;">✅ Pedidos Finalizados</h3>
+          <h3 style="color: #27ae60; border-bottom: 2px solid #27ae60; padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>✅ Pedidos Finalizados</span>
+            <!-- Controles de Paginação Mini -->
+            <div id="paginacao-finalizados" class="paginacao-controles" style="display: none; align-items: center; gap: 8px; background: #fff; padding: 2px 6px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <button onclick="mudarPaginaHistorico('finalizados', -1)" class="btn-paginacao-mini" id="btn-ant-finalizados" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0 4px;">⬅️</button>
+              <span id="texto-pag-finalizados" style="font-size: 0.8rem; font-weight: bold; color: #2c3e50;">1/1</span>
+              <button onclick="mudarPaginaHistorico('finalizados', 1)" class="btn-paginacao-mini" id="btn-prox-finalizados" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0 4px;">➡️</button>
+            </div>
+          </h3>
           <div id="lista-finalizados"></div>
         </div>
         <div id="historico-cancelados">
-          <h3 style="color: #e74c3c; border-bottom: 2px solid #e74c3c; padding-bottom: 5px; margin-bottom: 15px;">❌ Pedidos Cancelados</h3>
+          <h3 style="color: #e74c3c; border-bottom: 2px solid #e74c3c; padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>❌ Pedidos Cancelados</span>
+            <!-- Controles de Paginação Mini -->
+            <div id="paginacao-cancelados" class="paginacao-controles" style="display: none; align-items: center; gap: 8px; background: #fff; padding: 2px 6px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <button onclick="mudarPaginaHistorico('cancelados', -1)" class="btn-paginacao-mini" id="btn-ant-cancelados" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0 4px;">⬅️</button>
+              <span id="texto-pag-cancelados" style="font-size: 0.8rem; font-weight: bold; color: #2c3e50;">1/1</span>
+              <button onclick="mudarPaginaHistorico('cancelados', 1)" class="btn-paginacao-mini" id="btn-prox-cancelados" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0 4px;">➡️</button>
+            </div>
+          </h3>
           <div id="lista-cancelados"></div>
         </div>
       </div>

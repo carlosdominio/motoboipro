@@ -63,6 +63,11 @@ window.onerror = function(msg, url, line) {
   let cardapio = [];
 let pedidos = [];
 let historico = [];
+let pedidosFiltradosHistoricoFinalizados = [];
+let pedidosFiltradosHistoricoCancelados = [];
+let paginaAtualFinalizados = 1;
+let paginaAtualCancelados = 1;
+const ITENS_POR_PAGINA_HISTORICO = 4;
 let mesaAtual = null;
 let pedidoEmEdicao = null;
 let itensEmEdicao = [];
@@ -1754,10 +1759,15 @@ async function exibirHistorico() {
     const pagamentos = pedido.pagamentos || [];
 
     const card = document.createElement('div');
-    card.className = `pedido-card status-${pedido.status}`;
+    card.className = `pedido-card status-${pedido.status} minimized`;
+    card.style.cursor = 'pointer'; // Ensure cursor indicates it's clickable
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return; // Ignore button clicks
+      card.classList.toggle('minimized');
+    });
     
     const isDelivery = (pedido.garcom_id === 'DELIVERY');
-    const mesaNomeExibicao = isDelivery ? `🛵 DELIVERY #${pedido.id}` : (pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : 'BALCÃO');
+    const mesaNomeExibicao = isDelivery ? `🛵 DELIVERY #${pedido.id}` : (pedido.mesa_numero ? `Mesa ${pedido.mesa_numero}` : `Pedido #${pedido.id}`);
 
     let htmlPagamentos = '';
     if (pagamentos.length > 0) {
@@ -1850,6 +1860,75 @@ async function exibirHistorico() {
   }
 }
 
+function atualizarPaginacaoHistorico() {
+  const containerFinalizados = document.getElementById('lista-finalizados');
+  const containerCancelados = document.getElementById('lista-cancelados');
+  if (!containerFinalizados || !containerCancelados) return;
+
+  const totalFinalizados = pedidosFiltradosHistoricoFinalizados.length;
+  const totalCancelados = pedidosFiltradosHistoricoCancelados.length;
+
+  const totalPaginasFinalizados = Math.max(1, Math.ceil(totalFinalizados / ITENS_POR_PAGINA_HISTORICO));
+  const totalPaginasCancelados = Math.max(1, Math.ceil(totalCancelados / ITENS_POR_PAGINA_HISTORICO));
+
+  if (paginaAtualFinalizados > totalPaginasFinalizados) paginaAtualFinalizados = totalPaginasFinalizados;
+  if (paginaAtualCancelados > totalPaginasCancelados) paginaAtualCancelados = totalPaginasCancelados;
+
+  const inicioFin = (paginaAtualFinalizados - 1) * ITENS_POR_PAGINA_HISTORICO;
+  const inicioCan = (paginaAtualCancelados - 1) * ITENS_POR_PAGINA_HISTORICO;
+
+  // Atualizar visualização - Finalizados
+  pedidosFiltradosHistoricoFinalizados.forEach((card, index) => {
+    if (index >= inicioFin && index < inicioFin + ITENS_POR_PAGINA_HISTORICO) {
+      card.style.display = 'flex'; // Changed from block to flex for minimization layout
+    } else {
+      card.style.display = 'none';
+    }
+  });
+
+  // Atualizar visualização - Cancelados
+  pedidosFiltradosHistoricoCancelados.forEach((card, index) => {
+    if (index >= inicioCan && index < inicioCan + ITENS_POR_PAGINA_HISTORICO) {
+      card.style.display = 'flex'; // Changed from block to flex
+    } else {
+      card.style.display = 'none';
+    }
+  });
+
+  // Atualizar controles UI
+  const pagFinEl = document.getElementById('paginacao-finalizados');
+  const pagCanEl = document.getElementById('paginacao-cancelados');
+  const txtFin = document.getElementById('texto-pag-finalizados');
+  const txtCan = document.getElementById('texto-pag-cancelados');
+  const btnAntFin = document.getElementById('btn-ant-finalizados');
+  const btnProxFin = document.getElementById('btn-prox-finalizados');
+  const btnAntCan = document.getElementById('btn-ant-cancelados');
+  const btnProxCan = document.getElementById('btn-prox-cancelados');
+
+  if (pagFinEl) {
+    pagFinEl.style.display = totalFinalizados > ITENS_POR_PAGINA_HISTORICO ? 'flex' : 'none';
+    if (txtFin) txtFin.textContent = `${paginaAtualFinalizados} / ${totalPaginasFinalizados}`;
+    if (btnAntFin) btnAntFin.disabled = paginaAtualFinalizados <= 1;
+    if (btnProxFin) btnProxFin.disabled = paginaAtualFinalizados >= totalPaginasFinalizados;
+  }
+
+  if (pagCanEl) {
+    pagCanEl.style.display = totalCancelados > ITENS_POR_PAGINA_HISTORICO ? 'flex' : 'none';
+    if (txtCan) txtCan.textContent = `${paginaAtualCancelados} / ${totalPaginasCancelados}`;
+    if (btnAntCan) btnAntCan.disabled = paginaAtualCancelados <= 1;
+    if (btnProxCan) btnProxCan.disabled = paginaAtualCancelados >= totalPaginasCancelados;
+  }
+}
+
+function mudarPaginaHistorico(tipo, direcao) {
+  if (tipo === 'finalizados') {
+    paginaAtualFinalizados += direcao;
+  } else {
+    paginaAtualCancelados += direcao;
+  }
+  atualizarPaginacaoHistorico();
+}
+
 function filtrarHistorico(valor) {
   const busca = valor.toLowerCase().trim();
   const containerFinalizados = document.getElementById('lista-finalizados');
@@ -1858,12 +1937,15 @@ function filtrarHistorico(valor) {
 
   const cards = document.querySelectorAll('.pedido-card');
 
-  let finalizadosVisiveis = 0;
-  let canceladosVisiveis = 0;
+  // Reset arrays
+  pedidosFiltradosHistoricoFinalizados = [];
+  pedidosFiltradosHistoricoCancelados = [];
 
   cards.forEach(card => {
     // Só filtra cards que estão dentro dos containers do histórico
-    if (!containerFinalizados.contains(card) && !containerCancelados.contains(card)) return;
+    const isFinalizado = containerFinalizados.contains(card);
+    const isCancelado = containerCancelados.contains(card);
+    if (!isFinalizado && !isCancelado) return;
 
     const h3 = card.querySelector('h3');
     const mesaTexto = h3 ? h3.innerText.toLowerCase() : '';
@@ -1873,34 +1955,40 @@ function filtrarHistorico(valor) {
     if (!busca) {
       matches = true;
     } else {
-      // Se a busca começa com "mesa ", tentamos match exato no nome da mesa (ex: "Mesa 1" não bate com "Mesa 10")
-      if (busca.startsWith('mesa ')) {
+      // Se a busca começa com "mesa " ou "pedido ", tentamos match exato
+      if (busca.startsWith('mesa ') || busca.startsWith('pedido ')) {
         matches = (mesaTexto === busca);
       } else {
-        // Busca geral por texto (garçom, itens, observação, etc)
         matches = textoCompleto.includes(busca);
       }
     }
 
     if (matches) {
-      card.style.display = 'block';
-      if (card.classList.contains('status-cancelado')) canceladosVisiveis++;
-      else finalizadosVisiveis++;
+      if (isCancelado) {
+        pedidosFiltradosHistoricoCancelados.push(card);
+      } else {
+        pedidosFiltradosHistoricoFinalizados.push(card);
+      }
     } else {
       card.style.display = 'none';
     }
   });
 
-  const msgFin = containerFinalizados.querySelector('p');
-  const msgCan = containerCancelados.querySelector('p');
+  // Reset paginação para 1 ao filtrar
+  paginaAtualFinalizados = 1;
+  paginaAtualCancelados = 1;
+  atualizarPaginacaoHistorico();
+
+  const msgFin = containerFinalizados.querySelector('p.empty-msg');
+  const msgCan = containerCancelados.querySelector('p.empty-msg');
 
   if (msgFin) {
-    msgFin.style.display = (finalizadosVisiveis === 0) ? 'block' : 'none';
-    if (finalizadosVisiveis === 0) msgFin.innerText = busca ? 'Nenhum finalizado encontrado para esta busca.' : 'Nenhum pedido finalizado hoje.';
+    msgFin.style.display = (pedidosFiltradosHistoricoFinalizados.length === 0) ? 'block' : 'none';
+    if (pedidosFiltradosHistoricoFinalizados.length === 0) msgFin.innerText = busca ? 'Nenhum finalizado encontrado para esta busca.' : 'Nenhum pedido finalizado hoje.';
   }
   if (msgCan) {
-    msgCan.style.display = (canceladosVisiveis === 0) ? 'block' : 'none';
-    if (canceladosVisiveis === 0) msgCan.innerText = busca ? 'Nenhum cancelado encontrado para esta busca.' : 'Nenhum pedido cancelado hoje.';
+    msgCan.style.display = (pedidosFiltradosHistoricoCancelados.length === 0) ? 'block' : 'none';
+    if (pedidosFiltradosHistoricoCancelados.length === 0) msgCan.innerText = busca ? 'Nenhum cancelado encontrado para esta busca.' : 'Nenhum pedido cancelado hoje.';
   }
 }
 

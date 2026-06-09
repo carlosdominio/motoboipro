@@ -44,9 +44,37 @@ body {
   overflow-y: auto;
 }
 
-body.modal-open {
-  overflow: hidden !important;
-  height: 100vh;
+.paginacao-controles {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 15px;
+  padding: 10px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-paginacao {
+  background: #f1f2f6;
+  color: #2c3e50;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9rem;
+  transition: 0.2s;
+}
+
+.btn-paginacao:hover {
+  background: #e2e8f0;
+}
+
+.btn-paginacao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 header {
@@ -1563,10 +1591,84 @@ input:checked + .slider:before {
   min-width: 0;
 }
 
-#lista-finalizados, #lista-cancelados {
+#lista-finalizados,
+#lista-cancelados {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem; /* Espaço entre cada card no histórico */
+  gap: 0.8rem;
+  min-height: 380px; /* Keep height stable during pagination */
+}
+
+#lista-finalizados .pedido-card.minimized,
+#lista-cancelados .pedido-card.minimized {
+  max-height: 65px;
+  padding: 12px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* Ocultar elementos específicos no histórico minimizado */
+#lista-finalizados .pedido-card.minimized .pedido-itens,
+#lista-cancelados .pedido-card.minimized .pedido-itens,
+#lista-finalizados .pedido-card.minimized > div:not(.pedido-header),
+#lista-cancelados .pedido-card.minimized > div:not(.pedido-header),
+#lista-finalizados .pedido-card.minimized .pedido-header > div:first-child .status-badge,
+#lista-cancelados .pedido-card.minimized .pedido-header > div:first-child .status-badge,
+#lista-finalizados .pedido-card.minimized .pedido-header > div:first-child small,
+#lista-cancelados .pedido-card.minimized .pedido-header > div:first-child small,
+#lista-finalizados .pedido-card.minimized .pedido-header > div:last-child > div:last-child,
+#lista-cancelados .pedido-card.minimized .pedido-header > div:last-child > div:last-child {
+  display: none !important;
+}
+
+#lista-finalizados .pedido-card.minimized .pedido-header,
+#lista-cancelados .pedido-card.minimized .pedido-header {
+  margin: 0;
+  padding: 0;
+  border: none;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-direction: row;
+}
+
+#lista-finalizados .pedido-card.minimized h3,
+#lista-cancelados .pedido-card.minimized h3 {
+  font-size: 1rem;
+  margin: 0;
+  text-align: left;
+  display: block !important;
+}
+
+#lista-finalizados .pedido-card.minimized .pedido-valor,
+#lista-cancelados .pedido-card.minimized .pedido-valor {
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 900;
+  display: block !important;
+}
+
+/* Indicador de expansão para o histórico */
+#lista-finalizados .pedido-card.minimized::after,
+#lista-cancelados .pedido-card.minimized::after {
+  content: '▼';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  opacity: 0.5;
+}
+
+/* Estado Expandido do Histórico */
+#lista-finalizados .pedido-card:not(.minimized),
+#lista-cancelados .pedido-card:not(.minimized) {
+  max-height: 1000px;
+  cursor: pointer;
 }
 
 @media (max-width: 1024px) {
