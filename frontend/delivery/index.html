@@ -651,6 +651,7 @@
                     
                     window.open(`https://wa.me/${ADMIN_NUMBER}?text=${encoded}`, '_blank');
 
+                    let timerInterval;
                     Swal.fire({
                         title: 'Pedido Enviado!',
                         html: `
@@ -668,8 +669,23 @@
                             <p style="margin-top: 15px; font-size: 0.9rem; color: #57606f;">Se o WhatsApp não abriu automaticamente, clique no botão acima para concluir o envio.</p>
                         `,
                         icon: 'success',
-                        confirmButtonText: 'OK, ENTENDI',
-                        confirmButtonColor: '#27ae60'
+                        confirmButtonText: 'OK, ENTENDI (5:00)',
+                        confirmButtonColor: '#27ae60',
+                        timer: 300000,
+                        timerProgressBar: true,
+                        didOpen: () => {
+                            const b = Swal.getConfirmButton();
+                            let timeLeft = 300;
+                            timerInterval = setInterval(() => {
+                                timeLeft--;
+                                const m = Math.floor(timeLeft / 60);
+                                const s = timeLeft % 60;
+                                b.textContent = `OK, ENTENDI (${m}:${s < 10 ? '0' : ''}${s})`;
+                            }, 1000);
+                        },
+                        willClose: () => {
+                            clearInterval(timerInterval);
+                        }
                     }).then(() => {
                         cart = [];
                         updateCartBar();
