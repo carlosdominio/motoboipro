@@ -5,6 +5,26 @@ let configCozinhaCategorias = []; // Estado global das categorias da cozinha
 
 let configCozinhaLoaded = false; // Flag para saber se já carregou do servidor
 
+// Helper para travar/destravar o scroll do fundo de forma robusta
+function atualizarBloqueioScroll() {
+  const modais = ['.modal', '.modal-opcoes', '.modal-carrinho'];
+  const algumAberto = modais.some(seletor => {
+    const elementos = document.querySelectorAll(seletor);
+    return Array.from(elementos).some(el => el.style.display !== 'none' && el.style.display !== '');
+  });
+
+  const screenFechado = document.getElementById('closed-screen');
+  const estaFechado = screenFechado && screenFechado.style.display === 'flex';
+
+  if (algumAberto || estaFechado) {
+    document.body.classList.add('modal-open');
+    document.documentElement.classList.add('modal-open');
+  } else {
+    document.body.classList.remove('modal-open');
+    document.documentElement.classList.remove('modal-open');
+  }
+}
+
 // Helper para verificar se um item deve ir para a cozinha (Sincronizado com Backend)
 function isItemParaCozinha(item) {
     if (!item) return false;
@@ -184,9 +204,11 @@ function mostrarAlerta(msg, titulo = "Aviso", icone = "🔔", textoParaCopiar = 
 
     const modal = document.getElementById('modal-sistema');
     modal.style.display = 'flex';
+    atualizarBloqueioScroll();
 
     document.getElementById('btn-sistema-confirmar').onclick = () => {
       modal.style.display = 'none';
+      atualizarBloqueioScroll();
       if (btnCopiar) btnCopiar.style.display = 'none';
       resolve(true);
     };
@@ -205,14 +227,17 @@ function mostrarConfirmacao(msg, titulo = "Confirmação", txtConfirmar = "Confi
 
     const modal = document.getElementById('modal-sistema');
     modal.style.display = 'flex';
+    atualizarBloqueioScroll();
 
     document.getElementById('btn-sistema-confirmar').onclick = () => {
       modal.style.display = 'none';
+      atualizarBloqueioScroll();
       resolve(true);
     };
 
     document.getElementById('btn-sistema-cancelar').onclick = () => {
       modal.style.display = 'none';
+      atualizarBloqueioScroll();
       resolve(false);
     };
   });
@@ -287,10 +312,10 @@ async function atualizarStatusCaixa() {
     if (screenFechado) {
         if (!caixaAberto) {
             screenFechado.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+            atualizarBloqueioScroll();
         } else {
             screenFechado.style.display = 'none';
-            document.body.style.overflow = '';
+            atualizarBloqueioScroll();
         }
     }
 
@@ -498,14 +523,17 @@ async function mostrarRascunho(data) {
 
   const modal = document.getElementById('modal-sistema');
   modal.style.display = 'flex';
+  atualizarBloqueioScroll();
 
   btnConfirmar.onclick = () => {
     modal.style.display = 'none';
+    atualizarBloqueioScroll();
     aceitarRascunho(data);
   };
 
   btnCancelar.onclick = () => {
     modal.style.display = 'none';
+    atualizarBloqueioScroll();
   };
 }
 
@@ -779,6 +807,7 @@ async function mostrarOpcoesMesa(mesa) {
 
   document.getElementById('modal-mesa-titulo').textContent = tituloModal;
   document.getElementById('modal-opcoes').style.display = 'block';
+  atualizarBloqueioScroll();
 }
 
 async function verItensDaMesa() {
@@ -882,6 +911,7 @@ async function verItensDaMesa() {
     
     fecharOpcoes();
     document.getElementById('modal-resumo-mesa').style.display = 'block';
+    atualizarBloqueioScroll();
   } catch (error) { await mostrarAlerta("Erro ao carregar dados.", "Erro", "❌"); }
 }
 
@@ -970,10 +1000,12 @@ async function marcarComoServido(idPedido) {
 function fecharResumoMesa() {
   document.getElementById('modal-resumo-mesa').style.display = 'none';
   document.getElementById('modal-opcoes').style.display = 'block';
+  atualizarBloqueioScroll();
 }
 
 function fecharOpcoes() {
   document.getElementById('modal-opcoes').style.display = 'none';
+  atualizarBloqueioScroll();
 }
 
 function abrirCardapioAdicionar() {
@@ -1012,7 +1044,7 @@ function abrirCardapio() {
   const modalCarrinho = document.getElementById('modal-carrinho');
   if (modalCarrinho) {
     modalCarrinho.style.display = 'none';
-    document.body.style.overflow = ''; // Destrava o scroll
+    atualizarBloqueioScroll(); // Destrava o scroll
   }
 
   pedidoAtual = [];
@@ -1026,14 +1058,14 @@ function toggleCarrinho() {
   
   if (modal.style.display === 'flex') {
     modal.style.display = 'none';
-    document.body.style.overflow = ''; // Destrava o scroll
+    atualizarBloqueioScroll(); // Destrava o scroll
   } else {
     if (pedidoAtual.length === 0) {
       mostrarAlerta("O carrinho está vazio!", "Aviso", "⚠️");
       return;
     }
     modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden'; // Trava o scroll
+    atualizarBloqueioScroll(); // Trava o scroll
     exibirResumoPedido();
   }
 }
@@ -1045,7 +1077,7 @@ function voltarParaMesas() {
         document.getElementById('pedido').classList.add('hidden');
         document.getElementById('mesas').classList.remove('hidden');
         document.getElementById('btn-header-mesas').style.display = 'none';
-        document.body.style.overflow = ''; // Destrava o scroll
+        atualizarBloqueioScroll(); // Destrava o scroll
       }
     });
   } else {
@@ -1108,7 +1140,10 @@ async function finalizarEDesocupar() {
     fecharOpcoes();
     
     const modalFechamento = document.getElementById('modal-fechamento-garcom');
-    if (modalFechamento) modalFechamento.style.display = 'flex';
+    if (modalFechamento) {
+      modalFechamento.style.display = 'flex';
+      atualizarBloqueioScroll();
+    }
 
   } catch (error) {
     console.error("Erro no fechamento:", error);
@@ -1210,7 +1245,10 @@ function cancelarFechamentoGarcom() {
   if (modalFechamento) modalFechamento.style.display = 'none';
   
   const modalOpcoes = document.getElementById('modal-opcoes');
-  if (modalOpcoes) modalOpcoes.style.display = 'block';
+  if (modalOpcoes) {
+    modalOpcoes.style.display = 'block';
+    atualizarBloqueioScroll();
+  }
 }
 
 async function confirmarSolicitacaoFechamento() {
@@ -1272,7 +1310,10 @@ async function confirmarSolicitacaoFechamento() {
 
     if (res.ok) {
       const modalFechamento = document.getElementById('modal-fechamento-garcom');
-      if (modalFechamento) modalFechamento.style.display = 'none';
+      if (modalFechamento) {
+        modalFechamento.style.display = 'none';
+        atualizarBloqueioScroll();
+      }
       
       await mostrarAlerta("Solicitação de fechamento enviada ao caixa!", "Sucesso", "✅");
       carregarMesas();
@@ -1469,7 +1510,7 @@ function exibirResumoPedido() {
     const modal = document.getElementById('modal-carrinho');
     if (modal) {
       modal.style.display = 'none';
-      document.body.style.overflow = ''; // Destrava o scroll
+      atualizarBloqueioScroll(); // Destrava o scroll
     }
   }
 }
@@ -1552,7 +1593,7 @@ async function enviarPedido() {
       const modalCarrinho = document.getElementById('modal-carrinho');
       if (modalCarrinho) {
         modalCarrinho.style.display = 'none';
-        document.body.style.overflow = ''; // Destrava o scroll
+        atualizarBloqueioScroll(); // Destrava o scroll
       }
 
       document.getElementById('pedido').classList.add('hidden');

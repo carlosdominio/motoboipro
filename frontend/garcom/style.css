@@ -8,6 +8,13 @@ html, body {
   touch-action: manipulation;
 }
 
+/* Bloqueio de scroll quando modal aberto */
+html.modal-open, body.modal-open {
+  overflow: hidden !important;
+  height: 100dvh !important;
+  overscroll-behavior: none;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -311,14 +318,18 @@ main {
   width: 100%;
   background: white;
   padding: clamp(1rem, 4vw, 2rem);
-  padding-bottom: max(clamp(1rem, 4vw, 2rem), env(safe-area-inset-bottom));
+  /* padding-bottom expandido para cobrir a área branca (safe-area) em iPhones e novos Androids */
+  padding-bottom: calc(clamp(1rem, 4vw, 2rem) + env(safe-area-inset-bottom));
   border-radius: 20px 20px 0 0;
-  box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
-  z-index: 1000;
+  /* Sombra gigante que escurece todo o fundo (truque para evitar mudar o HTML) */
+  box-shadow: 0 0 0 200vmax rgba(0,0,0,0.8); 
+  z-index: 10000;
   text-align: center;
-  max-height: 90vh;
-  max-height: calc(100dvh - 24px);
+  max-height: 95vh;
+  max-height: calc(100dvh - 20px);
   overflow-y: auto;
+  /* Garante que o conteúdo não fique "colado" no fundo em telas sem safe area */
+  margin-bottom: 0;
 }
 
 .modal-opcoes h2 { margin-bottom: 1.5rem; color: #333; }
@@ -800,7 +811,6 @@ button:hover { background-color: #2ecc71; }
 
 /* Ajustes Gerais para Modais no Mobile */
 #modal-resumo-mesa, #modal-fechamento-garcom {
-  max-height: 90vh;
   display: flex;
   flex-direction: column;
 }
@@ -877,18 +887,18 @@ button:hover { background-color: #2ecc71; }
 
 /* Estilos para o Modal de Sistema (Alert/Confirm) */
 .modal {
-  display: none;
+  display: none; /* Mantém oculto por padrão */
   position: fixed;
   z-index: 20000;
-  left: 0;
-  top: 0;
+  inset: 0;
   width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.5);
+  height: 100dvh;
+  background-color: rgba(0,0,0,0.8);
   align-items: center;
   justify-content: center;
-  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   overflow-y: auto;
+  backdrop-filter: blur(2px);
 }
 
 .modal-content {
