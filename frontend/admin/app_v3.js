@@ -1976,11 +1976,25 @@ function abrirModalDetalheHistorico(p) {
     // Divisão (se houver)
     const numPessoas = p.num_pessoas || (p.pagamentos ? p.pagamentos.length : 1);
     if (numPessoas > 1) {
-      htmlContent += `
-        <div style="margin-bottom: 12px; padding: 10px; background: #e7f5ff; border-radius: 8px; border: 1px solid #a5d8ff; font-size: 0.85rem; color: #1971c2; display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 1.1rem;">👥</span>
-          <span><b>DIVISÃO:</b> Pedido dividido entre <b>${numPessoas} pessoas</b></span>
-        </div>`;
+      let htmlDivisao = `
+        <div style="margin-bottom: 12px; padding: 10px; background: #e7f5ff; border-radius: 8px; border: 1px solid #a5d8ff; font-size: 0.85rem; color: #1971c2;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px; border-bottom: 1px solid rgba(25, 113, 194, 0.2); padding-bottom: 4px;">
+            <span style="font-size: 1.1rem;">👥</span>
+            <span><b>DIVISÃO:</b> Pedido entre <b>${numPessoas} pessoas</b></span>
+          </div>`;
+      
+      if (p.pagamentos && p.pagamentos.length > 0) {
+        p.pagamentos.forEach((pag, idx) => {
+          htmlDivisao += `
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-top: 2px; opacity: 0.9;">
+              <span>Pessoa ${idx + 1} (${pag.forma_pagamento || 'N/A'}):</span>
+              <span style="font-weight: bold;">R$ ${(pag.valor || 0).toFixed(2)}</span>
+            </div>`;
+        });
+      }
+      
+      htmlDivisao += `</div>`;
+      htmlContent += htmlDivisao;
     }
 
     // Título da Lista de Itens
