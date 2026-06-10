@@ -1957,7 +1957,27 @@ function abrirModalDetalheHistorico(p) {
   if (encerramentoRaw) encerramentoFormatado = formatarData(encerramentoRaw).split(' ')[1];
   else if (p.status === 'cancelado') encerramentoFormatado = 'Cancelado';
 
-  if (horarios) horarios.innerHTML = `<b>Abertura:</b> ${aberturaFormatada}<br><b>Encerramento:</b> ${encerramentoFormatado}`;
+  if (horarios) {
+    horarios.style.display = 'flex';
+    horarios.style.gap = '10px';
+    horarios.style.background = '#f1f5f9';
+    horarios.style.padding = '12px';
+    horarios.style.borderRadius = '10px';
+    horarios.style.justifyContent = 'space-around';
+    horarios.style.border = '1px dashed #cbd5e1';
+    
+    horarios.innerHTML = `
+      <div style="text-align: center;">
+        <div style="font-size: 0.65rem; text-transform: uppercase; color: #64748b; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px;">🕒 Abertura</div>
+        <div style="font-size: 1.1rem; font-weight: 900; color: #1e293b;">${aberturaFormatada}</div>
+      </div>
+      <div style="width: 1px; background: #cbd5e1; height: 30px; align-self: center;"></div>
+      <div style="text-align: center;">
+        <div style="font-size: 0.65rem; text-transform: uppercase; color: #64748b; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px;">✅ Finalizado</div>
+        <div style="font-size: 1.1rem; font-weight: 900; color: ${p.status === 'cancelado' ? '#e74c3c' : '#1e293b'};">${encerramentoFormatado}</div>
+      </div>
+    `;
+  }
   if (responsavel) responsavel.innerText = p.garcom_nome || p.garcom_id || 'Administrador';
 
   // --- SEÇÃO DE ITENS E OBSERVAÇÕES ---
