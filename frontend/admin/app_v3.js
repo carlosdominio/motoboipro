@@ -1254,6 +1254,13 @@ async function toggleStatusGarcom(id, currentStatus) {
   try {
     const res = await fetch(`/api/admin/garcons/${id}/toggle-status`, { method: 'POST' });
     if (res.ok) {
+      const garcom = window.listaGarconsAtual ? window.listaGarconsAtual.find(g => g.id === id) : null;
+      const nomeGarcom = garcom ? garcom.nome : "Garçom";
+      const statusFinal = currentStatus ? "PAUSADO" : "ATIVADO";
+      
+      mostrarToast(`Garçom ${nomeGarcom} foi ${statusFinal}!`, currentStatus ? 'warning' : 'success', '⚙️ STATUS');
+      adicionarNotificacao(`⚙️ STATUS GARÇOM`, `O garçom ${nomeGarcom} foi ${statusFinal} na fila de atendimento.`, "⚙️");
+      
       exibirGarconsConfig(); // Recarrega a lista
     } else {
       mostrarAlerta("Erro ao alterar status do garçom.", "Erro", "❌");
@@ -1321,15 +1328,25 @@ async function processarAcaoGarcom() {
   });
 
   if (res.ok) {
-    mostrarToast(idGarcomEdicao ? "Garçom atualizado!" : "Garçom cadastrado!");
+    const msg = idGarcomEdicao ? "Garçom atualizado!" : "Garçom cadastrado!";
+    mostrarToast(msg);
+    adicionarNotificacao(idGarcomEdicao ? "👤 GARÇOM ATUALIZADO" : "👤 NOVO GARÇOM", `${nome} foi ${idGarcomEdicao ? 'atualizado' : 'cadastrado'} no sistema.`, "👤");
     cancelarEdicaoGarcom();
     exibirGarconsConfig();
   }
 }
 async function excluirGarcom(id) {
+  // Busca o nome do garçom antes de excluir para a notificação
+  const garcom = window.listaGarconsAtual ? window.listaGarconsAtual.find(g => g.id === id) : null;
+  const nomeGarcom = garcom ? garcom.nome : "Garçom";
+
   if (await mostrarConfirmacao("Excluir este garçom?", "Configuração", "Confirmar", "Cancelar", "🗑️")) {
     const res = await fetch(`/api/garcons/${id}`, { method: 'DELETE' });
-    if (res.ok) exibirGarconsConfig();
+    if (res.ok) {
+      mostrarToast(`Garçom ${nomeGarcom} removido.`, "info", "🗑️ CONFIG");
+      adicionarNotificacao("🗑️ GARÇOM REMOVIDO", `O garçom ${nomeGarcom} foi excluído do sistema.`, "🗑️");
+      exibirGarconsConfig();
+    }
   }
 }
 
