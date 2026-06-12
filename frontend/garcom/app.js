@@ -436,15 +436,15 @@ async function configurarPusher() {
           if (data.status === 'liberada') msg = `✅ Mesa ${nMesa} liberada`;
           else if (data.status === 'servido') msg = `🚚 Pedido da Mesa ${nMesa} entregue!`;
           else if (data.status === 'itens_atualizados') msg = `📝 Pedido da Mesa ${nMesa} atualizado pelo Admin`;
-          else if (data.status === 'cancelado') msg = `❌ Pedido da Mesa ${nMesa} CANCELADO pelo Admin`;
+          
+          // Removido o 'cancelado' daqui para evitar duplicidade com o evento 'pedido-cancelado'
 
           if (msg) {
-            mostrarToast(msg, data.status === 'cancelado' ? 'error' : 'info');
-            tocarCampainha(data.status !== 'cancelado');
+            mostrarToast(msg, 'info');
+            tocarCampainha(true); // Som suave para atualizações normais
             exibirNotificacaoNativa('📢 ATUALIZAÇÃO DE PEDIDO', msg, tagId);
 
-            // Se a mesa que o garçom está olhando foi cancelada/liberada, fecha os detalhes
-            if (data.status === 'cancelado' || data.status === 'liberada') {
+            if (data.status === 'liberada') {
                if (mesaAtual && (mesaAtual.id == data.mesa_id || mesaAtual.numero == data.mesa_numero)) {
                   fecharOpcoes();
                   fecharResumoMesa();
@@ -460,7 +460,7 @@ async function configurarPusher() {
       console.log('📢 Evento recebido: pedido-cancelado', data);
       const msg = data.mensagem || `🚨 Pedido #${data.pedido_id} foi REMOVIDO pelo Admin.`;
       
-      tocarCampainha();
+      tocarCampainha(); // Som normal (mais forte) para cancelamento
       mostrarToast(msg, 'error', '❌ PEDIDO REMOVIDO');
       exibirNotificacaoNativa('❌ PEDIDO REMOVIDO', msg, `cancel-${data.pedido_id}`);
 
@@ -699,11 +699,6 @@ function mostrarToast(msg, tipo = 'success', titulo = '', duracao = 5000) {
 
   t.innerHTML = html;
   container.appendChild(t);
-
-  // NOVO: Espelha para notificação nativa do Windows automaticamente
-  if (typeof exibirNotificacaoNativa === 'function') {
-    exibirNotificacaoNativa(titulo || (classeTipo.toUpperCase() + ": " + (icones[classeTipo] || "")), msg, 'toast-' + Date.now());
-  }
 
   setTimeout(() => t.classList.add('show'), 10);
 
