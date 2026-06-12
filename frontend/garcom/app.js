@@ -3,6 +3,15 @@ let mesas = [];
 let timeoutPusher = null;
 let configCozinhaCategorias = []; // Estado global das categorias da cozinha
 
+// REGISTRO DE SERVICE WORKER (PWA)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/garcom/sw.js')
+      .then(reg => console.log('🚀 Service Worker registrado!', reg))
+      .catch(err => console.log('❌ Erro ao registrar Service Worker:', err));
+  });
+}
+
 let configCozinhaLoaded = false; // Flag para saber se já carregou do servidor
 
 // Helper para travar/destravar o scroll do fundo de forma robusta
