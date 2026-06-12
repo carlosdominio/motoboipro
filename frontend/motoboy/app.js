@@ -108,7 +108,7 @@ async function initPusher() {
             loadPedidos();
 
             // FILTRO: Só mostra balão se for DELIVERY
-            if (data.garcom_id === 'DELIVERY' || (data.mesa_numero && data.mesa_numero.includes('DELIVERY'))) {
+            if (String(data.garcom_id) === 'DELIVERY' || (data.mesa_numero && String(data.mesa_numero).includes('DELIVERY'))) {
                 showToast(`Pedido #${data.id || data.pedido_id} foi REMOVIDO.`, "warning");
                 exibirNotificacaoNativa(`❌ PEDIDO REMOVIDO`, `Pedido #${data.id || data.pedido_id} foi cancelado.`);
             }
@@ -120,7 +120,7 @@ async function initPusher() {
             loadPedidos();
 
             // FILTRO: Só mostra balão se for DELIVERY
-            if (data.garcom_id === 'DELIVERY' || (data.mesa_numero && data.mesa_numero.includes('DELIVERY'))) {
+            if (String(data.garcom_id) === 'DELIVERY' || (data.mesa_numero && String(data.mesa_numero).includes('DELIVERY'))) {
                 showToast("Pedido pronto para entrega!", "success");
                 exibirNotificacaoNativa(`🍳 COZINHA: PRONTO`, `O pedido de delivery está pronto!`);
             }
