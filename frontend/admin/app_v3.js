@@ -4640,8 +4640,10 @@ async function configurarPusher() {
       
       if (data.status === 'fechado') {
           mostrarToast('O caixa foi FECHADO com sucesso!', 'warning', '💰 CAIXA');
+          adicionarNotificacao('💰 CAIXA FECHADO', 'O expediente foi encerrado com sucesso.', '💰');
       } else if (data.status === 'aberto') {
           mostrarToast('O caixa foi ABERTO! Bom trabalho.', 'success', '💰 CAIXA');
+          adicionarNotificacao('💰 CAIXA ABERTO', 'O caixa está pronto para vendas.', '💰');
       }
 
       clearTimeout(timeoutPusher);
