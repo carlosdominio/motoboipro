@@ -637,14 +637,24 @@ function solicitarPermissaoNotificacao() {
 
 function exibirNotificacaoNativa(tit, msg, tagId = 'geral') {
   if ("Notification" in window && Notification.permission === "granted") {
-    const n = new Notification(tit, {
+    const options = {
       body: msg,
       tag: tagId,
-      renotify: true
-    });
+      renotify: true,
+      vibrate: [200, 100, 200],
+      icon: '/garcom/favicon.svg',
+      badge: '/garcom/favicon.svg'
+    };
+    
+    const n = new Notification(tit, options);
+    
     n.onclick = () => {
       window.focus();
+      n.close();
     };
+
+    // Auto-fecha a notificação do sistema após 8 segundos para não travar no topo
+    setTimeout(() => n.close(), 8000);
   }
 }
 
