@@ -430,6 +430,7 @@ async function configurarPusher() {
         carregarMesas();
         if (data) {
           const nMesa = data.mesa_numero || data.mesa_id || 'X';
+          const tagId = `status-${data.pedido_id}-${data.status}`;
           let msg = '';
           
           if (data.status === 'liberada') msg = `✅ Mesa ${nMesa} liberada`;
@@ -438,12 +439,25 @@ async function configurarPusher() {
           else if (data.status === 'cancelado') msg = `❌ Pedido da Mesa ${nMesa} CANCELADO pelo Admin`;
 
           if (msg) {
-            mostrarToast(msg);
-            // Toca som suave para notificações vindas do Admin ou sistema
-            tocarCampainha(true);
+            mostrarToast(msg, data.status === 'cancelado' ? 'error' : 'info');
+            // Toca som para notificações vindas do Admin ou sistema
+            tocarCampainha(data.status !== 'cancelado'); // Som normal para cancelamento, suave para outros
+            exibirNotificacaoNativa('📢 ATUALIZAÇÃO DE PEDIDO', msg, tagId);
           }
         }
       }, 50);
+    });
+
+    channel.bind('pedido-cancelado', (data) => {
+      console.log('📢 Evento recebido: pedido-cancelado', data);
+      const msg = data.mensagem || `🚨 Pedido #${data.pedido_id} foi REMOVIDO pelo Admin.`;
+      
+      tocarCampainha();
+      mostrarToast(msg, 'error', '❌ PEDIDO REMOVIDO');
+      exibirNotificacaoNativa('❌ PEDIDO REMOVIDO', msg, `cancel-${data.pedido_id}`);
+      
+      clearTimeout(timeoutPusher);
+      timeoutPusher = setTimeout(() => carregarMesas(), 50);
     });
 
     channel.bind('status-caixa-atualizado', (data) => {
