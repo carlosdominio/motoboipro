@@ -1,4 +1,4 @@
-const CACHE_NAME = 'garcom-cache-v4'; // Incrementado para forçar atualização
+const CACHE_NAME = 'garcom-cache-v5'; // Incrementado para forçar atualização
 const urlsToCache = [
   'index.html',
   'style.css',
@@ -53,22 +53,32 @@ self.addEventListener('push', event => {
   if (event.data) {
     try {
       const data = event.data.json();
+      
+      // Criamos um 'tag' único para cada mensagem baseado no tempo se não houver um,
+      // ou usamos o evento. Isso FORÇA o Android a tratar como uma nova notificação
+      // e tocar o som/vibrar novamente mesmo que a anterior não tenha sido lida.
+      const uniqueTag = data.tag || `${data.event || 'push'}-${Date.now()}`;
+      
       const options = {
         body: data.body,
         icon: '/garcom/favicon.svg',
         badge: '/garcom/favicon.svg',
-        vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40],
-        requireInteraction: true,
-        renotify: true,
+        // Padrão de vibração "SOS/Emergência" ultra-agressivo
+        vibrate: [1000, 200, 1000, 200, 1000, 200, 500, 100, 500, 100, 500, 100, 1000, 200, 1000, 200, 1000],
+        requireInteraction: true, // Não deixa a notificação sumir sozinha
+        renotify: true, // Força vibrar/tocar mesmo se houver outra notificação do mesmo app
         silent: false,
-        tag: data.event || 'push-notification',
+        tag: uniqueTag, 
         data: {
           url: self.registration.scope
-        }
+        },
+        actions: [
+          { action: 'open', title: '✅ VER AGORA' }
+        ]
       };
 
       event.waitUntil(
-        self.registration.showNotification(data.title || 'GarçomExpress', options)
+        self.registration.showNotification(data.title || '🚨 GarçomExpress', options)
       );
     } catch (e) {
       console.error('Erro ao processar push:', e);
