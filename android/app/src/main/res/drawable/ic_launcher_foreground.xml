@@ -4,20 +4,24 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Escalonando o logo (100x100) para caber no centro (108x108) com margem -->
-    <group android:translateX="4" android:translateY="4">
-        <!-- Circulo azul original do logo -->
-        <path
-            android:fillColor="#2c3e50"
-            android:pathData="M50,50m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0" />
-        <!-- Parte verde (Cloche) -->
+    <!-- Centralizando e desenhando os elementos do logo por cima do fundo -->
+    <group
+        android:translateX="4"
+        android:translateY="4"
+        android:scaleX="1.0"
+        android:scaleY="1.0">
+        
+        <!-- Tampa Verde (Cloche) -->
         <path
             android:fillColor="#27ae60"
             android:pathData="M20,70 L80,70 Q80,30 50,30 Q20,30 20,70 Z" />
-        <!-- Detalhes cinzas -->
+            
+        <!-- Base do Prato (Retângulo Branco/Cinza) -->
         <path
             android:fillColor="#ecf0f1"
             android:pathData="M18,70h64v5h-64z" />
+            
+        <!-- Bolinha do topo da tampa -->
         <path
             android:fillColor="#ecf0f1"
             android:pathData="M50,28m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
