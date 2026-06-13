@@ -102,6 +102,14 @@ async function registerNativePush() {
       if (typeof carregarMesas === 'function') carregarMesas();
     });
 
+    // --- NOVO: TRATAMENTO DE CLIQUE NA NOTIFICAÇÃO ---
+    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+      console.log('🖱️ Clique na notificação detectado:', notification);
+      // Ao clicar, garante que os dados estão atualizados
+      if (typeof carregarMesas === 'function') carregarMesas();
+      // Tenta focar na janela do app (nativo já faz isso, mas aqui reforçamos)
+    });
+
   } catch (error) {
     console.error('❌ Erro Push Nativo:', error);
   }

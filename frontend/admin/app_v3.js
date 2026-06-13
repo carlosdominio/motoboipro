@@ -185,27 +185,46 @@ let audioDesbloqueado = false;
 // Função para preparar áudio no primeiro clique do usuário
 function desbloquearAudio() {
   if (audioDesbloqueado) return;
-  
-  // Tenta tocar e pausar imediatamente para ganhar permissão do navegador
+
+  // Tenta carregar e tocar silenciosamente para ganhar permissão do navegador
+  audioNotificacao.load(); 
   audioNotificacao.muted = true;
-  audioNotificacao.play().then(() => {
-    audioNotificacao.pause();
-    audioNotificacao.currentTime = 0;
-    
-    // Agora que temos permissão, verificamos se o som deve estar ativo
-    const somMP3 = localStorage.getItem('admin_som_mp3_ativo') !== 'false';
-    audioNotificacao.muted = !somMP3;
-    
-    audioDesbloqueado = true;
-    console.log('🔊 Áudio do Admin desbloqueado com sucesso!');
-  }).catch(e => {
-    console.warn('⚠️ Falha ao desbloquear áudio (clique necessário):', e);
-  });
+  const playPromise = audioNotificacao.play();
+
+  if (playPromise !== undefined) {
+    playPromise.then(() => {
+      audioNotificacao.pause();
+      audioNotificacao.currentTime = 0;
+
+      // Agora que temos permissão, verificamos se o som deve estar ativo
+      const somMP3 = localStorage.getItem('admin_som_mp3_ativo') !== 'false';
+      audioNotificacao.muted = !somMP3;
+
+      audioDesbloqueado = true;
+      console.log('🔊 Áudio do Admin desbloqueado com sucesso!');
+
+      // Remove os listeners agora que funcionou
+      document.removeEventListener('click', desbloquearAudio);
+      document.removeEventListener('touchstart', desbloquearAudio);
+      document.removeEventListener('mousedown', desbloquearAudio);
+      document.removeEventListener('keydown', desbloquearAudio);
+      document.removeEventListener('pointerdown', desbloquearAudio);
+    }).catch(e => {
+      // Se falhou (geralmente por falta de interação válida), mantemos audioDesbloqueado = false 
+      // para que a próxima interação tente novamente. Silenciamos NotAllowedError.
+      if (e.name !== 'NotAllowedError') {
+        console.warn('⚠️ Erro ao preparar áudio:', e);
+      }
+    });
+  }
 }
 
-// Escuta qualquer clique na página para desbloquear o som
-document.addEventListener('click', desbloquearAudio, { once: true });
-document.addEventListener('touchstart', desbloquearAudio, { once: true });
+// Escuta interações para desbloquear o som (sem { once: true } para permitir re-tentativa se falhar)
+document.addEventListener('click', desbloquearAudio);
+document.addEventListener('touchstart', desbloquearAudio);
+document.addEventListener('mousedown', desbloquearAudio);
+document.addEventListener('keydown', desbloquearAudio);
+document.addEventListener('pointerdown', desbloquearAudio);
 let intervalPiscaTitulo = null;
 const tituloOriginal = "Admin - GarçomExpress";
 
