@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Silhueta Branca do Logo (Apenas a tampa e o prato) -->
+    <group
+        android:translateX="4"
+        android:translateY="4">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M20,70 L80,70 Q80,30 50,30 Q20,30 20,70 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M18,70h64v5h-64z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M50,28m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+    </group>
+</vector>
