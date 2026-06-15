@@ -3,20 +3,24 @@
   "version": "1.0.0",
   "description": "Aplicativo nativo para Motoboys - Entrega de Pedidos",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build": "echo 'No build step required for plain JS'",
+    "build": "echo 'Building vanilla JS...'",
     "cap-copy": "npx cap copy",
     "cap-sync": "npx cap sync",
     "cap-open": "npx cap open android"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
-    "@capacitor/cli": "^7.6.6",
     "@capacitor/core": "^8.4.0",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/local-notifications": "^8.2.0",
     "@capacitor/push-notifications": "^8.1.1",
     "@capacitor/status-bar": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.6",
+    "typescript": "^5.4.0"
   },
   "author": "Gemini CLI",
   "license": "MIT"
