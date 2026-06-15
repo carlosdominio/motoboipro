@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="pt-BR" translate="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GarçonExpress - Admin</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="style.css?v=1.0.5">
+  <style>
+    #historico-section:not(.hidden) {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 180px) !important; /* Esticado ao máximo para baixo */
+      overflow: hidden !important;
+      margin-top: 20px !important; /* MANTIDA A SEPARAÇÃO DAS ABAS */
+    }
+    
+    /* Remove preenchimentos inúteis do topo para o conteúdo caber na tela */
+    main:has(#historico-section:not(.hidden)) {
+      padding: 0 10px !important;
+      margin-top: 0 !important;
+    }
+
+    #historico-section .filters-bar {
+      flex-shrink: 0;
+      position: relative !important;
+      top: 0 !important;
+      margin-bottom: 0 !important; /* Colado na lista para ganhar espaço */
+      box-shadow: 0 4px 6px rgba(0,0,0,0.07) !important; 
+      background: white;
+      border-radius: 10px;
+      padding: 12px 20px; /* MANTIDA A ESPESSURA SOLICITADA */
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* Compacta o cabeçalho das colunas para os cards subirem */
+    #historico-list .kanban-col h3 {
+      margin-top: 0 !important;
+      margin-bottom: 4px !important;
+      padding-bottom: 2px !important;
+      font-size: 0.85rem !important;
+    }
+    #historico-section .filters-left {
+      flex: 3 !important;
+    }
+    #filtro-historico-busca {
+      width: 280px !important; 
+    }
+    #historico-list {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      width: 100%;
+      flex-wrap: nowrap;
+      flex: 1;
+      overflow: hidden !important;
+    }
+    #historico-finalizados, #historico-cancelados {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-width: 300px;
+      background: #f8fafc;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      overflow: hidden !important;
+    }
+    #lista-finalizados, #lista-cancelados {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      overflow: hidden !important;
+      justify-content: flex-start;
+    }
+
+    /* Visualizador de Imagem Global (Fora do Iframe) */
+    #global-image-viewer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999; /* Por cima de absolutamente tudo */
+      cursor: pointer;
+    }
+    #global-image-viewer img {
+      max-width: 95vw;
+      max-height: 95vh;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.5);
+      cursor: default;
+    }
+    #global-image-viewer .btn-fechar-global {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: white;
+    font-size: 50px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    }
+
+    /* FORÇAR ESTILO DO BOTÃO FECHAR (X) */
+    .close {
+      font-size: 2rem !important;
+      font-weight: 900 !important;
+      color: #000000 !important;
+      cursor: pointer !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 40px !important;
+      height: 40px !important;
+      transition: all 0.2s !important;
+      position: relative !important;
+      z-index: 9999 !important;
+      line-height: 1 !important;
+      opacity: 0.8 !important;
+    }
+
+    .close:hover {
+      opacity: 1 !important;
+      color: #333333 !important;
+      transform: scale(1.1) !important;
+      background: rgba(0,0,0,0.05) !important;
+      border-radius: 50% !important;
+    }
+    </style>
+</head>
+<body>
+  <!-- Visualizador Global -->
+  <div id="global-image-viewer" onclick="fecharVisualizadorGlobal()">
+    <span class="btn-fechar-global">&times;</span>
+    <img id="global-image-target" src="" onclick="event.stopPropagation()">
+  </div>
+
+  <!-- Modal de Login Admin -->
+  <div id="tela-login-admin" class="tela-login-admin">
+    <div class="login-box">
+      <h1>Painel Admin</h1>
+      <p>Acesso Restrito</p>
+      <input type="text" id="admin-usuario" placeholder="Usuário Admin">
+      <input type="password" id="admin-senha" placeholder="Senha">
+      <button onclick="realizarLoginAdmin()" style="background-color: #2c3e50;">Entrar no Sistema</button>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-main">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <h1 style="margin:0">Painel Administrativo</h1>
+        <span id="caixa-status-badge-admin" class="badge-caixa" style="display:none; width:fit-content;"></span>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="toggle-container" style="display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span id="label-som-mp3" style="font-size: 0.65rem; font-weight: bold; color: #fff;">🔔 CAMPANHA</span>
+            <label class="switch" style="width: 32px; height: 16px;">
+              <input type="checkbox" id="check-som-mp3" onchange="alternarSomMP3()">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span id="label-som-win" style="font-size: 0.65rem; font-weight: bold; color: #fff;">🔊 WIN</span>
+            <label class="switch" style="width: 32px; height: 16px;">
+              <input type="checkbox" id="check-som-windows" onchange="alternarSomWindows()">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 10px;">
+            <span id="label-delivery" style="font-size: 0.65rem; font-weight: bold; color: #fff;">🛵 DELIVERY</span>
+            <label class="switch" style="width: 32px; height: 16px;">
+              <input type="checkbox" id="check-delivery" onchange="alternarDelivery()">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="dropdown-menu-header" id="notificacoes-container">
+          <button onclick="toggleDropdownNotificacoes()" class="dropbtn-header" style="position: relative; padding: 8px 12px !important;">
+            <i class="fa-solid fa-bell" style="font-size: 1.1rem;"></i>
+            <span id="notificacoes-badge" class="badge-notificacao hidden">0</span>
+          </button>
+          <div id="dropdown-notificacoes" class="dropdown-content-header" style="width: 320px; max-height: 350px; display: none; flex-direction: column;">
+            <div style="padding: 12px 15px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; flex-shrink: 0;">
+              <strong style="color: #2c3e50; font-size: 0.9rem;">🔔 Notificações</strong>
+              <button onclick="limparNotificacoes()" style="background: none; border: none; color: #3498db; font-size: 0.75rem; cursor: pointer; font-weight: bold; text-transform: uppercase;">Limpar Tudo</button>
+            </div>
+            <div id="notificacoes-lista" style="overflow-y: auto; flex: 1; min-height: 100px;">
+              <div style="padding: 30px 20px; text-align: center; color: #94a3b8; font-size: 0.85rem;">
+                <i class="fa-solid fa-circle-check" style="display: block; font-size: 2rem; margin-bottom: 10px; opacity: 0.3;"></i>
+                Tudo em dia por aqui!
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dropdown-menu-header">
+          <button onclick="toggleDropdownAcessos()" class="dropbtn-header">
+            🚀 ACESSOS <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem;"></i>
+          </button>
+          <div id="dropdown-acessos" class="dropdown-content-header">
+            <a href="/garcom" target="_blank" class="dropdown-item-header garcom">
+              <i class="fa-solid fa-bell-concierge"></i> App do Garçom
+            </a>
+            <a href="/cozinha" target="_blank" class="dropdown-item-header cozinha">
+              <i class="fa-solid fa-utensils"></i> Painel Cozinha
+            </a>
+            <a href="/motoboy" target="_blank" class="dropdown-item-header motoboy">
+              <i class="fa-solid fa-motorcycle"></i> Painel Motoboy
+            </a>
+            <a href="/cardapio" target="_blank" class="dropdown-item-header mesa">
+              <i class="fa-solid fa-table-list"></i> Cardápio Digital
+            </a>
+            <a href="/delivery" target="_blank" class="dropdown-item-header delivery">
+              <i class="fa-solid fa-truck-fast"></i> Cardápio Delivery
+            </a>
+            <a href="https://web.whatsapp.com" target="_blank" class="dropdown-item-header whatsapp">
+              <i class="fa-brands fa-whatsapp"></i> WhatsApp Web
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="header-stats">
+      <div class="stat-item">
+        <small>ATIVO AGORA</small>
+        <strong id="faturamento-resumo">R$ 0,00</strong>
+      </div>
+      <div class="stat-item v-hoje">
+        <small>VENDAS HOJE</small>
+        <strong id="vendas-dia-resumo">R$ 0,00</strong>
+      </div>
+      <div class="stat-item print-config">
+        <small>IMPRESSÃO</small>
+        <select id="print-paper-select" class="print-paper-select">
+          <option value="58">58mm</option>
+          <option value="80">80mm</option>
+        </select>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div id="pusher-status" title="Conexão Real-Time" style="width: 10px; height: 10px; background: #ff4444; border-radius: 50%; box-shadow: 0 0 5px rgba(255,0,0,0.5);"></div>
+        <button onclick="logoutAdmin()" class="btn-sair">SAIR</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <nav class="tabs">
+      <button class="tab-btn active" onclick="switchTab('ativos')">
+        <span id="ativos-tab-icon">📋</span> Pedidos Ativos
+        <span id="badge-ativos-contador" class="badge-contador hidden">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('lancar')">🛒 Lançar Pedido</button>
+      <button class="tab-btn" onclick="switchTab('historico')">📜 Histórico</button>
+      <button class="tab-btn" onclick="switchTab('caixa')">💰 Caixa</button>
+      <button class="tab-btn" onclick="switchTab('whatsapp')">
+        <span id="whatsapp-tab-icon">💬</span> WhatsApp
+        <span id="badge-whatsapp-contador" class="badge-contador hidden">0</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('configuracoes')">⚙️ Configurações</button>
+    </nav>
+
+    <section id="whatsapp-section" class="hidden" style="height: calc(100vh - 160px); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 10px;">
+      <div class="config-card" style="flex: 1; display: flex; flex-direction: column; padding: 1rem; overflow: hidden; margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #eee; padding-bottom: 10px; flex-shrink: 0;">
+          <h3 style="margin:0;">💬 Automação WhatsApp</h3>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div id="whatsapp-info-container" style="background: #f8fafc; padding: 4px 12px; border-radius: 20px; border: 1px solid #e2e8f0; font-size: 0.75rem;">
+              <span style="color: #64748b; font-weight: bold;">NOTIFICAR: </span>
+              <span id="whatsapp-notify-number" style="font-weight: bold; color: #2c3e50;">...</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; background: #f1f5f9; padding: 4px 10px; border-radius: 20px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.65rem; font-weight: 900; color: #64748b;">ROBÔ:</span>
+              <label class="switch">
+                <input type="checkbox" id="toggle-whatsapp" onchange="alternarWhatsApp(this.checked)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div id="whatsapp-status-badge" style="padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; background: #eee; min-width: 100px; text-align: center;">Verificando...</div>
+          </div>
+        </div>
+
+        <div style="flex: 1; min-height: 0; border-radius: 12px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 12px rgba(0,0,0,0.05); position: relative;">
+          <iframe id="whatsapp-iframe" src="https://meu-zap-bot.onrender.com/" style="width: 100%; height: 100%; border: none;" allow="microphone"></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção Lançar Pedido (NOVO - Layout de Altura Fixa) -->
+    <section id="lancar-section" class="hidden" style="height: calc(100vh - 160px); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 10px;">
+      <div class="config-card" style="margin-bottom: 0.5rem; padding: 12px; flex-shrink: 0; background: white; border-radius: 12px; border: 1px solid #eee;">
+        <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <h3 style="margin:0; white-space: nowrap; font-size: 1rem;">📍 Iniciar em:</h3>
+            <select id="lancar-mesa-select" style="padding: 8px; border-radius: 10px; border: 2px solid #3498db; font-size: 1rem; width: 220px; font-weight: bold; color: #2c3e50;">
+              <option value="">Selecione a Mesa</option>
+            </select>
+          </div>
+          
+          <button onclick="enviarPedidoLoteAdmin()" style="padding: 10px 25px; background: #27ae60; color: white; font-size: 1rem; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 0 #219150; transition: 0.2s transform active;">
+            🚀 LANÇAR PEDIDO AGORA
+          </button>
+        </div>
+      </div>
+
+      <div class="edit-modal-grid" style="flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 2fr; gap: 15px; background: white; padding: 15px; border-radius: 12px; border: 1px solid #eee; overflow: hidden;">
+        <!-- Coluna Esquerda: Carrinho -->
+        <div class="edit-col-itens" style="display: flex; flex-direction: column; height: 100%; overflow: hidden; border-right: 1px solid #f1f5f9; padding-right: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-shrink: 0;">
+            <h3 style="margin:0; font-size: 1.1rem;">🛒 Carrinho</h3>
+            <button onclick="limparCarrinhoLancar()" style="background: #fff1f2; color: #ef4444; border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">🗑️ LIMPAR</button>
+          </div>
+          
+          <div id="lancar-carrinho" style="flex: 1; overflow-y: auto; background: #f8fafc; border-radius: 12px; padding: 10px; border: 1px dashed #cbd5e0; margin-bottom: 10px;">
+            <p style="text-align: center; margin-top: 2rem; opacity: 0.5;">Adicione itens...</p>
+          </div>
+          
+          <div style="flex-shrink: 0; background: #fff; padding-top: 10px; border-top: 2px solid #eee;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="toggle-container">
+                <span style="font-size: 0.85rem; font-weight: bold; color: #64748b;">10%</span>
+                <label class="switch">
+                  <input type="checkbox" id="lancar-taxa-toggle" onchange="renderizarCarrinhoLancar()">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div id="lancar-total" style="font-weight: 900; font-size: 1.5rem; color: #27ae60;">R$ 0,00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna Direita: Seleção de Itens -->
+        <div class="edit-col-menu" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <div id="lancar-menu-grid" class="menu-grid-mini" style="flex: 1; overflow-y: auto; padding: 5px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 12px; margin-bottom: 10px;">
+            <!-- Itens rolam verticalmente -->
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; margin-top: 0px; flex-shrink: 0; background: #f8fafc; padding: 5px; border-radius: 10px; border: 1px solid #e2e8f0;">
+            <button onclick="scrollCategoriasLancar(-150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❮</button>
+            <div id="lancar-menu-categorias" class="categorias-grid-mini" style="flex: 1; margin-bottom: 0 !important; padding-bottom: 0; overflow-x: auto; scroll-behavior: smooth; display: flex; gap: 8px; scrollbar-width: none; -ms-overflow-style: none;">
+              <!-- Categorias injetadas via JS -->
+            </div>
+            <button onclick="scrollCategoriasLancar(150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❯</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="caixa-section" class="hidden">
+      <div id="caixa-fechado-view" class="config-card" style="max-width: 500px; margin: 2rem auto; text-align: center;">
+        <h2 style="margin-bottom: 1.5rem;">O Caixa está FECHADO</h2>
+        <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Informe o valor inicial em dinheiro para abrir o caixa e começar a receber pedidos.</p>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <input type="number" id="caixa-valor-inicial" placeholder="Valor Inicial (R$)" step="0.50" style="padding: 1rem; font-size: 1.2rem; text-align: center;">
+          <button onclick="abrirCaixa()" style="padding: 1rem; font-size: 1.1rem; background: #27ae60;">🚀 ABRIR CAIXA AGORA</button>
+        </div>
+      </div>
+
+      <div id="caixa-aberto-view" class="hidden">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          <div class="config-card" style="border-top: 4px solid #3498db;">
+            <small>Valor Inicial</small>
+            <h2 id="resumo-caixa-inicial">R$ 0,00</h2>
+          </div>
+          <div class="config-card" style="border-top: 4px solid #27ae60;">
+            <small>Vendas (Total)</small>
+            <h2 id="resumo-caixa-vendas">R$ 0,00</h2>
+          </div>
+          <div class="config-card" style="border-top: 4px solid #f1c40f;">
+            <small>Em Dinheiro (Esperado)</small>
+            <h2 id="resumo-caixa-dinheiro">R$ 0,00</h2>
+          </div>
+        </div>
+
+        <div class="config-card" style="margin-bottom: 2rem;">
+          <h3>Detalhamento por Meio de Pagamento</h3>
+          <div style="display: flex; justify-content: space-around; padding: 1rem 0;">
+            <div style="text-align: center;">
+              <p>💵 Dinheiro</p>
+              <strong id="detalhe-caixa-dinheiro" style="font-size: 1.2rem;">R$ 0,00</strong>
+            </div>
+            <div style="text-align: center;">
+              <p>📱 Pix</p>
+              <strong id="detalhe-caixa-pix" style="font-size: 1.2rem;">R$ 0,00</strong>
+            </div>
+            <div style="text-align: center;">
+              <p>💳 Cartão</p>
+              <strong id="detalhe-caixa-cartao" style="font-size: 1.2rem;">R$ 0,00</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+          <button onclick="imprimirRelatorioCaixa()" style="background: #3498db; flex: 1; padding: 1.5rem; font-size: 1.2rem;">🖨️ IMPRIMIR RELATÓRIO PARCIAL</button>
+          <button onclick="confirmarFechamentoCaixa()" style="background: #e74c3c; flex: 1; padding: 1.5rem; font-size: 1.2rem;">🏁 FECHAR CAIXA E ENCERRAR DIA</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="ativos-section">
+      <!-- Barra de Filtros e Sub-Abas (Sticky) -->
+      <div class="filters-bar">
+          <!-- Lado Esquerdo: Abas de Grupo -->
+          <div class="filters-left">
+            <div class="sub-tabs" style="background: #f1f2f6; padding: 4px; border-radius: 10px; display: flex; gap: 4px; border: 1px solid #e2e8f0;">
+              <button id="tab-sub-garcom" onclick="switchSubTab('garcom')" class="sub-tab-btn active" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                🍽️ Mesas <span id="badge-sub-garcom" class="badge-mini">0</span>
+              </button>
+              <button id="tab-sub-balcao" onclick="switchSubTab('balcao')" class="sub-tab-btn" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                🏪 Balcão <span id="badge-sub-balcao" class="badge-mini">0</span>
+              </button>
+              <button id="tab-sub-delivery" onclick="switchSubTab('delivery')" class="sub-tab-btn" style="padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                🛵 Delivery <span id="badge-sub-delivery" class="badge-mini">0</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Lado Direito: Busca e Filtros -->
+          <div class="filters-right" style="flex: 2; justify-content: flex-end;">
+            <div style="font-weight: 800; color: #2c3e50; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;" class="hide-mobile">
+              <span style="font-size: 1.1rem;">🎯</span> BUSCA:
+            </div>
+
+            <div style="flex: 1; min-width: 200px; position: relative;">
+              <input type="text" id="filtro-mesas" placeholder="Buscar mesa específica..." 
+                     oninput="filtrarMesasAtivas(this.value)"
+                     style="width: 100%; padding: 10px 15px; border-radius: 8px; border: 2px solid #edf2f7; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box;">
+            </div>
+            
+            <select id="select-mesas-ativas" onchange="filtrarPorSelect(this.value)"
+                    style="padding: 10px; border-radius: 8px; border: 2px solid #edf2f7; background: #f8fafc; outline: none; cursor: pointer; font-size: 0.95rem; font-weight: bold; color: #2d3748; min-width: 150px;">
+              <option value="">Todas</option>
+            </select>
+            
+            <button onclick="document.getElementById('filtro-mesas').value=''; filtrarMesasAtivas(''); document.getElementById('select-mesas-ativas').value=''; filtrarPorSelect('');" 
+                    style="background: #e2e8f0; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; color: #4a5568; font-size: 0.85rem; transition: 0.2s;">
+              LIMPAR
+            </button>
+          </div>
+      </div>
+
+      <!-- Título 'Pedidos em Andamento' removido -->
+
+
+      <div id="group-garcom" class="sub-tab-content">
+        <div class="kanban-board">
+          <div class="kanban-col" id="col-pendentes-garcom">
+            <h3>🔥 Pendentes <span class="badge-mini" id="count-pendentes-garcom">0</span></h3>
+            <!-- Controles de Paginação Pendentes Garçom -->
+            <div id="nav-pendentes-garcom" style="display:none; justify-content:space-between; align-items:center; margin-bottom:10px; background:#fff; padding:8px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+              <button onclick="mudarPagina('pendentes', 'garcom', -1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">◀</button>
+              <span id="page-info-pendentes-garcom" style="font-weight:bold; font-size:0.85rem; color:#64748b;">1 / 1</span>
+              <button onclick="mudarPagina('pendentes', 'garcom', 1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">▶</button>
+            </div>
+            <div id="list-pendentes-garcom" class="pedidos-list"></div>
+          </div>
+          <div class="kanban-col" id="col-servidos-garcom">
+            <h3>🍽️ Em Consumo <span class="badge-mini" id="count-servidos-garcom">0</span></h3>
+            <!-- Controles de Paginação Em Consumo Garçom -->
+            <div id="nav-servidos-garcom" style="display:none; justify-content:space-between; align-items:center; margin-bottom:10px; background:#fff; padding:8px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+              <button onclick="mudarPagina('servidos', 'garcom', -1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">◀</button>
+              <span id="page-info-servidos-garcom" style="font-weight:bold; font-size:0.85rem; color:#64748b;">1 / 1</span>
+              <button onclick="mudarPagina('servidos', 'garcom', 1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">▶</button>
+            </div>
+            <div id="list-servidos-garcom" class="pedidos-list"></div>
+          </div>
+          <div class="kanban-col" id="col-fechamento-garcom">
+            <h3>💰 Fechamento <span class="badge-mini" id="count-fechamento-garcom">0</span></h3>
+            <!-- Controles de Paginação Fechamento Garçom -->
+            <div id="nav-fechamento-garcom" style="display:none; justify-content:space-between; align-items:center; margin-bottom:10px; background:#fff; padding:8px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+              <button onclick="mudarPagina('fechamento', 'garcom', -1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">◀</button>
+              <span id="page-info-fechamento-garcom" style="font-weight:bold; font-size:0.85rem; color:#64748b;">1 / 1</span>
+              <button onclick="mudarPagina('fechamento', 'garcom', 1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">▶</button>
+            </div>
+            <div id="list-fechamento-garcom" class="pedidos-list"></div>
+          </div>
+          </div>
+          </div>
+          <div id="group-balcao" class="sub-tab-content hidden">
+            <div class="kanban-board">
+              <div class="kanban-col" id="col-pendentes-balcao">
+                <h3>🔥 Pendentes <span class="badge-mini" id="count-pendentes-balcao">0</span></h3>
+                <!-- Controles de Paginação Pendentes Balcão -->
+                <div id="nav-pendentes-balcao" style="display:none; justify-content:space-between; align-items:center; margin-bottom:0px; background:#fff; padding:8px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                  <button onclick="mudarPagina('pendentes', 'balcao', -1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">◀</button>
+                  <span id="page-info-pendentes-balcao" style="font-weight:bold; font-size:0.85rem; color:#64748b;">1 / 1</span>
+                  <button onclick="mudarPagina('pendentes', 'balcao', 1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">▶</button>
+                </div>
+                <div id="list-pendentes-balcao" class="pedidos-list" style="margin-top: 10px;"></div>
+              </div>
+              <div class="kanban-col" id="col-servidos-balcao">
+                <h3>🍽️ Em Consumo <span class="badge-mini" id="count-servidos-balcao">0</span></h3>
+                <!-- Controles de Paginação Em Consumo Balcão -->
+                <div id="nav-servidos-balcao" style="display:none; justify-content:space-between; align-items:center; margin-bottom:0px; background:#fff; padding:8px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                  <button onclick="mudarPagina('servidos', 'balcao', -1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">◀</button>
+                  <span id="page-info-servidos-balcao" style="font-weight:bold; font-size:0.85rem; color:#64748b;">1 / 1</span>
+                  <button onclick="mudarPagina('servidos', 'balcao', 1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">▶</button>
+                </div>
+                <div id="list-servidos-balcao" class="pedidos-list" style="margin-top: 10px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="group-delivery" class="sub-tab-content hidden">
+            <div class="kanban-board">
+              <div class="kanban-col" id="col-pendentes-delivery">
+                <h3>🔥 Pendentes <span class="badge-mini" id="count-pendentes-delivery">0</span></h3>
+                <!-- Controles de Paginação Pendentes Delivery -->
+                <div id="nav-pendentes-delivery" style="display:none; justify-content:space-between; align-items:center; margin-bottom:10px; background:#fff; padding:8px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                  <button onclick="mudarPagina('pendentes', 'delivery', -1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">◀</button>
+                  <span id="page-info-pendentes-delivery" style="font-weight:bold; font-size:0.85rem; color:#64748b;">1 / 1</span>
+                  <button onclick="mudarPagina('pendentes', 'delivery', 1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">▶</button>
+                </div>
+                <div id="list-pendentes-delivery" class="pedidos-list"></div>
+              </div>
+              <div class="kanban-col" id="col-servidos-delivery">
+                <h3>🛵 A Caminho <span class="badge-mini" id="count-servidos-delivery">0</span></h3>
+                <!-- Controles de Paginação A Caminho Delivery -->
+                <div id="nav-servidos-delivery" style="display:none; justify-content:space-between; align-items:center; margin-bottom:10px; background:#fff; padding:8px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                  <button onclick="mudarPagina('servidos', 'delivery', -1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">◀</button>
+                  <span id="page-info-servidos-delivery" style="font-weight:bold; font-size:0.85rem; color:#64748b;">1 / 1</span>
+                  <button onclick="mudarPagina('servidos', 'delivery', 1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">▶</button>
+                </div>
+                <div id="list-servidos-delivery" class="pedidos-list"></div>
+              </div>
+              <div class="kanban-col" id="col-fechamento-delivery">
+                <h3>✅ Entregue <span class="badge-mini" id="count-fechamento-delivery">0</span></h3>
+                <!-- Controles de Paginação Entregue Delivery -->
+                <div id="nav-fechamento-delivery" style="display:none; justify-content:space-between; align-items:center; margin-bottom:10px; background:#fff; padding:8px; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                  <button onclick="mudarPagina('fechamento', 'delivery', -1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">◀</button>
+                  <span id="page-info-fechamento-delivery" style="font-weight:bold; font-size:0.85rem; color:#64748b;">1 / 1</span>
+                  <button onclick="mudarPagina('fechamento', 'delivery', 1)" style="background:#f1f2f6; color:#2c3e50; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">▶</button>
+                </div>
+                <div id="list-fechamento-delivery" class="pedidos-list"></div>
+              </div>
+            </div>
+          </div>
+    </section>
+
+    <section id="historico-section" class="hidden">
+      <!-- Barra de Busca e Resumo Grande e Acessível -->
+      <div class="filters-bar">
+          
+          <!-- Lado Esquerdo: Filtro Robusto -->
+          <div class="filters-left">
+            <div class="label-filtrar">
+              <span style="font-size: 1.3rem;">🔍</span> BUSCA:
+            </div>
+            <input type="text" id="filtro-historico-busca" placeholder="ID ou Mesa..." 
+                   oninput="filtrarHistorico(this.value)"
+                   style="padding: 10px; border-radius: 8px; border: 2px solid #edf2f7; font-size: 0.95rem; width: 150px; font-weight: bold;">
+            
+            <select id="filtro-historico-select" onchange="document.getElementById('filtro-historico-busca').value=''; filtrarHistorico(this.value)"
+                    style="padding: 10px; border-radius: 8px; border: 2px solid #edf2f7; font-weight: bold; background: white;">
+              <option value="">Todas</option>
+            </select>
+            
+            <button onclick="document.getElementById('filtro-historico-busca').value=''; document.getElementById('filtro-historico-select').value=''; filtrarHistorico('');" 
+                    class="btn-ver-tudo">
+              LIMPAR
+            </button>
+          </div>
+
+          <!-- Lado Direito: Info e Ações de Destaque -->
+          <div class="filters-right">
+            <!-- Data e Faturamento -->
+            <div class="history-faturamento-box">
+              <span id="data-historico" class="data-historico-label">00/00/0000</span>
+              <div id="faturamento-total-dia" class="faturamento-total-label">R$ 0,00</div>
+            </div>
+
+            <!-- Botões de Ação Grandes -->
+            <div class="history-actions">
+              <button onclick="imprimirResumoDiario()" class="btn-historico-resumo">
+                🖨️ RESUMO DIÁRIO
+              </button>
+              <button onclick="limparHistoricoTotal()" class="btn-historico-limpar">
+                🗑️ LIMPAR
+              </button>
+            </div>
+          </div>
+      </div>
+
+      <div id="historico-list" class="kanban-board">
+        <!-- Coluna Finalizados -->
+        <div class="kanban-col" id="historico-finalizados">
+          <h3 style="color: #27ae60; border-bottom: 2px solid #27ae60; padding-bottom: 2px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.9rem; font-weight: 800;">✅ Finalizados <span class="badge-mini" id="count-historico-finalizados" style="background:#27ae60; color:white; padding: 1px 4px; border-radius: 4px; font-size: 0.6rem;">0</span></span>
+            <!-- Paginação Compacta Integrada -->
+            <div id="paginacao-finalizados" class="paginacao-controles" style="display: none; align-items: center; gap: 4px; background: #fff; padding: 1px 4px; border-radius: 4px; border: 1px solid #cbd5e1;">
+              <button onclick="mudarPaginaHistorico('finalizados', -1)" id="btn-ant-finalizados" style="background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0 4px; color: #1e293b; font-weight: bold;">◀</button>
+              <span id="texto-pag-finalizados" style="font-size: 0.75rem; font-weight: 900; color: #1e293b; min-width: 30px; text-align: center;">1/1</span>
+              <button onclick="mudarPaginaHistorico('finalizados', 1)" id="btn-prox-finalizados" style="background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0 4px; color: #1e293b; font-weight: bold;">▶</button>
+            </div>
+          </h3>
+          <div id="lista-finalizados" class="pedidos-list" style="gap: 4px;"></div>
+        </div>
+
+        <!-- Coluna Cancelados -->
+        <div class="kanban-col" id="historico-cancelados">
+          <h3 style="color: #e74c3c; border-bottom: 2px solid #e74c3c; padding-bottom: 2px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.9rem; font-weight: 800;">❌ Cancelados <span class="badge-mini" id="count-historico-cancelados" style="background:#e74c3c; color:white; padding: 1px 4px; border-radius: 4px; font-size: 0.6rem;">0</span></span>
+            <!-- Paginação Compacta Integrada -->
+            <div id="paginacao-cancelados" class="paginacao-controles" style="display: none; align-items: center; gap: 4px; background: #fff; padding: 1px 4px; border-radius: 4px; border: 1px solid #cbd5e1;">
+              <button onclick="mudarPaginaHistorico('cancelados', -1)" id="btn-ant-cancelados" style="background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0 4px; color: #1e293b; font-weight: bold;">◀</button>
+              <span id="texto-pag-cancelados" style="font-size: 0.75rem; font-weight: 900; color: #1e293b; min-width: 30px; text-align: center;">1/1</span>
+              <button onclick="mudarPaginaHistorico('cancelados', 1)" id="btn-prox-cancelados" style="background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0 4px; color: #1e293b; font-weight: bold;">▶</button>
+            </div>
+          </h3>
+          <div id="lista-cancelados" class="pedidos-list" style="gap: 4px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal de Detalhes do Histórico -->
+    <div id="modal-detalhe-historico" class="modal">
+      <div class="modal-content" style="max-width: 500px; padding: 0; border-radius: 12px; overflow: hidden;">
+        <div id="modal-historico-header" style="padding: 15px 20px; color: white; display: flex; justify-content: space-between; align-items: center;">
+          <h2 id="modal-historico-titulo" style="margin: 0; font-size: 1.3rem;">Pedido #---</h2>
+          <span class="close" onclick="fecharModalDetalheHistorico()">&times;</span>
+        </div>
+        <div style="padding: 20px; background: #f8fafc; overflow-y: auto; flex: 1;">
+          <p id="modal-historico-info" style="font-weight: bold; color: #64748b; margin-top: 0;"></p>
+          <div id="modal-historico-horarios" style="font-size: 0.85rem; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 8px;"></div>
+          <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 15px; padding-left: 5px;">
+            <b>Responsável:</b> <span id="modal-historico-responsavel">---</span>
+          </div>
+          <div id="modal-historico-itens-lista" style="background: white; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px; max-height: 200px; overflow-y: auto;"></div>
+          <div id="modal-historico-financeiro" style="background: #2c3e50; color: white; padding: 15px; border-radius: 8px;"></div>
+        </div>
+        <div style="padding: 15px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 10px;">
+          <button id="btn-reimprimir-historico" style="flex: 1; padding: 10px; background: #3498db; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">🖨️ REIMPRIMIR</button>
+          <button onclick="fecharModalDetalheHistorico()" style="flex: 1; padding: 10px; background: #f1f2f6; color: #2c3e50; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">FECHAR</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="configuracoes-section" class="hidden">
+      <div class="config-layout">
+        <!-- Sidebar de Configurações -->
+        <aside class="config-sidebar">
+          <button class="config-nav-btn active" onclick="switchConfigSubTab('mesas')">
+            <i class="fa-solid fa-table"></i> Mesas
+          </button>
+          <button class="config-nav-btn" onclick="switchConfigSubTab('equipe')">
+            <i class="fa-solid fa-users"></i> Equipe
+          </button>
+          <button class="config-nav-btn" onclick="switchConfigSubTab('cardapio')">
+            <i class="fa-solid fa-book-open"></i> Cardápio
+          </button>
+          <button class="config-nav-btn" onclick="switchConfigSubTab('cozinha')">
+            <i class="fa-solid fa-utensils"></i> Cozinha
+          </button>
+        </aside>
+
+        <!-- Conteúdo das Configurações -->
+        <div class="config-content">
+          
+          <!-- Sub-seção: Mesas -->
+          <div id="config-sub-mesas" class="config-sub-section active">
+            <div class="config-card">
+              <h3>Mesas do Bar</h3>
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <input type="number" id="nova-mesa-num" placeholder="Nº da Mesa">
+                <button onclick="adicionarMesa()">Adicionar</button>
+              </div>
+              <div id="lista-mesas-config"></div>
+            </div>
+          </div>
+
+          <!-- Sub-seção: Equipe -->
+          <div id="config-sub-equipe" class="config-sub-section">
+            <div class="config-card">
+              <h3>Gerenciar Garçons</h3>
+              <div style="margin-bottom: 1.5rem; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <div class="modal-form-group">
+                  <label>Nome Completo</label>
+                  <input type="text" id="garcom-nome" placeholder="Nome do Garçom">
+                </div>
+                
+                <div class="modal-form-group">
+                  <label>Usuário (Login)</label>
+                  <input type="text" id="garcom-usuario" placeholder="Usuário (ex: joao123)">
+                </div>
+
+                <div class="modal-form-group">
+                  <label>WhatsApp / Telefone</label>
+                  <input type="text" id="garcom-telefone" placeholder="Telefone (ex: 5511999999999)">
+                </div>
+
+                <div class="modal-form-group">
+                  <label>Comissão (%)</label>
+                  <input type="number" id="garcom-comissao" placeholder="Ex: 5" step="0.1">
+                </div>
+
+                <div class="modal-form-group">
+                  <label id="label-senha-garcom">Senha de Acesso</label>
+                  <input type="password" id="garcom-senha" placeholder="Senha">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                  <button id="btn-acao-garcom" onclick="processarAcaoGarcom()" style="flex: 2; padding: 12px; font-weight: bold;">Cadastrar</button>
+                  <button id="btn-cancelar-garcom" class="hidden" onclick="cancelarEdicaoGarcom()" style="flex: 1; background-color: #95a5a6; padding: 12px; font-weight: bold;">Cancelar</button>
+                </div>
+              </div>
+              <div id="lista-garcons-config" style="display: flex; flex-direction: column; gap: 0.8rem;"></div>
+            </div>
+          </div>
+
+          <!-- Sub-seção: Cardápio -->
+          <div id="config-sub-cardapio" class="config-sub-section">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+              <!-- Ordem das Categorias -->
+              <div class="config-card">
+                <h3>📂 Ordem das Categorias no Cardápio</h3>
+                <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;">Defina a prioridade de exibição das categorias (cima/baixo).</p>
+                <div id="config-ordem-categorias-lista" style="display: flex; flex-direction: column; gap: 8px; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; max-height: 400px; overflow-y: auto;">
+                  <!-- Injetado via JS -->
+                  <p style="text-align:center; opacity:0.5;">Carregando categorias...</p>
+                </div>
+                <button onclick="salvarOrdemCategorias()" style="width: 100%; margin-top: 15px; background: #3498db; font-weight: bold;">SALVAR ORDEM</button>
+              </div>
+
+              <!-- Gerenciamento de Cardápio -->
+              <div class="config-card">
+                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 2px solid #3498db; padding-bottom: 1rem; gap: 15px;">
+                  <div style="display: flex; align-items: center; gap: 15px; flex: 1; min-width: 300px;">
+                    <h3 style="margin:0; border:none; white-space: nowrap;">Gerenciar Cardápio</h3>
+                    
+                    <!-- FILTROS DO CARDÁPIO -->
+                    <div style="display: flex; gap: 10px; flex: 1;">
+                      <div style="flex: 1; position: relative;">
+                        <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
+                        <input type="text" id="filtro-menu-busca" oninput="exibirMenuConfig()" placeholder="Buscar por nome..." 
+                               style="width: 100%; padding: 8px 10px 8px 32px; border-radius: 8px; border: 1px solid #cbd5e0; font-size: 0.9rem; outline: none;">
+                      </div>
+                      <select id="filtro-menu-categoria" onchange="exibirMenuConfig()" 
+                              style="padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e0; font-weight: bold; background: white; cursor: pointer; min-width: 150px;">
+                        <option value="">📂 Todas</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <button onclick="abrirModalItemMenu()" style="background: #27ae60; padding: 10px 20px; border-radius: 10px; font-weight: bold; display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+                    ➕ NOVO ITEM
+                  </button>
+                </div>
+                <div id="lista-menu-config" class="menu-config-grid"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-seção: Cozinha -->
+          <div id="config-sub-cozinha" class="config-sub-section">
+            <div class="config-card">
+              <h3>⚙️ Configurações do Painel de Cozinha</h3>
+              <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;">Marque as categorias que devem ser enviadas automaticamente para a cozinha:</p>
+              <div id="lista-categorias-cozinha-config" style="display: flex; flex-direction: column; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; max-height: 400px; overflow-y: auto;">
+                <!-- Injetado via JS -->
+                <p style="text-align:center; opacity:0.5;">Carregando categorias...</p>
+              </div>
+              <button onclick="salvarConfigCategoriasCozinha()" style="width: 100%; margin-top: 15px; background: #2c3e50;">SALVAR CONFIGURAÇÃO</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal de Adicionar/Editar Item do Menu -->
+  <div id="modal-item-menu" class="modal">
+    <div class="modal-content" style="max-width: 500px; max-height: 90vh; display: flex; flex-direction: column;">
+      <!-- Header Fixo -->
+      <div id="modal-item-header" style="background: #2c3e50; padding: 1rem 1.5rem; color: white; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+        <h2 id="modal-item-titulo" style="margin: 0; font-size: 1.2rem; font-weight: 900; text-transform: uppercase;">Novo Item</h2>
+        <div style="display: flex; gap: 15px; align-items: center;">
+          <button id="btn-excluir-item-menu" class="hidden" onclick="excluirDoMenuAtual()" style="background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #ff7675; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: 0.2s;" onmouseover="this.style.background='rgba(231, 76, 60, 0.2)'" onmouseout="this.style.background='transparent'" title="Excluir este item permanentemente">🗑️</button>
+          <span class="close" onclick="fecharModalItemMenu()">&times;</span>
+        </div>
+      </div>
+
+      <!-- Corpo com Scroll -->
+      <div style="padding: 1.2rem 1.5rem; background: #f8fafc; overflow-y: auto; flex: 1;">
+        <div class="modal-form-group">
+          <label>Nome do Produto</label>
+          <input type="text" id="menu-nome" placeholder="Ex: Cerveja Skol 600ml">
+        </div>
+
+        <div class="modal-form-group">
+          <label>Descrição do Item (Opcional)</label>
+          <textarea id="menu-descricao" placeholder="Ex: Carne bovina grelhada com queijo, alface e tomate." rows="3" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e0; font-family: inherit; resize: vertical;"></textarea>
+        </div>
+
+        <div class="modal-form-group">
+          <label>Categoria</label>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <select id="menu-cat-select" onchange="alternarNovaCategoria(this.value)" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e0; font-weight: bold; background: white;">
+              <!-- Categorias injetadas via JS -->
+            </select>
+            <input type="text" id="menu-cat-novo" placeholder="Digite o nome da nova categoria" class="hidden" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #3498db; font-weight: bold;">
+            <input type="hidden" id="menu-cat">
+          </div>
+        </div>
+
+        <div class="modal-row">
+          <div class="modal-form-group">
+            <label>Preço de Venda (Atual)</label>
+            <input type="number" id="menu-preco" placeholder="0.00" step="0.50">
+          </div>
+          <div class="modal-form-group">
+            <label>Preço Anterior (Riscado)</label>
+            <input type="number" id="menu-preco-original" placeholder="0.00" step="0.50">
+          </div>
+        </div>
+
+        <div class="modal-form-group">
+          <label>Estoque (-1 = ilimitado)</label>
+          <input type="number" id="menu-estoque" value="-1">
+        </div>
+
+        <div class="modal-form-group">
+          <label>Data de Validade (Opcional)</label>
+          <input type="date" id="menu-validade">
+        </div>
+
+        <div class="modal-form-group">
+          <label>URL da Imagem</label>
+          <input type="text" id="menu-img" placeholder="https://...">
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <div class="modal-form-group" style="flex: 1; display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <input type="checkbox" id="menu-enviar-cozinha" style="width: 20px; height: 20px; cursor: pointer;" checked>
+            <label for="menu-enviar-cozinha" style="margin: 0; cursor: pointer; font-weight: bold; color: #2c3e50;">👨‍🍳 Enviar p/ Cozinha</label>
+          </div>
+          <div class="modal-form-group" style="flex: 1; display: flex; align-items: center; gap: 8px; background: #f0fdf4; padding: 10px; border-radius: 8px; border: 1px solid #dcfce7;">
+            <input type="checkbox" id="menu-visivel" style="width: 20px; height: 20px; cursor: pointer;" checked>
+            <label for="menu-visivel" style="margin: 0; cursor: pointer; font-weight: bold; color: #166534;">👁️ Visível no Cardápio</label>
+          </div>
+          <div class="modal-form-group" style="flex: 1; display: flex; align-items: center; gap: 8px; background: #fff1f2; padding: 10px; border-radius: 8px; border: 1px solid #fecdd3;">
+            <input type="checkbox" id="menu-promocao" style="width: 20px; height: 20px; cursor: pointer;">
+            <label for="menu-promocao" style="margin: 0; cursor: pointer; font-weight: bold; color: #be123c;">🏷️ Em Promoção</label>
+          </div>
+        </div>
+
+        </div>
+
+
+      <!-- Footer Fixo com Botões (Sempre Visível) -->
+      <div style="padding: 0.8rem 1.5rem; background: #fff; border-top: 2px solid #e2e8f0; display: flex; gap: 12px; flex-shrink: 0;">
+        <button id="btn-acao-menu" onclick="processarAcaoMenu()" class="modal-btn modal-btn-primary" style="flex: 2;">💾 SALVAR NO CARDÁPIO</button>
+        <button onclick="fecharModalItemMenu()" class="modal-btn modal-btn-outline" style="flex: 1;">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Edição -->
+  <div id="modal-edicao" class="modal">
+    <div class="modal-content" style="max-width: 1200px; width: 98%; height: 98vh;">
+      <div class="modal-header">
+        <h2 id="modal-titulo">Editar Pedido</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button id="btn-imprimir-edicao" style="background:#2c3e50; font-size: 0.8rem; width: auto; padding: 5px 15px;">🖨️ Imprimir Parcial</button>
+          <span class="close" onclick="fecharModal()">&times;</span>
+        </div>
+      </div>
+      <div class="modal-body edit-modal-grid" style="overflow: hidden !important; display: grid !important; height: 100%;">
+        <!-- Coluna da Esquerda: Itens do Pedido Atual -->
+        <div class="edit-col-itens" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <div style="flex-shrink: 0; margin-bottom: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <h3 style="margin:0;">Itens no Pedido</h3>
+              <button onclick="removerItensSelecionados()" style="background: #fff1f2; color: #ef4444; border: 1px solid #fecaca; font-size: 0.65rem; width: auto; padding: 4px 8px; border-radius: 6px; font-weight: bold; cursor: pointer;">🗑️ EXCLUIR SELECIONADOS</button>
+            </div>
+            <div style="display: flex; gap: 5px;">
+              <button onclick="selecionarTodosItens(true)" style="background: #f1f5f9; color: #34495e; border: 1px solid #cbd5e0; font-size: 0.65rem; width: auto; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Todos</button>
+              <button onclick="selecionarTodosItens(false)" style="background: #f1f5f9; color: #7f8c8d; border: 1px solid #cbd5e0; font-size: 0.65rem; width: auto; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Nenhum</button>
+            </div>
+          </div>
+          
+          <div id="itens-atuais" style="flex: 1; overflow-y: auto; padding-right: 5px; background: #f8fafc; border-radius: 8px; border: 1px solid #eee; padding: 5px;">
+            <!-- Lista de itens rola aqui -->
+          </div>
+
+          <div id="modal-total" style="flex-shrink: 0; font-weight: 900; margin-top: 10px; font-size: 1.4rem; color: #166534; border-top: 2px solid #eee; padding-top: 10px; text-align: right;">Total: R$ 0,00</div>
+        </div>
+        
+        <!-- Coluna da Direita: Cardápio para Adicionar -->
+        <div class="edit-col-menu" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+          <h3 style="flex-shrink: 0;">Adicionar Itens</h3>
+          <div id="edit-menu-grid" class="menu-grid-mini" style="flex: 1; overflow-y: auto; margin-bottom: 10px; display: grid; grid-auto-rows: max-content; align-content: start;"></div>
+          <div style="display: flex; align-items: center; gap: 5px; margin-top: 0px; flex-shrink: 0; background: #f8fafc; padding: 5px; border-radius: 10px; border: 1px solid #e2e8f0;">
+            <button onclick="scrollCategoriasEdicao(-150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❮</button>
+            <div id="edit-menu-categorias" class="categorias-grid-mini" style="flex: 1; margin-bottom: 0 !important; padding-bottom: 0; overflow-x: auto; scroll-behavior: smooth; display: flex; gap: 8px; scrollbar-width: none; -ms-overflow-style: none;">
+              <!-- Categorias injetadas via JS -->
+            </div>
+            <button onclick="scrollCategoriasEdicao(150)" style="background: white; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px 5px; cursor: pointer; color: #3498db; font-weight: bold;">❯</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div style="display: flex; gap: 12px; justify-content: flex-end; width: 100%;">
+          <button class="modal-btn modal-btn-outline" onclick="fecharModal()" style="width: auto; padding: 10px 20px;">CANCELAR EDIÇÃO</button>
+          <button class="modal-btn modal-btn-primary" onclick="salvarAlteracoes()" style="width: auto; padding: 10px 20px; background: #27ae60;">💾 SALVAR ALTERAÇÕES</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Fechamento Admin -->
+  <div id="modal-fechamento-admin" class="modal">
+    <div class="modal-content" style="max-width: 850px; height: 65vh; min-height: 500px; max-height: 75vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div style="display: flex; flex-direction: column; gap: 5px; width: 100%;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin:0;">Finalizar e Liberar <span id="fechamento-mesa-admin">--</span></h2>
+            <span class="close" onclick="fecharModalFechamentoAdmin()">&times;</span>
+          </div>
+          <p style="margin:0; font-size: 0.9rem; color: #64748b; font-weight: bold;">Confira os itens e selecione a forma de pagamento</p>
+        </div>
+      </div>
+
+      <div class="modal-body" style="flex: 1; min-height: 200px; position: relative; overflow: hidden; padding: 15px 20px;">
+          
+          <!-- COLUNA ESQUERDA: LISTA DE ITENS -->
+          <div style="position: absolute; top: 15px; left: 20px; bottom: 15px; width: calc(45% - 25px); padding: 20px; border-right: 1px solid #edf2f7; background: #f8fafc; display: flex; flex-direction: column; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0;">
+              <h4 style="margin:0; color: #2c3e50; font-size: 0.95rem;">📋 Itens do Pedido</h4>
+              <div style="display: flex; gap: 8px;">
+                <button onclick="selecionarTodosItensFechamento(true)" style="background: #e2e8f0; color: #475569; padding: 4px 8px; font-size: 0.7rem; border-radius: 4px; border: none; cursor: pointer;">Todos</button>
+                <button onclick="selecionarTodosItensFechamento(false)" style="background: #f1f5f9; color: #94a3b8; padding: 4px 8px; font-size: 0.7rem; border-radius: 4px; border: none; cursor: pointer;">Nenhum</button>
+              </div>
+            </div>
+            
+            <div id="fechamento-itens-lista-admin" style="flex: 1; overflow-y: auto; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px;">
+              <!-- Preenchido via JS -->
+            </div>
+
+            <!-- Resumo de Pagamentos já feitos -->
+            <div id="fechamento-historico-pagamentos-container" style="margin-top: 15px; display: none; flex-shrink: 0;">
+              <div style="background: #dcfce7; padding: 10px; border-radius: 8px; border: 1px solid #bbf7d0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                  <strong style="color: #166534; font-size: 0.8rem;">✅ PAGAMENTOS REGISTRADOS:</strong>
+                  <span id="fechamento-total-ja-pago" style="font-weight: 800; color: #166534; font-size: 0.85rem;">R$ 0,00</span>
+                </div>
+                <div id="fechamento-lista-pagamentos-admin" style="font-size: 0.75rem;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- COLUNA DIREITA: FINANCEIRO -->
+          <div style="position: absolute; top: 0; right: 0; bottom: 0; width: 55%; box-sizing: border-box; overflow-y: auto; background: white;">
+            <div style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
+            
+            <div style="background: #fff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; font-size: 0.9rem;">
+                <div style="color: #64748b;">Subtotal:</div>
+                <div style="text-align: right; font-weight: bold;">R$ <span id="fechamento-subtotal-admin">0.00</span></div>
+                
+                <div style="display: flex; align-items: center; gap: 5px; color: #64748b;">
+                  <span id="lbl-fechamento-taxa">Taxa de Serviço (10%):</span>
+                  <input type="checkbox" id="fechamento-taxa-admin" checked onchange="recalcularTotalFechamentoAdmin()" style="width: 16px; height: 16px;">
+                </div>
+                <div style="text-align: right; font-weight: bold;">R$ <span id="fechamento-taxa-valor-admin">0.00</span></div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <div>
+                  <label style="display:block; font-size: 0.75rem; font-weight: bold; color: #64748b;">Acréscimo (R$):</label>
+                  <input type="number" id="fechamento-acrescimo-admin" value="0" step="0.50" oninput="recalcularTotalFechamentoAdmin()" style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
+                </div>
+                <div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <label id="label-desconto-admin" style="font-size: 0.75rem; font-weight: bold; color: #64748b;">Desconto (%):</label>
+                    <label class="switch" style="transform: scale(0.7); margin-top: -5px;">
+                      <input type="checkbox" id="check-tipo-desconto" checked onchange="toggleTipoDesconto(this.checked)">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <input type="number" id="fechamento-desconto-admin" value="0" step="1" oninput="recalcularTotalFechamentoAdmin()" style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 6px;">
+                </div>
+              </div>
+
+              <div id="fechamento-pago-parcial-container" style="display:none; background: #f1f5f9; padding: 8px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #64748b;">
+                <div style="display:flex; justify-content:space-between; font-size: 0.85rem; font-weight:bold; color: #475569;">
+                  <span>(-) JÁ PAGO NESTA MESA:</span>
+                  <span>R$ <span id="fechamento-pago-parcial-admin">0.00</span></span>
+                </div>
+              </div>
+
+              <div style="background: #2c3e50; color: white; padding: 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold; font-size: 1rem;">SALDO A PAGAR:</span>
+                <span style="font-size: 1.4rem; font-weight: 900;">R$ <span id="fechamento-total-admin">0.00</span></span>
+              </div>
+            </div>
+
+            <!-- Divisão e Pagamento -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="font-size: 0.8rem; font-weight: bold; color: #475569;">DIVIDIR POR:</div>
+                  <div style="display: flex; align-items: center; background: white; border: 1px solid #cbd5e0; border-radius: 8px; overflow: hidden;">
+                    <button onclick="mudarPessoasFechamento(-1)" style="padding: 5px 10px; border: none; background: #f1f5f9; cursor: pointer; font-weight: bold; color: black;">-</button>
+                    <input type="number" id="fechamento-divisao-pessoas" value="1" readonly style="width: 35px; text-align: center; border: none; font-weight: 800; background: white; pointer-events: none;">
+                    <button onclick="mudarPessoasFechamento(1)" style="padding: 5px 10px; border: none; background: #f1f5f9; cursor: pointer; font-weight: bold; color: black;">+</button>
+                  </div>
+                </div>
+                <div style="text-align: right;">
+                  <small style="display:block; font-size: 0.65rem; color: #64748b; font-weight: bold;">VALOR POR PESSOA:</small>
+                  <strong style="font-size: 1.1rem; color: #2c3e50;">R$ <span id="fechamento-valor-pessoa-admin">0.00</span></strong>
+                </div>
+              </div>
+
+              <!-- Novo Visual de Divisão de Assentos -->
+              <div id="fechamento-container-divisao" style="margin-bottom: 15px; background: #fff; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span id="txt-progresso-divisao" style="font-size: 0.75rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Pagamento: 0 de 1 pessoas</span>
+                  <span id="perc-progresso-divisao" style="font-size: 0.75rem; font-weight: 900; color: #27ae60;">0%</span>
+                </div>
+                <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; margin-bottom: 15px; overflow: hidden;">
+                  <div id="barra-progresso-divisao" style="width: 0%; height: 100%; background: #27ae60; transition: 0.5s width ease-in-out;"></div>
+                </div>
+                <div id="fechamento-grid-assentos" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; min-height: 60px;">
+                  <!-- Assentos gerados via JS -->
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 10px;">
+                <div>
+                  <label style="display:block; font-size: 0.75rem; font-weight: bold; color: #64748b;">FORMA DE PAGAMENTO:</label>
+                  <select id="fechamento-forma-admin" onchange="recalcularTotalFechamentoAdmin()" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e0; border-radius: 8px; font-weight: bold; font-size: 0.95rem; background: white;">
+                    <option value="Dinheiro">💵 Dinheiro</option>
+                    <option value="Pix">📱 Pix</option>
+                    <option value="Cartão">💳 Cartão</option>
+                    <option value="Múltiplas">👥 Múltiplas / Dividido</option>
+                  </select>
+                </div>
+                <div id="secao-troco-admin">
+                  <label style="display:block; font-size: 0.75rem; font-weight: bold; color: #64748b;">RECEBIDO (R$):</label>
+                  <input type="number" id="fechamento-recebido-admin" step="0.50" oninput="recalcularTotalFechamentoAdmin()" style="width: 100%; padding: 10px; border: 1.5px solid #cbd5e0; border-radius: 8px; font-weight: bold; color: #27ae60; font-size: 1rem;">
+                </div>
+              </div>
+
+              <div id="secao-troco-valor-admin" style="margin-top: 10px; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 10px;">
+                <span style="font-size: 0.85rem; font-weight: bold; color: #64748b;">TROCO:</span>
+                <span id="fechamento-troco-admin" style="font-size: 1.1rem; font-weight: 900; color: #27ae60;">0.00</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer" style="padding: 8px 20px 15px 20px; background: #f1f5f9; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 10px;">
+          <button onclick="confirmarCancelamentoDesdeFechamento()" style="background: #fff; color: #e74c3c; border: 1px solid #feb2b2; padding: 10px 15px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; border: 1px solid #feb2b2; cursor: pointer;">🗑️ CANCELAR PEDIDO</button>
+          <button onclick="irParaEdicaoDestePedido()" style="background: #fff; color: #34495e; border: 1px solid #cbd5e0; padding: 10px 15px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; border: 1px solid #cbd5e0; cursor: pointer;">✏️ EDITAR ITENS</button>
+        </div>
+        
+        <div id="container-botoes-fechamento-dinamico" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; max-width: 500px;">
+          <button id="btn-pagar-cota-admin" onclick="confirmarPagamentoAdmin('cota')" style="background: rgb(52, 152, 219); color: white; padding: 0.8rem; border-radius: 12px; font-weight: 900; border: none; cursor: pointer; box-shadow: rgb(41, 128, 185) 0px 5px 0px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <span style="font-size: 0.7rem; opacity: 0.8; text-transform: uppercase;">PAGAR 1 COTA</span>
+            <span id="lbl-valor-cota-btn" style="font-size: 1rem;">R$ 0,00</span>
+          </button>
+          <button id="btn-pagar-tudo-admin" onclick="confirmarPagamentoAdmin('tudo')" style="background: rgb(39, 174, 96); color: white; padding: 0.8rem; border-radius: 12px; font-weight: 900; border: none; cursor: pointer; box-shadow: rgb(33, 145, 80) 0px 5px 0px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <span id="lbl-pagar-tudo-texto" style="font-size: 0.7rem; opacity: 0.8; text-transform: uppercase;">FINALIZAR TUDO</span>
+            <span id="lbl-valor-tudo-btn" style="font-size: 1rem;">R$ 0,00</span>
+          </button>
+        </div>
+        
+        <button onclick="confirmarPagamentoAdmin('imprimir')" style="background: #2c3e50; color: white; padding: 12px 20px; border-radius: 4px; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 4px 0 #1a252f;">🖨️ PRÉ-CONTA</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Decisão Pós-Lançamento -->
+  <div id="modal-decisao-pos-lancar" class="modal">
+    <div class="modal-content" style="max-width: 400px; text-align: center; padding: 25px 20px;">
+      <h2 style="margin-bottom: 1.5rem; color: #2c3e50;">Pedido Lançado! 🚀</h2>
+      <p style="margin-bottom: 2rem; color: #7f8c8d; font-weight: bold;">O que deseja fazer agora com este pedido?</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <button id="btn-decisao-fechar" style="background: #27ae60; padding: 1.2rem; font-size: 1.1rem; border-radius: 12px; color: white; font-weight: bold; border: none; cursor: pointer;">💰 FECHAR CONTA AGORA</button>
+        <button id="btn-decisao-manter" style="background: #3498db; padding: 1.2rem; font-size: 1.1rem; border-radius: 12px; color: white; font-weight: bold; border: none; cursor: pointer;">⏳ MANTER EM ABERTO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Sistema (Alert/Confirm) -->
+  <div id="modal-sistema" class="modal">
+    <div class="modal-content" style="max-width: 400px; text-align: center; padding: 25px 20px;">
+      <div id="modal-sistema-icon" style="font-size: 3.5rem; margin-bottom: 1rem;">🔔</div>
+      <h2 id="modal-sistema-titulo" style="margin-bottom: 1rem; color: #2c3e50;">Aviso</h2>
+      <p id="modal-sistema-mensagem" style="margin-bottom: 2rem; color: #7f8c8d; font-size: 1.1rem; line-height: 1.4;"></p>
+      
+      <div id="modal-sistema-acoes" style="display: flex; gap: 1rem; justify-content: center;">
+        <button id="btn-sistema-cancelar" style="background: #7f8c8d; padding: 0.8rem 1.5rem; border-radius: 8px; flex: 1;" class="hidden">Cancelar</button>
+        <button id="btn-sistema-confirmar" style="background: #27ae60; padding: 0.8rem 1.5rem; border-radius: 8px; flex: 1;">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Renomear Categoria -->
+  <div id="modal-renomear-categoria" class="modal">
+    <div class="modal-content" style="max-width: 400px; padding: 1.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h2 style="margin: 0; font-size: 1.2rem; color: #2c3e50;">✏️ Renomear Categoria</h2>
+        <span class="close" onclick="fecharModalRenomearCategoria()">&times;</span>
+      </div>
+      <div class="modal-form-group">
+        <label style="font-weight: bold; color: #64748b; font-size: 0.85rem; margin-bottom: 8px; display: block;">NOVO NOME PARA A CATEGORIA:</label>
+        <input type="text" id="input-novo-nome-categoria" placeholder="Ex: Bebidas Geladas" onkeyup="if(event.key === 'Enter') confirmarRenomearCategoria()" style="width: 100%; padding: 12px; border: 2px solid #3498db; border-radius: 8px; font-weight: bold; font-size: 1rem; box-sizing: border-box;">
+        <input type="hidden" id="input-categoria-antiga">
+      </div>
+      <div style="display: flex; gap: 10px; margin-top: 1.5rem;">
+        <button onclick="confirmarRenomearCategoria()" class="modal-btn modal-btn-primary" style="flex: 2; padding: 12px; font-weight: bold; background: #27ae60;">💾 SALVAR ALTERAÇÃO</button>
+        <button onclick="fecharModalRenomearCategoria()" class="modal-btn modal-btn-outline" style="flex: 1; padding: 12px;">CANCELAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Multi-Pagamento (Seleção de Formas por Pessoa) -->
+  <div id="modal-multi-pagamento" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-header">
+        <h2>Pagamento por Pessoa</h2>
+        <span class="close" onclick="fecharModalMultiPagamento()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 15px; font-weight: bold; color: #2c3e50; text-align: center;">Selecione a forma de cada parte (R$ <span id="multi-pag-valor-pessoa">0,00</span>):</p>
+        <div id="multi-pag-lista-pessoas" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; padding: 5px;">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 15px;">
+        <button id="btn-confirmar-multi-pagamento" style="background: #27ae60; color: white; padding: 12px; font-weight: bold; font-size: 1.1rem; width: 100%; border: none; border-radius: 8px; cursor: pointer;">✅ FINALIZAR TUDO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Opções da Mesa (Completo) -->
+  <div id="modal-opcoes-mesa" class="modal">
+    <div class="modal-content" style="max-width: 500px; max-height: 90vh; display: flex; flex-direction: column;">
+      <!-- Header do Modal Fixo (Agora com Controles) -->
+      <div id="modal-opcoes-header-bg" style="padding: 1.2rem 1.5rem; color: white; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h2 id="modal-opcoes-titulo" style="margin: 0; font-size: 1.8rem; font-weight: 900;">Mesa</h2>
+            <p id="modal-opcoes-info" style="margin: 5px 0 0 0; opacity: 0.9; font-size: 0.9rem; font-weight: bold;"></p>
+          </div>
+          <div style="display: flex; gap: 15px; align-items: center;">
+            <button onclick="confirmarCancelamentoDesdeOpcoes()" style="background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #ff7675; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: 0.2s;" onmouseover="this.style.background='rgba(231, 76, 60, 0.2)'" onmouseout="this.style.background='transparent'" title="CANCELAR TODO O PEDIDO">🗑️</button>
+            <span class="close" onclick="fecharModalOpcoes()">&times;</span>
+          </div>
+        </div>
+
+        <!-- Botões de Configuração no Topo -->
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 10px;">
+           <button id="btn-modal-editar" style="background: rgba(255,255,255,0.2); color: white; border: 1.5px solid rgba(255,255,255,0.4); padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem;">✏️ EDITAR ITENS</button>
+           <div style="background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.3); border-radius: 10px; display: flex; align-items: center; justify-content: space-around; padding: 0 8px;">
+              <span id="modal-taxa-label-text" style="font-size: 0.65rem; font-weight: 900; color: white; opacity: 0.9;">10% TAXA</span>
+              <label class="switch" id="modal-taxa-switch-label" style="transform: scale(0.8);">
+                <input type="checkbox" id="modal-taxa-checkbox">
+                <span class="slider"></span>
+              </label>
+           </div>
+        </div>
+      </div>
+
+      <!-- Corpo do Modal com Scroll -->
+      <div style="padding: 1.2rem; background: #f8fafc; overflow-y: auto; flex: 1;">
+        <!-- Container para Alertas e Observações -->
+        <div id="modal-opcoes-info-extra" style="margin-bottom: 15px;"></div>
+
+        <!-- Seção de Totais e Impressão -->
+        <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <div id="modal-opcoes-valores">
+            <!-- Injetado via JS -->
+          </div>
+          <button id="btn-modal-imprimir" style="background: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            🖨️ NOTA
+          </button>
+        </div>
+
+        <!-- Lista de Itens (Scroll Interno) -->
+        <div id="modal-opcoes-itens-lista" style="margin-bottom: 15px; padding-right: 5px;">
+           <!-- Injetado via JS -->
+        </div>
+      </div>
+
+      <!-- Footer Fixo com Ações Principais (Sempre Visível) -->
+      <div id="modal-opcoes-footer-acoes" style="padding: 1.2rem; background: #fff; border-top: 2px solid #e2e8f0; flex-shrink: 0;">
+           <!-- Injetado via JS (Entregar Tudo / Fechar Conta) -->
+      </div>
+    </div>
+  </div>
+
+  <div id="cupom-impressao"></div>
+
+  <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+  <script src="app_v3.js?v=1.2.0"></script>
+</body>
+</html>

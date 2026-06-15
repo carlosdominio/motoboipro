@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardápio Digital - GarconnExpress</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root { --primary: #ff4757; --primary-dark: #e84118; --bg: #f1f2f6; --card-bg: #ffffff; --text: #2f3542; --text-light: #747d8c; --shadow: 0 4px 12px rgba(0,0,0,0.08); --radius: 16px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 100px; }
+        body.login-active, body.modal-open { overflow: hidden; height: 100vh; overscroll-behavior: none; }
+        #sticky-header-group { position: sticky; top: 0; z-index: 100; background: var(--bg); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        header { background: var(--card-bg); padding: 25px 20px; text-align: center; border-bottom: 1px solid #eee; }
+        header h1 { font-size: 1rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 2px; }
+        header p { font-size: 2.2rem; color: var(--primary); font-weight: 900; }
+        .categories { display: flex; overflow-x: auto; padding: 15px 20px; gap: 12px; background: var(--bg); scrollbar-width: none; }
+        .categories::-webkit-scrollbar { display: none; }
+        .category-pill { background: var(--card-bg); padding: 10px 20px; border-radius: 25px; font-size: 0.9rem; white-space: nowrap; box-shadow: var(--shadow); cursor: pointer; font-weight: 600; color: var(--text-light); border: 2px solid transparent; }
+        .category-pill.active { background: var(--primary); color: white; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255, 71, 87, 0.3); }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .section-title { margin: 25px 0 15px; font-size: 1.4rem; color: var(--text); font-weight: 800; border-left: 5px solid var(--primary); padding-left: 12px; }
+        .menu-item { background: var(--card-bg); border-radius: var(--radius); padding: 18px; margin-bottom: 20px; display: flex; gap: 15px; box-shadow: var(--shadow); }
+        .item-img { width: 90px; height: 90px; background: #f8f9fa; border-radius: 14px; object-fit: cover; }
+        .item-placeholder { width: 90px; height: 90px; background: #f1f2f6; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 2rem; font-weight: bold; }
+        .item-info { flex: 1; }
+        .item-info h3 { font-size: 1.15rem; margin-bottom: 6px; }
+        .item-info .desc { font-size: 0.85rem; color: var(--text-light); line-height: 1.4; }
+        .item-info .price { font-weight: 800; color: var(--primary); font-size: 1.2rem; margin-top: 8px; }
+        .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+        .btn-qty { width: 32px; height: 32px; border-radius: 10px; border: none; background: #f1f2f6; cursor: pointer; font-weight: bold; font-size: 1.2rem; }
+        .qty { font-weight: 800; font-size: 1.1rem; width: 25px; text-align: center; }
+        .btn-add-initial { background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        .cart-bar { position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%); width: calc(100% - 40px); max-width: 500px; background: #2f3542; color: white; padding: 18px 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 200; cursor: pointer; display: none; }
+        .actions-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 12px 20px; display: flex; justify-content: space-around; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 150; }
+        .action-item { display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--text-light); font-size: 0.8rem; cursor: pointer; background: none; border: none; font-weight: 600; }
+        .action-item.active { color: var(--primary); }
+        .action-item i { font-size: 1.4rem; }
+
+        .modal-cart { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; z-index: 1000; justify-content: flex-end; flex-direction: column; }
+        .modal-content { background: white; border-radius: 40px 40px 0 0; padding: 40px 25px; max-height: 94vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .modal-header h2 { font-size: 1.8rem; font-weight: 900; }
+        .close-modal { font-size: 2rem; color: #ddd; cursor: pointer; padding: 5px; }
+        
+        .value-card { 
+            background: transparent; 
+            padding: 25px 0; 
+            margin: 30px 0 20px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px dashed #e1e1e1;
+            border-bottom: 1px dashed #e1e1e1;
+        }
+        .value-card span { font-size: 0.8rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; }
+        .value-card h3 { font-size: 1.6rem; font-weight: 900; color: var(--primary); }
+
+        .btn-send {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 6px 20px rgba(255, 71, 87, 0.2);
+            transition: 0.3s;
+        }
+        .btn-send:active { transform: scale(0.98); }
+        .btn-send:disabled { background: #95a5a6 !important; box-shadow: none; cursor: not-allowed; opacity: 0.8; }
+        
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 22px 0; border-bottom: 1px solid #f8f9fa; }
+        .item-row h4 { font-size: 1.15rem; font-weight: 800; margin-bottom: 5px; }
+        .item-row p { font-size: 0.95rem; color: var(--text-light); font-weight: 500; }
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 20px; }
+        .spinner { width: 50px; height: 50px; border: 6px solid #f3f3f3; border-top: 6px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #login-screen, #closed-screen { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100vh; 
+            background: white; 
+            z-index: 2000; 
+            display: none; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+            text-align: center; 
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch;
+        }
+        .login-input { width: 100%; text-align: center; font-size: 2.2rem; padding: 20px; border: 3px solid #f1f2f6; border-radius: 20px; margin-bottom: 30px; font-weight: 900; letter-spacing: 8px; text-transform: uppercase; color: var(--primary); outline: none; }
+        .status-badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 12px; background: #eee; color: #777; font-weight: 700; text-transform: uppercase; }
+        .swal2-container { z-index: 9999 !important; }
+
+        /* Banner de Aviso V2 */
+        .lock-banner {
+            background: #fff4e5;
+            color: #663c00;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 700;
+            border: 1px solid #ffe7cc;
+            display: none;
+        }
+
+        /* ============================================================
+           SISTEMA DE TOASTS (NOTIFICAÇÕES DE CANTO)
+           ============================================================ */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+            width: auto;
+        }
+
+        .toast-notificacao {
+            min-width: 280px;
+            max-width: 350px;
+            background: #ffffff;
+            padding: 14px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            pointer-events: auto;
+            transform: translateX(120%);
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            border-left: 6px solid #ccc;
+            position: relative;
+            overflow: hidden;
+            color: #333;
+            text-align: left;
+        }
+
+        .toast-notificacao.show {
+            transform: translateX(0);
+        }
+
+        .toast-notificacao .toast-icon {
+            font-size: 1.3rem;
+            width: 35px;
+            height: 35px;
+            background: #f8fafc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .toast-notificacao .toast-content {
+            flex: 1;
+        }
+
+        .toast-notificacao .toast-title {
+            font-weight: 800;
+            font-size: 0.9rem;
+            color: #1e293b;
+            margin-bottom: 1px;
+            display: block;
+        }
+
+        .toast-notificacao .toast-msg {
+            font-size: 0.8rem;
+            color: #64748b;
+            line-height: 1.3;
+            display: block;
+        }
+
+        .toast-notificacao .toast-close {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 4px;
+        }
+
+        .toast-notificacao.success { border-left-color: #27ae60; }
+        .toast-notificacao.success .toast-icon { color: #27ae60; background: #e8f5e9; }
+
+        .toast-notificacao.error { border-left-color: #e74c3c; }
+        .toast-notificacao.error .toast-icon { color: #e74c3c; background: #fdedec; }
+
+        .toast-notificacao.warning { border-left-color: #f39c12; }
+        .toast-notificacao.warning .toast-icon { color: #f39c12; background: #fef5e7; }
+
+        .toast-notificacao.info { border-left-color: #3498db; }
+        .toast-notificacao.info .toast-icon { color: #3498db; background: #ebf5fb; }
+
+        @media (max-width: 768px) {
+            #toast-container {
+                top: 10px !important;
+                right: auto !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                width: 100% !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+            }
+            .toast-notificacao {
+                min-width: 0 !important;
+                width: 90vw !important;
+                max-width: 400px !important;
+                margin: 5px auto !important;
+                transform: translateY(-150%) !important;
+            }
+            .toast-notificacao.show {
+                transform: translateY(0) !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading"><div class="spinner"></div><p style="font-weight: 700; color: #999;">CARREGANDO...</p></div>
+    
+    <div id="closed-screen">
+        <div style="width:100%; max-width:480px; background:white; padding:30px 20px; border-radius:35px; box-shadow: 0 30px 70px rgba(0,0,0,0.12); display:flex; flex-direction:column; align-items:center; position: relative; overflow: hidden; margin: 20px 0;">
+            <!-- Detalhe decorativo no topo -->
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 8px; background: linear-gradient(90deg, #ff4757, #ff6b81);"></div>
+            
+            <div style="width: 100px; height: 100px; background: #fff1f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; font-size: 3.5rem; animation: bounce 2s infinite;">🌙</div>
+            
+            <h1 style="font-weight: 900; font-size: 2.0rem; color: #2f3542; margin-bottom: 5px; letter-spacing: -1px;">Guga Bebidas</h1>
+            <p style="color: #ff4757; font-weight: 800; font-size: 1.0rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px;">Menu Fechado</p>
+            
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 20px; margin-bottom: 20px; border: 1px solid #eee; width: 100%;">
+                <p style="color: #747d8c; line-height: 1.5; font-size: 0.95rem; margin-bottom: 0;">
+                    Olá! No momento nosso cardápio digital está em <b>manutenção ou fora do horário de atendimento</b>.
+                </p>
+            </div>
+
+            <button onclick="location.reload()" class="btn-send" style="background: #2f3542; opacity: 0.9; width: 100%; max-width: 320px;">
+                <i class="fas fa-sync-alt"></i> VERIFIQUE NOVAMENTE
+            </button>
+            
+            <p style="margin-top: 20px; font-size: 0.75rem; color: #ccc; font-weight: 600; text-transform: uppercase;">Agradecemos a compreensão</p>
+        </div>
+    </div>
+
+    <div id="login-screen">
+        <div style="width: 100%; max-width: 400px;">
+            <img src="../favicon.svg" style="width: 100px; margin-bottom: 30px;">
+            <h1 style="font-weight: 900; margin-bottom: 10px;">Olá!</h1>
+            <p style="color: var(--text-light); margin-bottom: 40px;">Informe o código da sua mesa.</p>
+            <input type="text" maxlength="4" id="access-code" class="login-input" placeholder="0000">
+            <button onclick="validarAcesso()" id="btn-login" class="btn-send">ACESSAR CARDÁPIO</button>
+        </div>
+    </div>
+
+    <div id="main-content" style="display: none;">
+        <div id="sticky-header-group">
+            <header><h1>GarconnExpress</h1><p id="mesa-label">Mesa --</p></header>
+            <div class="categories" id="categories-container"></div>
+        </div>
+        <div class="container" id="menu-container"></div>
+        <div class="cart-bar" id="cart-bar" onclick="toggleCartModal(true)">
+            <div class="info"><span id="cart-qty">0 itens</span><span id="cart-total" style="display: block; font-weight: 900; font-size: 1.2rem;">R$ 0,00</span></div>
+            <div style="font-weight: 800; font-size: 0.9rem;">RASCUNHO <i class="fas fa-chevron-right"></i></div>
+        </div>
+        <div class="actions-bar">
+            <button class="action-item active" onclick="location.reload()"><i class="fas fa-book-open"></i><span>Menu</span></button>
+            <button class="action-item" onclick="chamarGarcom()"><i class="fas fa-bell"></i><span>Garçom</span></button>
+            <button class="action-item" onclick="verMeusPedidos()"><i class="fas fa-receipt"></i><span>Pedidos</span></button>
+        </div>
+    </div>
+
+    <!-- MODAL DE RASCUNHO (CARRINHO) -->
+    <div class="modal-cart" id="modal-cart">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Rascunho</h2><i class="fas fa-times close-modal" onclick="toggleCartModal(false)"></i></div>
+            <div id="modal-cart-items"></div>
+            <div id="cart-footer-logic" style="margin-top:35px;">
+                <div class="value-card">
+                    <span>Total Estimado</span>
+                    <h3 id="modal-cart-total">R$ 0,00</h3>
+                </div>
+                
+                <!-- TRAVA DE SEGURANÇA BLASTER V2 -->
+                <button id="btn-final-enviar" class="btn-send" onclick="enviarRascunho()" disabled>
+                    <i class="fas fa-clock"></i> AGUARDANDO GARÇOM
+                </button>
+                
+                <div id="lock-banner-msg" class="lock-banner">
+                    O garçom precisa confirmar seu pedido anterior antes de você enviar novos itens.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE PEDIDOS JÁ FEITOS -->
+    <div class="modal-cart" id="modal-pedidos">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Meus Pedidos</h2><i class="fas fa-times close-modal" onclick="togglePedidosModal(false)"></i></div>
+            <div id="pedidos-lista"></div>
+            <div id="pedidos-footer" style="margin-top:25px;">
+                <div class="value-card">
+                    <span>Total Consumido</span>
+                    <h3 id="pedidos-total">R$ 0,00</h3>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-send" style="background: #95a5a6; flex: 1;" onclick="carregarMeusPedidos()"><i class="fas fa-sync"></i></button>
+                    <button id="btn-solicitar-fechamento" class="btn-send" style="background: #f1c40f; color: #2f3542; flex: 4;" onclick="solicitarFechamento()">PEDIR CONTA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let fullMenu = [], cart = [], pusher, pusherChannel, currentCategory = null, isClosingSession = false;
+        let sessionMesa = JSON.parse(localStorage.getItem('sessionMesa'));
+        let lockAtivo = true; // Começa travado por segurança
+        let sessionBindingsAttached = false;
+        let lastOrderData = null; // Armazena os últimos dados para o cupom fiscal
+
+        /**
+         * Exibe uma notificação elegante no canto da tela (Toast)
+         */
+        function mostrarToast(msg, tipo = 'success', titulo = '', duracao = 5000) {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                document.body.appendChild(container);
+            }
+
+            const t = document.createElement('div');
+            t.className = `toast-notificacao ${tipo}`;
+            
+            const icones = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+
+            const html = `
+                <div class="toast-icon">${icones[tipo] || '🔔'}</div>
+                <div class="toast-content">
+                    ${titulo ? `<strong class="toast-title">${titulo}</strong>` : ''}
+                    <span class="toast-msg">${msg}</span>
+                </div>
+                <button class="toast-close">&times;</button>
+            `;
+
+            t.innerHTML = html;
+            container.appendChild(t);
+
+            setTimeout(() => t.classList.add('show'), 10);
+
+            const autoClose = setTimeout(() => fecharToast(t), duracao);
+
+            t.querySelector('.toast-close').onclick = () => {
+                clearTimeout(autoClose);
+                fecharToast(t);
+            };
+        }
+
+        function fecharToast(el) {
+            el.classList.remove('show');
+            setTimeout(() => { if (el.parentNode) el.remove(); }, 400);
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log("🚀 Cardápio Digital v2.1 carregado!");
+            
+            // 1. Verifica se há um ID de mesa na URL (Escaneamento QR direto)
+            const urlParams = new URLSearchParams(window.location.search);
+            const mesaIdQR = urlParams.get('id') || urlParams.get('mesa');
+
+            // Se escaneou um QR, tenta o login automático mesmo que já tenha uma sessão (pode ser outra mesa)
+            if (mesaIdQR) {
+                // Se já estiver logado na MESMA mesa, apenas limpa a URL e segue
+                if (sessionMesa && sessionMesa.mesa_id == mesaIdQR) {
+                    console.log("✅ Já logado nesta mesa via QR. Ignorando re-login.");
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else {
+                    console.log(`🔍 Escaneamento QR detectado para mesa ID: ${mesaIdQR}`);
+                    showLoading(true);
+                    try {
+                        const res = await fetch('/api/acesso/qr', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ mesa_id: mesaIdQR })
+                        });
+                        const d = await res.json();
+                        if (d.success) {
+                            sessionMesa = { mesa_id: d.mesa_id, mesa_numero: d.mesa_numero, token: d.token_acesso, pedido_id: d.pedido_id };
+                            localStorage.setItem('sessionMesa', JSON.stringify(sessionMesa));
+                            showMainContent();
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            return; 
+                        } else {
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            Swal.fire('Aviso', d.error || 'Falha ao acessar via QR Code.', 'warning');
+                        }
+                    } catch (err) {
+                        console.error('Erro no auto-login QR:', err);
+                    } finally {
+                        showLoading(false);
+                    }
+                }
+            }
+
+            // 1. Verifica status inicial
+            await verificarCaixa();
+
+            // 2. Continua inicialização independente do status (para manter sincronia)
+            initPusher(); 
+            setInterval(verificarCaixa, 30000);
+            
+            if (!sessionMesa) { 
+                showLoading(false); 
+                // Só mostra login se estiver aberto
+                const cx = await verificarCaixa();
+                if (cx) {
+                    document.body.classList.add('login-active'); 
+                    document.getElementById('login-screen').style.display='flex'; 
+                }
+                return; 
+            }
+            if (!await validarSessaoAtiva()) { localStorage.removeItem('sessionMesa'); window.location.reload(); return; }
+            showMainContent();
+            
+            // Checagem de status inicial e periódica (Fallback do Pusher)
+            carregarMeusPedidos();
+            setInterval(carregarMeusPedidos, 10000); 
+        });
+
+        async function verificarCaixa() {
+            try { 
+                const res = await fetch('/api/caixa/status'); 
+                const cx = await res.json(); 
+                const s = document.getElementById('closed-screen');
+                const login = document.getElementById('login-screen');
+                const main = document.getElementById('main-content');
+                const loading = document.getElementById('loading');
+
+                if(!cx){ 
+                    s.style.display='flex'; 
+                    if(login) login.style.display='none';
+                    if(main) main.style.display='none';
+                    if(loading) loading.style.display='none';
+                    document.body.classList.add('modal-open');
+                    return false; 
+                } 
+                
+                // Se detectou que abriu:
+                if (s.style.display === 'flex') {
+                    s.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+                    
+                    // Decide o que mostrar ao reabrir
+                    if (!sessionMesa) {
+                        login.style.display = 'flex';
+                        document.body.classList.add('login-active');
+                    } else {
+                        showMainContent();
+                    }
+                }
+
+                return true; 
+            } catch(e){ 
+                return true; // Em caso de erro de rede, assume aberto para não travar o cliente
+            }
+        }
+
+        async function validarSessaoAtiva() {
+            if (!sessionMesa) return false;
+            try { const res = await fetch('/api/acesso/check', { headers: { 'Authorization': `Bearer ${sessionMesa.token}` } }); const d = await res.json(); return d.valid === true; } catch(e) { return false; }
+        }
+
+        async function validarAcesso() {
+            const codigo = document.getElementById('access-code').value.trim();
+            if (codigo.length < 4) return Swal.fire('Aviso', 'Código de 4 dígitos.', 'warning');
+            const btn = document.getElementById('btn-login'); btn.disabled = true;
+            try {
+                const res = await fetch('/api/acesso/validar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo }) });
+                const d = await res.json();
+                if (d.success) {
+                    sessionMesa = { mesa_id: d.mesa_id, mesa_numero: d.mesa_numero, token: d.token_acesso, pedido_id: d.pedido_id };
+                    localStorage.setItem('sessionMesa', JSON.stringify(sessionMesa));
+                    showMainContent();
+                } else { Swal.fire('Erro', d.error, 'error'); }
+            } catch(err){ Swal.fire('Erro', 'Conexão falhou.', 'error'); } finally { btn.disabled = false; }
+        }
+
+        function showMainContent() {
+            document.body.classList.remove('login-active'); document.getElementById('login-screen').style.display = 'none'; document.getElementById('main-content').style.display = 'block';
+            document.getElementById('mesa-label').innerText = `Mesa ${sessionMesa.mesa_numero}`;
+            showLoading(true); loadMenu();
+            initPusher(); // Garante que bindings de sessão sejam atachados
+        }
+
+        let isInitializingPusher = false;
+
+        function initPusher() {
+            if (pusher) {
+                attachSessionBindings();
+                return;
+            }
+            if (isInitializingPusher) return;
+            isInitializingPusher = true;
+
+            fetch('/api/pusher-config').then(r => r.json()).then(c => {
+                pusher = new Pusher(c.key, { cluster: c.cluster }); 
+                pusherChannel = pusher.subscribe('garconnexpress');
+                
+                pusherChannel.bind('status-caixa-atualizado', (d) => { 
+                    if(isClosingSession) return;
+                    verificarCaixa(); // Atualiza a tela em tempo real
+                });
+                
+                attachSessionBindings();
+            }).catch(e => {
+                console.error("❌ Erro ao configurar Pusher:", e);
+                isInitializingPusher = false;
+            });
+        }
+
+        function attachSessionBindings() {
+            if (!pusherChannel || !sessionMesa || sessionBindingsAttached) return;
+            
+            console.log(`🔗 Conectando eventos para Mesa ${sessionMesa.mesa_id}`);
+            
+            pusherChannel.bind(`rascunho-processado-mesa-${sessionMesa.mesa_id}`, () => {
+                if(isClosingSession) return;
+                console.log('✅ Botão Liberado pelo Garçom!');
+                carregarMeusPedidos();
+            });
+            
+            pusherChannel.bind(`fechamento-liberado-mesa-${sessionMesa.mesa_id}`, () => { 
+                if(isClosingSession) return;
+                carregarMeusPedidos(); 
+            });
+            
+            pusherChannel.bind(`deslogar-mesa-${sessionMesa.mesa_id}`, (d) => {
+                if (isClosingSession) return;
+                isClosingSession = true; // Bloqueia outros recarregamentos
+                console.log('🚪 Logout remoto recebido!', d);
+                
+                // Antes de limpar, tentamos pegar os dados finais se d não trouxer
+                const finalData = d.dados_fechamento || lastOrderData;
+
+                // Limpa a sessão imediatamente para evitar re-acesso automático
+                localStorage.removeItem('sessionMesa');
+                
+                const msg = (d && d.mensagem) ? d.mensagem : "Seu acesso foi encerrado pelo estabelecimento.";
+                const icon = (d && d.status === 'cancelado') ? 'error' : 'info';
+                const title = (d && d.status === 'cancelado') ? 'Acesso Cancelado' : 'Sessão Encerrada';
+
+                if (d.status !== 'cancelado' && finalData && finalData.itens && finalData.itens.length > 0) {
+                    Swal.fire({
+                        title: 'Conta Finalizada!',
+                        html: `
+                            <div style="text-align: center;">
+                                <div style="font-size: 3rem; margin-bottom: 15px;">💰</div>
+                                <p style="margin-bottom: 20px;">Sua conta na <b>Mesa ${sessionMesa.mesa_numero}</b> foi finalizada com sucesso. Obrigado pela preferência!</p>
+                                <button id="btn-download-cupom" class="btn-send" style="background: #27ae60; margin-bottom: 10px;">
+                                    <i class="fas fa-file-download"></i> BAIXAR CUPOM FISCAL
+                                </button>
+                            </div>
+                        `,
+                        icon: 'success',
+                        showConfirmButton: true,
+                        confirmButtonText: 'SAIR',
+                        confirmButtonColor: '#ff4757',
+                        timer: 60000,
+                        timerProgressBar: true,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            document.getElementById('btn-download-cupom').onclick = () => {
+                                gerarPDFCupom(finalData);
+                            };
+                        }
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: title,
+                        text: msg,
+                        icon: icon,
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#ff4757',
+                        timer: 60000,
+                        timerProgressBar: true,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    }).then(() => {
+                        location.reload();
+                    });
+                }
+            });
+
+            sessionBindingsAttached = true;
+        }
+
+        function gerarPDFCupom(data) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: [80, 200] }); // Formato bobina 80mm
+
+            const margin = 5;
+            let y = 10;
+
+            // Cabeçalho
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text("Guga Bebidas", 40, y, { align: "center" });
+            y += 6;
+            doc.setFontSize(8);
+            doc.text("COMPROVANTE DE CONSUMO", 40, y, { align: "center" });
+            y += 5;
+            doc.setFont("helvetica", "normal");
+            doc.text(`Mesa: ${sessionMesa.mesa_numero} | Data: ${new Date().toLocaleDateString()}`, 40, y, { align: "center" });
+            y += 5;
+            doc.text("--------------------------------------------------", 40, y, { align: "center" });
+            y += 5;
+
+            // Tabela de Itens
+            const body = data.itens.map(i => [
+                `${i.quantidade}x ${i.menu_nome || i.nome}`,
+                `R$ ${(i.quantidade * (i.preco || i.menu_preco)).toFixed(2)}`
+            ]);
+
+            doc.autoTable({
+                startY: y,
+                head: [['Item', 'Total']],
+                body: body,
+                theme: 'plain',
+                styles: { fontSize: 7, cellPadding: 1 },
+                columnStyles: { 1: { halign: 'right' } },
+                margin: { left: margin, right: margin }
+            });
+
+            y = doc.lastAutoTable.finalY + 5;
+
+            // Totais
+            const subtotal = data.itens.reduce((s, i) => s + (i.quantidade * (i.preco || i.menu_preco)), 0);
+            const taxa = subtotal * 0.10;
+            const total = subtotal + taxa;
+
+            doc.setFont("helvetica", "bold");
+            doc.text(`SUBTOTAL: R$ ${subtotal.toFixed(2)}`, 75, y, { align: "right" });
+            y += 4;
+            doc.text(`TAXA (10%): R$ ${taxa.toFixed(2)}`, 75, y, { align: "right" });
+            y += 5;
+            doc.setFontSize(10);
+            doc.text(`TOTAL GERAL: R$ ${total.toFixed(2)}`, 75, y, { align: "right" });
+
+            y += 10;
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "italic");
+            doc.text("Obrigado pela visita!", 40, y, { align: "center" });
+
+            doc.save(`cupom-mesa-${sessionMesa.mesa_numero}.pdf`);
+        }
+
+        let itensPendentesGlobal = false; // Controle global para trava de fechamento
+
+        async function carregarMeusPedidos() {
+            if (!sessionMesa) return;
+            try {
+                const res = await fetch('/api/cliente/meus-pedidos', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ token: sessionMesa.token }) 
+                });
+                const d = await res.json();
+                
+                const btnEnviar = document.getElementById('btn-final-enviar');
+                const banner = document.getElementById('lock-banner-msg');
+                const btnPedirConta = document.getElementById('btn-solicitar-fechamento');
+
+                // 1. Verifica se a conta já foi solicitada (status da mesa ou do pedido)
+                const mesaBloqueada = d.mesaStatus === 'fechando' || d.mesaStatus === 'aguardando_fechamento';
+                const pedidoEmFechamento = d.pedido && (d.pedido.status === 'aguardando_fechamento' || d.pedido.solicitou_fechamento === true || d.pedido.solicitou_fechamento === 1);
+                
+                const contaSolicitada = mesaBloqueada || pedidoEmFechamento;
+
+                // 2. Só permite pedir a conta se TODOS os itens estiverem como ENTREGUES ou SERVIDOS
+                const temItensNaoEntregues = d.itens && d.itens.some(i => {
+                    const s = i.status.toLowerCase();
+                    return s !== 'entregue' && s !== 'servido' && s !== 'cancelado';
+                });
+
+                itensPendentesGlobal = temItensNaoEntregues || d.tem_pendente;
+                const temPedidosFeitos = d.itens && d.itens.length > 0;
+
+                // --- CONTROLE DOS BOTÕES E BANNERS ---
+                
+                // 1. Botão de Enviar Pedido (Cardápio -> Cozinha)
+                if (d.tem_pendente || contaSolicitada) {
+                    lockAtivo = true;
+                    if (btnEnviar) {
+                        btnEnviar.disabled = true;
+                        btnEnviar.innerHTML = contaSolicitada ? '<i class="fas fa-hand-paper"></i> CONTA SOLICITADA' : '<i class="fas fa-clock"></i> AGUARDANDO GARÇOM';
+                    }
+                    if (banner) {
+                        banner.style.display = 'block';
+                        banner.innerText = contaSolicitada ? 'Você já pediu a conta! Para novos itens, chame o garçom.' : 'O garçom precisa confirmar seu pedido anterior antes de você enviar novos itens.';
+                    }
+                } else {
+                    lockAtivo = false;
+                    if (btnEnviar) {
+                        btnEnviar.disabled = false;
+                        btnEnviar.innerHTML = 'ENVIAR PEDIDO';
+                    }
+                    if (banner) banner.style.display = 'none';
+                }
+
+                // 2. Botão de Pedir Conta (Mesa -> Pagamento)
+                if (btnPedirConta) {
+                    if (contaSolicitada) {
+                        btnPedirConta.disabled = true;
+                        btnPedirConta.style.background = '#95a5a6';
+                        btnPedirConta.innerText = 'CONTA PEDIDA';
+                    } else if (itensPendentesGlobal) {
+                        btnPedirConta.disabled = true;
+                        btnPedirConta.style.background = '#bdc3c7';
+                        btnPedirConta.innerText = 'AGUARDE A ENTREGA';
+                    } else if (!temPedidosFeitos) {
+                        btnPedirConta.disabled = true;
+                        btnPedirConta.style.background = '#bdc3c7';
+                        btnPedirConta.innerText = 'PEDIR CONTA';
+                    } else {
+                        btnPedirConta.disabled = false;
+                        btnPedirConta.style.background = '#f1c40f';
+                        btnPedirConta.innerText = 'PEDIR CONTA';
+                    }
+                }
+
+                // Renderiza lista de consumo se houver
+                const container = document.getElementById('pedidos-lista');
+                if (container && d.success && d.pedido && d.itens && d.itens.length > 0) {
+                    lastOrderData = d; // Salva para uso no cupom fiscal pós-logout
+                    let statusLabel = d.pedido.status.toUpperCase();
+                    if (d.pedido.status === 'aguardando_fechamento') statusLabel = 'CONTA SOLICITADA';
+
+                    container.innerHTML = `<div style="background:#f8f9fa; padding:12px; border-radius:12px; margin-bottom:15px; border:1px solid #eee; display:flex; justify-content:space-between; font-weight:800; font-size:0.8rem; color:#777;"><span>PEDIDO: #${d.pedido.id}</span><span>${statusLabel}</span></div>`;
+                    container.innerHTML += d.itens.map(i => {
+                        const pr = i.preco || i.menu_preco || 0; 
+                        return `<div class="item-row" style="padding:10px 0;"><div><h4>${i.quantidade}x ${i.menu_nome}</h4><p>R$ ${(i.quantidade*pr).toFixed(2)}</p></div><span class="status-badge">${i.status}</span></div>`;
+                    }).join('');
+                    document.getElementById('pedidos-total').innerText = `R$ ${Number(d.pedido.total).toFixed(2)}`;
+                } else if (container) {
+                    container.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;"><i class="fas fa-receipt" style="font-size:2rem; display:block; margin-bottom:10px;"></i>Nenhum pedido realizado ainda.</div>';
+                    document.getElementById('pedidos-total').innerText = 'R$ 0,00';
+                }
+            } catch (e) { console.error('Erro ao carregar status:', e); }
+        }
+
+        async function enviarRascunho() { 
+            if (lockAtivo) return Swal.fire('Aguarde', 'Verifique o status do seu pedido nas notificações.', 'warning');
+            
+            const btn = document.getElementById('btn-final-enviar');
+            btn.disabled = true; 
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO...';
+
+            try { 
+                const res = await fetch('/api/cliente/enviar-rascunho', { 
+                    method:'POST', 
+                    headers:{'Content-Type':'application/json'}, 
+                    body:JSON.stringify({ 
+                        mesa_id:sessionMesa.mesa_id, 
+                        mesa_numero:sessionMesa.mesa_numero, 
+                        itens:cart.map(i=>({menu_id:i.id, nome:i.nome, quantidade:i.qty, preco:i.preco})) 
+                    }) 
+                }); 
+
+                const d = await res.json();
+                
+                if (res.status === 403) {
+                    Swal.fire({ title: 'Atenção', text: d.mensagem || 'Conta já solicitada.', icon: 'warning' });
+                    carregarMeusPedidos();
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-hand-paper"></i> CONTA SOLICITADA';
+                    return;
+                }
+
+                Swal.fire({title:'Pedido Enviado!', text: 'Agora o garçom precisa confirmar para você pedir mais.', icon:'success', timer:3000, showConfirmButton:false}); 
+                cart=[]; 
+                updateCartBar(); 
+                toggleCartModal(false); 
+                renderMenu(); 
+                carregarMeusPedidos();
+
+            } catch (err) {
+                Swal.fire('Erro', 'Falha ao enviar. Verifique sua conexão.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'ENVIAR PEDIDO';
+            }
+        }
+
+        async function loadMenu() { try { const res = await fetch('/api/menu'); fullMenu = await res.json(); renderCategories(); renderMenu(); showLoading(false); } catch(e){} }
+        function renderCategories() {
+            const cats = ['Tudo', ...new Set(fullMenu.map(i => i.categoria.trim().toUpperCase()))];
+            document.getElementById('categories-container').innerHTML = cats.map(c => `<div class="category-pill ${(currentCategory===null && c==='Tudo')||currentCategory===c?'active':''}" onclick="filterCategory('${c}')">${c}</div>`).join('');
+        }
+        function filterCategory(c) { currentCategory = c === 'Tudo' ? null : c; renderCategories(); renderMenu(); }
+        function renderMenu() {
+            const container = document.getElementById('menu-container'); container.innerHTML = '';
+            const menuToShow = currentCategory ? fullMenu.filter(i => i.categoria.trim().toUpperCase() === currentCategory) : fullMenu;
+            const groups = menuToShow.reduce((acc, i) => { const n = i.categoria.trim().toUpperCase(); if(!acc[n]) acc[n]=[]; acc[n].push(i); return acc; }, {});
+            for (const cat in groups) {
+                const section = document.createElement('div'); section.innerHTML = `<h2 class="section-title">${cat}</h2>`;
+                groups[cat].forEach(i => {
+                    const cartI = cart.find(c => c.id === i.id); const qty = cartI ? cartI.qty : 0;
+                    section.innerHTML += `
+                        <div class="menu-item">
+                            ${i.imagem ? `<img src="${i.imagem}" class="item-img">` : `<div class="item-placeholder">${i.nome[0]}</div>`}
+                            <div class="item-info"><h3>${i.nome}</h3><p class="desc">${i.descricao||''}</p><div class="price">R$ ${i.preco.toFixed(2)}</div>
+                                <div class="controls">${qty>0 ? `<button class="btn-qty" onclick="updateCart(${i.id},-1)">-</button><span class="qty">${qty}</span><button class="btn-qty" onclick="updateCart(${i.id},1)">+</button>` : `<button class="btn-add-initial" onclick="updateCart(${i.id},1)">Adicionar</button>`}</div>
+                            </div>
+                        </div>`;
+                });
+                container.appendChild(section);
+            }
+        }
+        function updateCart(id, delta) {
+            const i = fullMenu.find(x => x.id === id); const cI = cart.find(x => x.id === id);
+            if (cI) { cI.qty += delta; if (cI.qty <= 0) cart = cart.filter(x => x.id !== id); }
+            else if (delta > 0) cart.push({ ...i, qty: 1 });
+            renderMenu(); updateCartBar(); renderCartModal();
+        }
+        function updateCartBar() {
+            const bar = document.getElementById('cart-bar'); const q = cart.reduce((s, x) => s + x.qty, 0); const v = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
+            if (q > 0) { bar.style.display = 'flex'; document.getElementById('cart-qty').innerText = `${q} itens`; document.getElementById('cart-total').innerText = `R$ ${v.toFixed(2)}`; }
+            else { bar.style.display = 'none'; }
+        }
+        function toggleCartModal(s) { 
+            document.getElementById('modal-cart').style.display=s?'flex':'none'; 
+            if(s){ document.body.classList.add('modal-open'); renderCartModal(); carregarMeusPedidos(); }
+            else{ document.body.classList.remove('modal-open'); } 
+        }
+        function renderCartModal() {
+            const c = document.getElementById('modal-cart-items'); if (cart.length === 0) { c.innerHTML = '<p style="text-align:center; padding:30px; color:#999; font-weight:700;">Rascunho vazio.</p>'; return; }
+            c.innerHTML = cart.map(i => `<div class="item-row"><div><h4>${i.nome}</h4><p>${i.qty}x R$ ${i.preco.toFixed(2)}</p></div><div class="controls"><button class="btn-qty" onclick="updateCart(${i.id},-1)">-</button><span class="qty">${i.qty}</span><button class="btn-qty" onclick="updateCart(${i.id},1)">+</button></div></div>`).join('');
+            const total = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
+            document.getElementById('modal-cart-total').innerText = `R$ ${total.toFixed(2)}`;
+        }
+        function verMeusPedidos() { togglePedidosModal(true); }
+        function togglePedidosModal(s) { document.getElementById('modal-pedidos').style.display=s?'flex':'none'; if(s){document.body.classList.add('modal-open');carregarMeusPedidos();}else{document.body.classList.remove('modal-open');} }
+        async function solicitarFechamento() {
+            // TRAVA FINAL: Bloqueia se houver pendências (itens não entregues ou rascunho)
+            if (itensPendentesGlobal) {
+                return Swal.fire({
+                    title: 'Ainda não!',
+                    text: 'Você ainda tem itens em preparo ou entrega. Aguarde o recebimento de tudo para pedir a conta.',
+                    icon: 'warning'
+                });
+            }
+
+            if (await Swal.fire({ title: 'Pedir conta?', icon: 'question', showCancelButton: true, confirmButtonColor: '#f1c40f' }).then(r => r.isConfirmed)) {
+                showLoading(true); try { 
+                    const res = await fetch('/api/cliente/solicitar-conta', { 
+                        method:'POST', 
+                        headers:{'Content-Type':'application/json'}, 
+                        body:JSON.stringify({token:sessionMesa.token}) 
+                    }); 
+                    
+                    const d = await res.json();
+                    if (res.status === 400) {
+                        Swal.fire('Aviso', d.mensagem || 'Existem pendências.', 'warning');
+                    } else {
+                        Swal.fire('Enviado', 'O garçom foi notificado e já trará sua conta.', 'success');
+                    }
+                    carregarMeusPedidos(); 
+                } catch(e) {
+                    Swal.fire('Erro', 'Falha ao solicitar conta.', 'error');
+                } finally { showLoading(false); }
+            }
+        }
+        async function chamarGarcom() {
+            if (await Swal.fire({ title: 'Chamar Garçom?', icon: 'question', showCancelButton: true, confirmButtonColor: '#ff4757' }).then(r => r.isConfirmed)) {
+                showLoading(true); try { await fetch('/api/cliente/chamar-garcom', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mesa_id:sessionMesa.mesa_id, mesa_numero:sessionMesa.mesa_numero }) }); Swal.fire('Enviado','Garçom notificado!','success'); } finally { showLoading(false); }
+            }
+        }
+        function showLoading(s) { document.getElementById('loading').style.display=s?'flex':'none'; }
+    </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "name": "motoboy-app",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "custom"
+}

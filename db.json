@@ -1,0 +1,52 @@
+{
+  "chats": {
+    "115328914817201@lid": {
+      "name": "Carlos Leonidio",
+      "messages": [
+        {
+          "id": "ACC9EF7B24F93731B5093CAF64233D58",
+          "from": "115328914817201@lid",
+          "text": "🛍️ *NOVO PEDIDO - DELIVERY*\n------------------------------\n👤 *Cliente:* Gdhs\n📞 *Tel:* 646564\n🏠 *Endereço:* Rua Demócrito Gracindo, 117\n📍 *Bairro/Ref:* Ponta Grossa\n🛒 *ITENS:*\n- 1x Água Mineral (R$ 4.00)\n\n💵 *Subtotal:* R$ 4.00\n🛵 *Taxa de Entrega:* R$ 3.00\n💰 *TOTAL: R$ 7.00*\n💳 *Pagamento:* Pix\n------------------------------\n_Enviado via Cardápio Digital_",
+          "audioUrl": null,
+          "imageUrl": null,
+          "fromMe": false,
+          "time": "11:30",
+          "sender": "115328914817201@lid",
+          "pushName": "Carlos Leonidio"
+        },
+        {
+          "id": "AC8E95A8D531940A1AE049B14DEEF82C",
+          "from": "115328914817201@lid",
+          "text": "1",
+          "audioUrl": null,
+          "imageUrl": null,
+          "fromMe": false,
+          "time": "11:30",
+          "sender": "115328914817201@lid",
+          "pushName": "Carlos Leonidio"
+        },
+        {
+          "id": "AC9CD1E29E30A97AF3F73D1C9B92FF2D",
+          "from": "115328914817201@lid",
+          "text": "1",
+          "audioUrl": null,
+          "imageUrl": null,
+          "fromMe": false,
+          "time": "19:48",
+          "sender": "115328914817201@lid",
+          "pushName": "Carlos Leonidio"
+        }
+      ],
+      "atendimentoManual": false,
+      "unreadCount": 3,
+      "lastUpdate": 1780354138030
+    },
+    "786757575@s.whatsapp.net": {
+      "name": "786757575",
+      "messages": [],
+      "atendimentoManual": false,
+      "unreadCount": 0,
+      "lastUpdate": 1780332102590
+    }
+  }
+}

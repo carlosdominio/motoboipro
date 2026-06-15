@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "87255546210",
+    "project_id": "comgarconnexpressmotoboyasaa",
+    "storage_bucket": "comgarconnexpressmotoboyasaa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:87255546210:android:a9028fa2fc68e1a59b943b",
+        "android_client_info": {
+          "package_name": "com.garconnexpress.motoboy2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCB1RZTmf4LJHrEFB-e49FbUlwHa6ax9Q4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

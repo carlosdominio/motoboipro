@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Centralizando e escalonando o logo para a zona de seguranca (Safe Zone) -->
+    <group
+        android:translateX="21"
+        android:translateY="21"
+        android:scaleX="0.6"
+        android:scaleY="0.6">
+        
+        <!-- Tampa Verde (Cloche) -->
+        <path
+            android:fillColor="#27ae60"
+            android:pathData="M20,70 L80,70 Q80,30 50,30 Q20,30 20,70 Z" />
+            
+        <!-- Base do Prato (Retângulo Branco/Cinza) -->
+        <path
+            android:fillColor="#ecf0f1"
+            android:pathData="M18,70h64v5h-64z" />
+            
+        <!-- Bolinha do topo da tampa -->
+        <path
+            android:fillColor="#ecf0f1"
+            android:pathData="M50,28m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+    </group>
+</vector>

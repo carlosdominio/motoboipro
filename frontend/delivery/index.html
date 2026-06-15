@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery - GuGA Bebidas</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root { --primary: #27ae60; --primary-dark: #1e8449; --bg: #f1f2f6; --card-bg: #ffffff; --text: #2f3542; --text-light: #747d8c; --shadow: 0 4px 12px rgba(0,0,0,0.08); --radius: 16px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 100px; }
+        body.modal-open { overflow: hidden; height: 100vh; overscroll-behavior: none; }
+        #sticky-header-group { position: sticky; top: 0; z-index: 100; background: var(--bg); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        header { background: var(--card-bg); padding: 25px 20px; text-align: center; border-bottom: 1px solid #eee; }
+        header h1 { font-size: 1rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 2px; }
+        header p { font-size: 2.2rem; color: var(--primary); font-weight: 900; }
+        .categories { display: flex; overflow-x: auto; padding: 15px 20px; gap: 12px; background: var(--bg); scrollbar-width: none; }
+        .categories::-webkit-scrollbar { display: none; }
+        .category-pill { background: var(--card-bg); padding: 10px 20px; border-radius: 25px; font-size: 0.9rem; white-space: nowrap; box-shadow: var(--shadow); cursor: pointer; font-weight: 600; color: var(--text-light); border: 2px solid transparent; }
+        .category-pill.active { background: var(--primary); color: white; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(39, 174, 96, 0.3); }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .section-title { margin: 25px 0 15px; font-size: 1.4rem; color: var(--text); font-weight: 800; border-left: 5px solid var(--primary); padding-left: 12px; }
+        .menu-item { background: var(--card-bg); border-radius: var(--radius); padding: 18px; margin-bottom: 20px; display: flex; gap: 15px; box-shadow: var(--shadow); position: relative; }
+        .promo-badge { background: #ff4757; color: white; padding: 4px 10px; border-radius: 8px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; width: fit-content; margin-bottom: 8px; box-shadow: 0 4px 8px rgba(255, 71, 87, 0.2); }
+        .item-img-container { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .item-img { width: 90px; height: 90px; background: #f8f9fa; border-radius: 14px; object-fit: cover; }
+        .item-placeholder { width: 90px; height: 90px; background: #f1f2f6; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 2rem; font-weight: bold; }
+        .item-info { flex: 1; }
+        .item-info h3 { font-size: 1.15rem; margin-bottom: 6px; }
+        .item-info .desc { font-size: 0.85rem; color: var(--text-light); line-height: 1.4; }
+        .item-info .price { font-weight: 800; color: var(--primary); font-size: 1.2rem; margin-top: 8px; }
+        .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+        .btn-qty { width: 32px; height: 32px; border-radius: 10px; border: none; background: #f1f2f6; cursor: pointer; font-weight: bold; font-size: 1.2rem; }
+        .qty { font-weight: 800; font-size: 1.1rem; width: 25px; text-align: center; }
+        .btn-add-initial { background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+        .cart-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: calc(100% - 40px); max-width: 500px; background: #2f3542; color: white; padding: 18px 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 200; cursor: pointer; display: none; }
+
+        .modal-cart { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; z-index: 1000; justify-content: flex-end; flex-direction: column; }
+        .modal-content { background: white; border-radius: 40px 40px 0 0; padding: 40px 25px; max-height: 94vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { font-size: 1.8rem; font-weight: 900; }
+        .close-modal { font-size: 2rem; color: #ddd; cursor: pointer; padding: 5px; }
+
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-light); margin-bottom: 8px; text-transform: uppercase; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 15px; border-radius: 12px; border: 2px solid #f1f2f6; font-size: 1rem; outline: none; background: #f8f9fa; }
+        .form-group input:focus { border-color: var(--primary); background: white; }
+
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #f8f9fa; }
+        .item-row h4 { font-size: 1.05rem; font-weight: 800; }
+        
+        .value-card { background: #f8f9fa; padding: 20px; border-radius: 18px; margin: 20px 0; display: flex; justify-content: space-between; align-items: center; }
+        .value-card span { font-weight: 700; color: var(--text-light); }
+        .value-card h3 { font-size: 1.4rem; font-weight: 900; color: var(--primary); }
+
+        .btn-finish { width: 100%; background: var(--primary); color: white; border: none; padding: 20px; border-radius: 20px; font-size: 1.1rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; }
+        .btn-finish:active { transform: scale(0.98); }
+        
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 20px; }
+        .spinner { width: 50px; height: 50px; border: 6px solid #f3f3f3; border-top: 6px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #closed-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: white; z-index: 3000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
+
+        /* TRACKING STYLES */
+        #tracking-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: var(--bg); z-index: 4000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+        .tracking-card { background: white; width: 100%; max-width: 450px; padding: 40px 30px; border-radius: 40px; box-shadow: 0 25px 60px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; }
+        .tracking-status-icon { width: 100px; height: 100px; background: #e8f8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 25px; font-size: 3.5rem; }
+        .tracking-id { background: #f1f2f6; padding: 8px 15px; border-radius: 12px; font-size: 0.85rem; font-weight: 800; color: var(--text-light); margin-bottom: 15px; text-transform: uppercase; }
+        .tracking-title { font-size: 1.8rem; font-weight: 900; color: var(--text); margin-bottom: 10px; }
+        .tracking-msg { color: var(--text-light); line-height: 1.5; margin-bottom: 30px; font-size: 1rem; }
+        
+        .stepper { display: flex; width: 100%; justify-content: space-between; position: relative; margin-bottom: 30px; padding: 0 10px; }
+        .stepper::before { content: ''; position: absolute; top: 15px; left: 30px; right: 30px; height: 3px; background: #eee; z-index: 1; }
+        .step { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
+        .step-circle { width: 34px; height: 34px; background: white; border: 3px solid #eee; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #ccc; transition: 0.3s; }
+        .step.active .step-circle { border-color: var(--primary); background: var(--primary); color: white; box-shadow: 0 0 15px rgba(39, 174, 96, 0.3); }
+        .step.completed .step-circle { border-color: var(--primary); background: var(--primary); color: white; }
+        .step-label { font-size: 0.65rem; font-weight: 800; color: #ccc; text-transform: uppercase; text-align: center; }
+        .step.active .step-label { color: var(--primary); }
+        .step.completed .step-label { color: var(--text); }
+        
+        .btn-back-menu { width: 100%; padding: 18px; border-radius: 18px; border: none; background: #2f3542; color: white; font-weight: 800; cursor: pointer; font-size: 1rem; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+    <div id="loading"><div class="spinner"></div><p style="font-weight: 700; color: #999;">CARREGANDO DELIVERY...</p></div>
+
+    <div id="tracking-screen">
+        <div class="tracking-card">
+            <div class="tracking-id" id="track-pedido-id">PEDIDO #000</div>
+            <div class="tracking-status-icon" id="track-icon">⏳</div>
+            <h2 class="tracking-title" id="track-title">Aguardando...</h2>
+            <p class="tracking-msg" id="track-msg">Estamos atualizando o status do seu pedido em tempo real.</p>
+            
+            <div class="stepper">
+                <div class="step" id="step-1"><div class="step-circle"><i class="fas fa-check"></i></div><span class="step-label">Recebido</span></div>
+                <div class="step" id="step-2"><div class="step-circle"><i class="fas fa-utensils"></i></div><span class="step-label">Preparo</span></div>
+                <div class="step" id="step-3"><div class="step-circle"><i class="fas fa-motorcycle"></i></div><span class="step-label">Entrega</span></div>
+                <div class="step" id="step-4"><div class="step-circle"><i class="fas fa-flag-checkered"></i></div><span class="step-label">Concluído</span></div>
+            </div>
+
+            <button onclick="reenviarScript()" id="btn-track-reenviar" style="background: #25D366; color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 700; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; margin-bottom: 10px;">
+                <i class="fab fa-whatsapp"></i> ABRIR WHATSAPP
+            </button>
+            <button onclick="voltarAoMenu()" class="btn-back-menu" id="btn-voltar-menu">FAZER NOVO PEDIDO</button>
+        </div>
+    </div>
+
+    <div id="closed-screen">
+        <div style="width:100%; max-width:450px; background:white; padding:60px 40px; border-radius:40px; box-shadow: 0 25px 60px rgba(0,0,0,0.1); display:flex; flex-direction:column; align-items:center;">
+            <div style="width: 120px; height: 120px; background: #e8f8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 25px; font-size: 4rem;">🛵</div>
+            <h1 style="font-weight: 900; font-size: 2.2rem; color: #2f3542; margin-bottom: 10px; letter-spacing: -1px;">Guga Bebidas</h1>
+            <p id="closed-subtitle" style="color: #27ae60; font-weight: 800; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px;">Delivery Fechado</p>
+            <p id="closed-msg" style="color: #747d8c; line-height: 1.6; font-size: 1.1rem; margin-bottom: 35px;">
+                No momento não estamos aceitando pedidos para entrega.<br>
+                Agradecemos a compreensão!
+            </p>
+            <div style="width: 100%; border-top: 1px solid #f1f2f6; padding-top: 30px;">
+                <p style="font-size: 0.9rem; color: #a4b0be; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Horário de Funcionamento</p>
+                <p style="font-size: 1rem; color: #2f3542; margin-top: 5px; font-weight: 700;">Diariamente das 18h às 02:00 de Terça a Domingo</p>
+            </div>
+            <button onclick="location.reload()" class="btn-finish" style="margin-top: 40px; background: #2f3542;">TENTAR NOVAMENTE</button>
+        </div>
+    </div>
+
+    <div id="main-content" style="display: none;">
+        <div id="sticky-header-group">
+            <header><h1>GuGA Bebidas</h1><p>Delivery</p></header>
+            <div class="categories" id="categories-container"></div>
+        </div>
+        <div class="container" id="menu-container"></div>
+        <div class="cart-bar" id="cart-bar" onclick="toggleCartModal(true)">
+            <div class="info"><span id="cart-qty">0 itens</span><span id="cart-total" style="display: block; font-weight: 900; font-size: 1.2rem;">R$ 0,00</span></div>
+            <div style="font-weight: 800; font-size: 0.9rem;">VER CARRINHO <i class="fas fa-shopping-cart"></i></div>
+        </div>
+    </div>
+
+    <div class="modal-cart" id="modal-cart">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Carrinho</h2><i class="fas fa-times close-modal" onclick="toggleCartModal(false)"></i></div>
+            <div id="modal-cart-items" style="margin-bottom: 20px;"></div>
+            
+            <div id="delivery-form">
+                <div class="form-group"><label>Seu Nome</label><input type="text" id="cust-name" placeholder="Como te chamamos?"></div>
+                <div class="form-group"><label>WhatsApp / Telefone</label><input type="tel" id="cust-phone" placeholder="(00) 00000-0000"></div>
+                
+                <div class="form-group">
+                    <label>CEP</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="number" id="cust-cep" placeholder="Ex: 57000000" style="padding-right: 100px;">
+                        <button onclick="buscarCEP()" style="position: absolute; right: 5px; width: auto; padding: 8px 15px; background: var(--primary); margin-bottom: 0; font-size: 0.8rem; border-radius: 8px;">BUSCAR</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 3;"><label>Endereço</label><input type="text" id="cust-address" placeholder="Rua / Avenida"></div>
+                    <div class="form-group" style="flex: 1;"><label>Nº</label><input type="text" id="cust-number" placeholder="123"></div>
+                </div>
+
+                <div class="form-group"><label>Bairro / Complemento / Ref</label><input type="text" id="cust-bairro" placeholder="Ex: Centro - Próximo ao mercado"></div>
+                <div class="form-group"><label>Observações do Pedido</label><textarea id="cust-obs" rows="2" placeholder="Alguma preferência? (Ex: sem cebola, ponto da carne...)"></textarea></div>
+                
+                <div class="form-group">
+                    <label>Forma de Pagamento</label>
+                    <select id="cust-payment" onchange="toggleChangeField(this.value)">
+                        <option value="Pix">PIX</option>
+                        <option value="Cartão">Cartão (Maquininha)</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                    </select>
+                </div>
+                <div id="change-group" class="form-group" style="display: none;"><label>Troco para quanto?</label><input type="number" id="cust-change" placeholder="Ex: 100"></div>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 18px; margin: 20px 0;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--text-light); font-size: 0.9rem;">
+                    <span>Subtotal</span>
+                    <span id="modal-subtotal">R$ 0,00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; color: var(--text-light); font-size: 0.9rem;">
+                    <span>Taxa de Entrega</span>
+                    <span>R$ 3,00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed #eee; pt: 12px; margin-top: 10px; padding-top: 10px;">
+                    <span style="font-weight: 800; font-size: 1rem;">TOTAL FINAL</span>
+                    <h3 id="modal-cart-total" style="font-size: 1.6rem; font-weight: 900; color: var(--primary);">R$ 0,00</h3>
+                </div>
+            </div>
+            <button class="btn-finish" id="btn-finalizar" onclick="finalizarPedido()"><i class="fas fa-check"></i> FINALIZAR PEDIDO</button>
+        </div>
+    </div>
+
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script>
+        let fullMenu = [], cart = [], currentCategory = null, pusher;
+        let ultimoScriptEncoded = localStorage.getItem('ultimoScriptEncoded') || '';
+        let pedidoAtivoId = localStorage.getItem('pedidoAtivoId') || null;
+
+        const ADMIN_NUMBER = '558293157048'; // Número do Admin para o WhatsApp
+        const TAXA_ENTREGA = 3.00; // Taxa de entrega fixa
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await verificarCaixa();
+            initPusher();
+            loadMenu();
+            verificarStatusAtivo();
+        });
+
+        async function initPusher() {
+            try {
+                const res = await fetch('/api/pusher-config');
+                const config = await res.json();
+                pusher = new Pusher(config.key, { cluster: config.cluster });
+                const ch = pusher.subscribe('garconnexpress');
+                
+                ch.bind('menu-atualizado', () => {
+                    console.log('🔄 Menu atualizado em tempo real!');
+                    loadMenu();
+                });
+
+                ch.bind('status-caixa-atualizado', (data) => {
+                    console.log('📢 Status do caixa recebido no delivery:', data);
+                    verificarCaixa(); // Atualiza a tela em tempo real
+                });
+
+                ch.bind('delivery-status-atualizado', (data) => {
+                    console.log('📢 Status do delivery recebido:', data);
+                    verificarCaixa(); // Atualiza a tela em tempo real
+                });
+
+                ch.bind('status-atualizado', (data) => {
+                    console.log('📢 Status de pedido atualizado:', data);
+                    if (pedidoAtivoId && data.pedido_id == pedidoAtivoId) {
+                        updateTrackingUI(data.status, data.pedido_id);
+                    }
+                });
+            } catch (e) { console.error('Erro Pusher:', e); }
+        }
+
+        async function verificarStatusAtivo() {
+            if (!pedidoAtivoId) return;
+
+            try {
+                const res = await fetch(`/api/pedidos/${pedidoAtivoId}`);
+                if (res.ok) {
+                    const pedido = await res.json();
+                    if (pedido.status === 'entregue' || pedido.status === 'cancelado') {
+                        // Se já foi finalizado há muito tempo, não mostra.
+                        // Mas para "atualizar sozinha", vamos mostrar o estado final.
+                        updateTrackingUI(pedido.status, pedido.id);
+                    } else {
+                        updateTrackingUI(pedido.status, pedido.id);
+                    }
+                } else {
+                    // Pedido não encontrado ou erro, limpa.
+                    pedidoAtivoId = null;
+                    localStorage.removeItem('pedidoAtivoId');
+                }
+            } catch (e) { console.error("Erro ao verificar status ativo:", e); }
+        }
+
+        function updateTrackingUI(status, id) {
+            const screen = document.getElementById('tracking-screen');
+            const title = document.getElementById('track-title');
+            const msg = document.getElementById('track-msg');
+            const icon = document.getElementById('track-icon');
+            const btnVoltar = document.getElementById('btn-voltar-menu');
+            const btnReenviar = document.getElementById('btn-track-reenviar');
+            
+            pedidoAtivoId = id;
+            document.getElementById('track-pedido-id').innerText = `PEDIDO #${id}`;
+            screen.style.display = 'flex';
+            document.body.classList.add('modal-open');
+
+            // Reseta steps
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active', 'completed'));
+
+            const statusMap = {
+                'pendente': { step: 1, title: 'Pedido Recebido!', msg: 'Seu pedido já chegou para nós e em breve entrará em preparo.', icon: '✅' },
+                'recebido': { step: 1, title: 'Pedido Recebido!', msg: 'Seu pedido já chegou para nós e em breve entrará em preparo.', icon: '✅' },
+                'preparando': { step: 2, title: 'Em Preparação', msg: 'Nossa cozinha já está preparando seus itens com todo carinho.', icon: '🍳' },
+                'pronto': { step: 3, title: 'Pedido Pronto!', msg: 'Tudo pronto! Seu pedido está aguardando o motoboy para sair.', icon: '🍱' },
+                'servido': { step: 3, title: 'Saiu para Entrega!', msg: 'O motoboy já pegou seu pedido e está a caminho do seu endereço.', icon: '🛵' },
+                'saiu_entrega': { step: 3, title: 'Saiu para Entrega!', msg: 'O motoboy já pegou seu pedido e está a caminho do seu endereço.', icon: '🛵' },
+                'aguardando_fechamento': { step: 3, title: 'Entregue!', msg: 'O motoboy confirmou a entrega. Aproveite sua refeição!', icon: '😋' },
+                'entregue': { step: 4, title: 'Concluído!', msg: 'Pedido finalizado com sucesso. Obrigado pela preferência!', icon: '✨' },
+                'cancelado': { step: 0, title: 'Pedido Cancelado', msg: 'Infelizmente seu pedido foi cancelado. Entre em contato para mais detalhes.', icon: '❌' }
+            };
+
+            const info = statusMap[status] || statusMap['pendente'];
+            title.innerText = info.title;
+            msg.innerText = info.msg;
+            icon.innerText = info.icon;
+
+            if (status === 'cancelado') {
+                document.getElementById('step-1').style.display = 'none';
+                document.getElementById('step-2').style.display = 'none';
+                document.getElementById('step-3').style.display = 'none';
+                document.getElementById('step-4').style.display = 'none';
+                btnVoltar.style.display = 'block';
+                btnReenviar.style.display = 'none';
+            } else {
+                for (let i = 1; i <= 4; i++) {
+                    const s = document.getElementById(`step-${i}`);
+                    s.style.display = 'flex';
+                    if (i < info.step) s.classList.add('completed');
+                    if (i === info.step) s.classList.add('active');
+                }
+                
+                if (info.step >= 4 || status === 'entregue' || status === 'aguardando_fechamento') {
+                    btnVoltar.style.display = 'block';
+                } else {
+                    btnVoltar.style.display = 'none';
+                }
+            }
+        }
+
+        function voltarAoMenu() {
+            localStorage.removeItem('pedidoAtivoId');
+            localStorage.removeItem('ultimoScriptEncoded');
+            pedidoAtivoId = null;
+            ultimoScriptEncoded = '';
+            location.reload();
+        }
+
+        async function buscarCEP() {
+            const cep = document.getElementById('cust-cep').value.replace(/\D/g, '');
+            if (cep.length !== 8) return Swal.fire('Aviso', 'Digite um CEP válido com 8 dígitos.', 'warning');
+
+            try {
+                const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const data = await response.json();
+                
+                if (data.erro) {
+                    Swal.fire('Erro', 'CEP não encontrado.', 'error');
+                } else {
+                    document.getElementById('cust-address').value = data.logradouro;
+                    document.getElementById('cust-bairro').value = data.bairro;
+                    const numField = document.getElementById('cust-number');
+                    numField.focus();
+                    mostrarToast("Endereço preenchido! Digite o número.");
+                }
+            } catch (error) {
+                Swal.fire('Erro', 'Falha ao buscar CEP. Tente digitar manualmente.', 'error');
+            }
+        }
+
+        function mostrarToast(msg) {
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+            Toast.fire({ icon: 'success', title: msg });
+        }
+
+        function copiarCodigo(id) {
+            navigator.clipboard.writeText(id).then(() => {
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000,
+                    timerProgressBar: true
+                });
+                Toast.fire({ icon: 'success', title: "Código copiado!" });
+            });
+        }
+
+        function reenviarScript() {
+            if (ultimoScriptEncoded) {
+                window.open(`https://wa.me/${ADMIN_NUMBER}?text=${ultimoScriptEncoded}`, '_blank');
+            } else {
+                Swal.fire('Aviso', 'Não há script para reenviar.', 'warning');
+            }
+        }
+
+        async function verificarCaixa() {
+            try {
+                const [resCaixa, resDelivery] = await Promise.all([
+                    fetch('/api/caixa/status'),
+                    fetch('/api/configs/delivery-status')
+                ]);
+                
+                const cx = await resCaixa.json();
+                const del = await resDelivery.json();
+                
+                const screen = document.getElementById('closed-screen');
+                const main = document.getElementById('main-content');
+                const loading = document.getElementById('loading');
+                const subtitle = document.getElementById('closed-subtitle');
+                const msg = document.getElementById('closed-msg');
+
+                // 1. Se o caixa geral estiver fechado (prioridade total)
+                if(!cx) {
+                    screen.style.display = 'flex';
+                    loading.style.display = 'none';
+                    if(main) main.style.display = 'none';
+                    if(subtitle) subtitle.innerText = 'Estabelecimento Fechado';
+                    if(msg) msg.innerHTML = 'Nosso atendimento via cardápio digital está <b>encerrado</b> no momento.<br>Agradecemos a compreensão!';
+                    return false;
+                }
+
+                // 2. Se o caixa está aberto, mas o delivery está desligado
+                if (!del.delivery_aberto) {
+                    screen.style.display = 'flex';
+                    loading.style.display = 'none';
+                    if(main) main.style.display = 'none';
+                    if(subtitle) {
+                        subtitle.innerText = 'Delivery Fechado';
+                        subtitle.style.color = '#e67e22'; // Laranja para diferenciar
+                    }
+                    if(msg) msg.innerHTML = 'No momento, estamos atendendo apenas <b>presencialmente</b>.<br>O serviço de delivery está temporariamente desativado.';
+                    return false;
+                }
+                
+                // Se tudo estiver aberto:
+                if (screen.style.display === 'flex') {
+                    screen.style.display = 'none';
+                    if (!fullMenu || fullMenu.length === 0) {
+                        loading.style.display = 'flex';
+                        loadMenu();
+                    } else {
+                        main.style.display = 'block';
+                    }
+                }
+                return true;
+            } catch(e) { return true; }
+        }
+
+        async function loadMenu() {
+            try {
+                const res = await fetch('/api/menu');
+                fullMenu = await res.json();
+                renderCategories();
+                renderMenu();
+                document.getElementById('main-content').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+            } catch(e) { console.error(e); }
+        }
+
+        function renderCategories() {
+            const cats = ['Tudo', ...new Set(fullMenu.map(i => i.categoria.trim().toUpperCase()))];
+            document.getElementById('categories-container').innerHTML = cats.map(c => `<div class="category-pill ${(currentCategory===null && c==='Tudo')||currentCategory===c?'active':''}" onclick="filterCategory('${c}')">${c}</div>`).join('');
+        }
+
+        function filterCategory(c) {
+            currentCategory = c === 'Tudo' ? null : c;
+            renderCategories();
+            renderMenu();
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menu-container');
+            container.innerHTML = '';
+            const menuToShow = currentCategory ? fullMenu.filter(i => i.categoria.trim().toUpperCase() === currentCategory) : fullMenu;
+            const groups = menuToShow.reduce((acc, i) => { const n = i.categoria.trim().toUpperCase(); if(!acc[n]) acc[n]=[]; acc[n].push(i); return acc; }, {});
+            
+            for (const cat in groups) {
+                const section = document.createElement('div');
+                section.innerHTML = `<h2 class="section-title">${cat}</h2>`;
+                groups[cat].forEach(i => {
+                    const cartI = cart.find(c => c.id === i.id);
+                    const qty = cartI ? cartI.qty : 0;
+                    const emPromo = i.em_promocao === 1 || i.em_promocao === true;
+                    
+                    section.innerHTML += `
+                        <div class="menu-item">
+                            <div class="item-img-container">
+                                ${i.imagem ? `<img src="${i.imagem}" class="item-img" onerror="this.onerror=null;this.src='https://placehold.co/100x100?text=${i.nome[0]}'">` : `<div class="item-placeholder">${i.nome[0]}</div>`}
+                                ${emPromo ? '<div class="promo-badge">PROMOÇÃO</div>' : ''}
+                            </div>
+                            <div class="item-info">
+                                <h3>${i.nome}</h3>
+                                <p class="desc">${i.descricao||''}</p>
+                                <div class="price">
+                                    ${emPromo && i.preco_original ? `<span style="text-decoration: line-through; color: #a4b0be; font-size: 0.85rem; margin-right: 8px;">R$ ${i.preco_original.toFixed(2)}</span>` : ''}
+                                    R$ ${i.preco.toFixed(2)}
+                                </div>
+                                <div class="controls">
+                                    ${qty>0 ? `<button class="btn-qty" onclick="updateCart(${i.id},-1)">-</button><span class="qty">${qty}</span><button class="btn-qty" onclick="updateCart(${i.id},1)">+</button>` : `<button class="btn-add-initial" onclick="updateCart(${i.id},1)">Adicionar</button>`}
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                container.appendChild(section);
+            }
+        }
+
+        function updateCart(id, delta) {
+            const i = fullMenu.find(x => x.id === id);
+            const cI = cart.find(x => x.id === id);
+            if (cI) {
+                cI.qty += delta;
+                if (cI.qty <= 0) cart = cart.filter(x => x.id !== id);
+            } else if (delta > 0) {
+                cart.push({ ...i, qty: 1 });
+            }
+            renderMenu();
+            updateCartBar();
+            renderCartModal();
+        }
+
+        function updateCartBar() {
+            const bar = document.getElementById('cart-bar');
+            const q = cart.reduce((s, x) => s + x.qty, 0);
+            const v = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
+            if (q > 0) {
+                bar.style.display = 'flex';
+                document.getElementById('cart-qty').innerText = `${q} itens`;
+                document.getElementById('cart-total').innerText = `R$ ${(v + TAXA_ENTREGA).toFixed(2)}`;
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function toggleCartModal(s) {
+            document.getElementById('modal-cart').style.display=s?'flex':'none';
+            if(s) document.body.classList.add('modal-open');
+            else document.body.classList.remove('modal-open');
+        }
+
+        function toggleChangeField(val) {
+            document.getElementById('change-group').style.display = val === 'Dinheiro' ? 'block' : 'none';
+        }
+
+        function renderCartModal() {
+            const c = document.getElementById('modal-cart-items');
+            if (cart.length === 0) {
+                c.innerHTML = '<p style="text-align:center; padding:20px; color:#999;">Carrinho vazio.</p>';
+                return;
+            }
+            c.innerHTML = cart.map(i => `
+                <div class="item-row">
+                    <div style="flex: 1;">
+                        <h4 style="margin:0;">${i.qty}x ${i.nome}</h4>
+                    </div>
+                    <div style="text-align: right; margin-right: 15px;">
+                        <b>R$ ${(i.qty*i.preco).toFixed(2)}</b>
+                    </div>
+                    <div>
+                        <button onclick="removeFromCart(${i.id})" style="background: #ff4757; color: white; border: none; padding: 5px 8px; border-radius: 5px; cursor: pointer;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>`).join('');
+            const subtotal = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
+            document.getElementById('modal-subtotal').innerText = `R$ ${subtotal.toFixed(2)}`;
+            document.getElementById('modal-cart-total').innerText = `R$ ${(subtotal + TAXA_ENTREGA).toFixed(2)}`;
+        }
+
+        function removeFromCart(id) {
+            cart = cart.filter(x => x.id !== id);
+            renderMenu();
+            updateCartBar();
+            renderCartModal();
+            if (cart.length === 0) {
+                toggleCartModal(false);
+            }
+        }
+
+        async function finalizarPedido() {
+            const name = document.getElementById('cust-name').value.trim();
+            const phone = document.getElementById('cust-phone').value.trim();
+            const address = document.getElementById('cust-address').value.trim();
+            const number = document.getElementById('cust-number').value.trim();
+            const bairro = document.getElementById('cust-bairro').value.trim();
+            const obs = document.getElementById('cust-obs').value.trim();
+            const payment = document.getElementById('cust-payment').value;
+            const change = document.getElementById('cust-change').value;
+
+            if (!name || !address || !number) return Swal.fire('Aviso', 'Preencha Nome, Endereço e Número.', 'warning');
+            if (cart.length === 0) return Swal.fire('Aviso', 'Seu carrinho está vazio.', 'warning');
+
+            const btn = document.getElementById('btn-finalizar');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENVIANDO...';
+
+            const subtotal = cart.reduce((s, x) => s + (x.qty*x.preco), 0);
+            const totalFinal = subtotal + TAXA_ENTREGA;
+            
+            let orderObs = `🛵 DELIVERY\n`;
+            orderObs += `👤 Cliente: ${name}\n`;
+            if(phone) orderObs += `📞 Tel: ${phone}\n`;
+            orderObs += `🏠 End: ${address}, ${number}\n`;
+            if(bairro) orderObs += `📍 Bairro/Ref: ${bairro}\n`;
+            orderObs += `💳 Pagamento: ${payment}`;
+            if(payment === 'Dinheiro' && change) orderObs += ` (Troco R$ ${parseFloat(change).toFixed(2)})`;
+            if(obs) orderObs += `\n📝 Obs: ${obs}`;
+
+            const itemsPayload = cart.map(i => ({
+                menu_id: i.id,
+                quantidade: i.qty,
+                preco: i.preco,
+                nome: i.nome,
+                observacao: "" // Observações individuais de itens poderiam ir aqui se houvesse campo
+            }));
+
+            try {
+                const response = await fetch('/api/pedidos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mesa_id: null,
+                        garcom_id: 'DELIVERY',
+                        cliente_telefone: phone.replace(/\D/g, ''), // Envia apenas números
+                        itens: itemsPayload,
+                        cobrar_taxa: true, // DEVE ser true para ativar a taxa de R$ 3,00 no Admin
+                        total: totalFinal,
+                        observacao: orderObs,
+                        forma_pagamento: payment,
+                        valor_recebido: (payment === 'Dinheiro' && change) ? parseFloat(change) : totalFinal,
+                        troco: (payment === 'Dinheiro' && change) ? (parseFloat(change) - totalFinal) : 0
+                    })
+                });
+
+                if (response.ok) {
+                    const d = await response.json();
+                    const pedidoId = d.pedidoId || d.id || '...';
+
+                    // Prepara a mensagem para o WhatsApp
+                    let msg = `🛍️ *NOVO PEDIDO - DELIVERY*\n`;
+                    msg += `🔖 *ID:* #${pedidoId}\n`;
+                    msg += `------------------------------\n`;
+                    msg += `👤 *Cliente:* ${name}\n`;
+                    if(phone) msg += `📞 *Tel:* ${phone}\n`;
+                    msg += `🏠 *Endereço:* ${address}, ${number}\n`;
+                    if(bairro) msg += `📍 *Bairro/Ref:* ${bairro}\n`;
+                    if(obs) msg += `📝 *Obs:* ${obs}\n\n`;
+                    
+                    msg += `🛒 *ITENS:*\n`;
+                    cart.forEach(i => {
+                        msg += `- ${i.qty}x ${i.nome} (R$ ${(i.qty*i.preco).toFixed(2)})\n`;
+                    });
+                    
+                    msg += `\n💵 *Subtotal:* R$ ${subtotal.toFixed(2)}\n`;
+                    msg += `🛵 *Taxa de Entrega:* R$ ${TAXA_ENTREGA.toFixed(2)}\n`;
+                    msg += `💰 *TOTAL: R$ ${totalFinal.toFixed(2)}*\n`;
+                    msg += `💳 *Pagamento:* ${payment}`;
+                    if(payment === 'Dinheiro' && change) msg += ` (Troco para R$ ${parseFloat(change).toFixed(2)})`;
+                    msg += `\n------------------------------\n`;
+                    msg += `_Enviado via Cardápio Digital_`;
+
+                    const encoded = encodeURIComponent(msg);
+                    ultimoScriptEncoded = encoded; 
+                    localStorage.setItem('ultimoScriptEncoded', encoded);
+                    localStorage.setItem('pedidoAtivoId', pedidoId);
+                    
+                    window.open(`https://wa.me/${ADMIN_NUMBER}?text=${encoded}`, '_blank');
+
+                    let timerInterval;
+                    Swal.fire({
+                        title: 'Pedido Enviado!',
+                        html: `
+                            <p style="margin-bottom: 15px;">Seu pedido já está com a nossa equipe!</p>
+                            <div style="background: #f1f2f6; padding: 15px; border-radius: 12px; border: 1px dashed #ced4da;">
+                                <span style="display: block; font-size: 0.8rem; color: #747d8c; text-transform: uppercase; font-weight: 700;">Código do Pedido</span>
+                                <strong style="font-size: 1.8rem; color: #2f3542; letter-spacing: 1px;">#${pedidoId}</strong>
+                                <button onclick="copiarCodigo('${pedidoId}')" style="margin-top: 10px; background: #fff; border: 1px solid #ddd; padding: 8px 15px; border-radius: 10px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: auto; font-weight: 700; color: #57606f; width: 100%; justify-content: center;">
+                                    <i class="fas fa-copy"></i> COPIAR CÓDIGO
+                                </button>
+                                <button onclick="reenviarScript()" style="margin-top: 10px; background: #25D366; border: none; padding: 10px 15px; border-radius: 10px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: auto; font-weight: 700; color: #fff; width: 100%; justify-content: center;">
+                                    <i class="fab fa-whatsapp"></i> REENVIAR WHATSAPP
+                                </button>
+                            </div>
+                            <p style="margin-top: 15px; font-size: 0.9rem; color: #57606f;">Se o WhatsApp não abriu automaticamente, clique no botão acima para concluir o envio.</p>
+                        `,
+                        icon: 'success',
+                        confirmButtonText: 'OK, ENTENDI (5:00)',
+                        confirmButtonColor: '#27ae60',
+                        timer: 300000,
+                        timerProgressBar: true,
+                        didOpen: () => {
+                            const b = Swal.getConfirmButton();
+                            let timeLeft = 300;
+                            timerInterval = setInterval(() => {
+                                timeLeft--;
+                                const m = Math.floor(timeLeft / 60);
+                                const s = timeLeft % 60;
+                                b.textContent = `OK, ENTENDI (${m}:${s < 10 ? '0' : ''}${s})`;
+                            }, 1000);
+                        },
+                        willClose: () => {
+                            clearInterval(timerInterval);
+                        }
+                    }).then(() => {
+                        cart = [];
+                        updateCartBar();
+                        toggleCartModal(false);
+                        renderMenu();
+                        location.reload();
+                    });
+                } else {
+                    const err = await response.json();
+                    Swal.fire('Erro', err.error || 'Falha ao enviar pedido.', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Erro', 'Falha na conexão com o servidor.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> FINALIZAR PEDIDO';
+            }
+        }
+    </script>
+</body>
+</html>

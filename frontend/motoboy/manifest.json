@@ -1,0 +1,16 @@
+{
+  "name": "Motoboy Express",
+  "short_name": "Motoboy",
+  "start_url": "/motoboy/index.html",
+  "display": "standalone",
+  "background_color": "#f1f2f6",
+  "theme_color": "#2c3e50",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
