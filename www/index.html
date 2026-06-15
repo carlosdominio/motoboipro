@@ -58,12 +58,31 @@
     </div>
 
     <main>
-        <!-- Teste de Notificações (Apenas Debug/Config) -->
-        <div style="margin-bottom: 20px; text-align: right;">
-            <button onclick="App.notifications.showLocal('Teste de Alerta', 'Se você recebeu isso, as notificações nativas estão funcionando!')" 
-                    style="background: none; border: 1px solid #ddd; padding: 8px 12px; border-radius: 10px; font-size: 0.7rem; color: #999; font-weight: bold; cursor: pointer;">
-                <i class="fas fa-bell"></i> TESTAR NOTIFICAÇÃO
-            </button>
+        <div class="section-title">
+            <span><i class="fas fa-box-open"></i> PRONTO PARA SAIR</span>
+            <span class="badge" id="count-pronto">0</span>
+        </div>
+        <div id="container-a-caminho" class="pedidos-container"></div>
+
+        <div class="section-title">
+            <span><i class="fas fa-clock"></i> EM PREPARO</span>
+            <span class="badge" id="count-pendente">0</span>
+        </div>
+        <div id="container-pendentes" class="pedidos-container"></div>
+
+        <div class="section-title">
+            <span><i class="fas fa-check-circle"></i> ENTREGUES HOJE</span>
+            <span class="badge" id="count-entregues">0</span>
+        </div>
+        <div id="container-entregues" class="pedidos-container"></div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script src="app.js?v=2.0.0"></script>
+</body>
+</html>
+on>
         </div>
 
         <div class="section-title">

@@ -321,6 +321,18 @@ const App = {
 
     // --- INTERFACE DO USUÁRIO ---
     ui: {
+        updateSoundIcon() {
+            const btn = document.getElementById('btn-toggle-sound');
+            if (!btn) return;
+            if (App.state.soundEnabled) {
+                btn.innerHTML = '<i class="fas fa-bell"></i>';
+                btn.classList.remove('muted');
+            } else {
+                btn.innerHTML = '<i class="fas fa-bell-slash"></i>';
+                btn.classList.add('muted');
+            }
+        },
+
         requestAudioUnlock() {
             Swal.fire({
                 title: 'Ativar Alertas?',
@@ -498,4 +510,6 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
+window.App = App; // Para acesso via onclick
+ner('DOMContentLoaded', () => App.init());
 window.App = App; // Para acesso via onclick
