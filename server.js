@@ -372,9 +372,19 @@ async function safePusherTrigger(channel, event, data) {
             (data.garcom_id === 'DELIVERY') || 
             (data.pedido && data.pedido.garcom_id === 'DELIVERY') ||
             (mesaNum && String(mesaNum).toUpperCase().includes('DELIVERY'));
+            
+          if (event === 'pedido-cancelado') {
+             console.log(`[DEBUG-PUSH] Evento: cancelado | isMotoboy: ${isMotoboy} | isDeliveryEvent: ${isDeliveryEvent} | data.garcom_id: ${data.garcom_id} | mesaNum: ${mesaNum}`);
+          }
           
-          if (isMotoboy && !isDeliveryEvent) continue;
-          if (!isMotoboy && isDeliveryEvent) continue; 
+          if (isMotoboy && !isDeliveryEvent) {
+             if (event === 'pedido-cancelado') console.log(`[DEBUG-PUSH] 🚫 Ignorado Motoboy (Não é evento de delivery)`);
+             continue;
+          }
+          if (!isMotoboy && isDeliveryEvent) {
+             if (event === 'pedido-cancelado') console.log(`[DEBUG-PUSH] 🚫 Ignorado Garçom (É evento de delivery)`);
+             continue; 
+          }
 
           if (sub.endpoint.includes('fcm.googleapis.com') || sub.endpoint.startsWith('https://')) {
              // ... [Web Push remains same] ...
