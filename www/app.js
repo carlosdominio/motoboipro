@@ -212,26 +212,36 @@ const App = {
         },
 
         async showLocal(title, body, data = {}) {
+            console.log('📢 Tentando mostrar notificação local:', title);
             // Toca áudio manualmente se possível
             this.playAlert();
 
             if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                const { LocalNotifications } = Capacitor.Plugins;
-                await LocalNotifications.schedule({
-                    notifications: [{
-                        title,
-                        body,
-                        id: Date.now(),
-                        schedule: { at: new Date(Date.now() + 100) },
-                        sound: 'notificacao.mp3',
-                        attachments: null,
-                        actionTypeId: '',
-                        extra: data,
-                        channelId: NOTIFICATION_CHANNEL_ID
-                    }]
-                });
+                try {
+                    const { LocalNotifications } = Capacitor.Plugins;
+                    // FIX: O ID do Android deve ser um inteiro 32-bit. Date.now() é muito grande.
+                    const notificationId = Math.floor(Math.random() * 1000000);
+                    
+                    await LocalNotifications.schedule({
+                        notifications: [{
+                            title: title || 'GarçomExpress',
+                            body: body || '',
+                            id: notificationId,
+                            schedule: { at: new Date(Date.now() + 100) },
+                            sound: 'notificacao.mp3',
+                            smallIcon: 'ic_stat_notification',
+                            actionTypeId: '',
+                            extra: data,
+                            channelId: NOTIFICATION_CHANNEL_ID
+                        }]
+                    });
+                    console.log('✅ Notificação local agendada com ID:', notificationId);
+                } catch (err) {
+                    console.error('❌ Erro ao agendar LocalNotification:', err);
+                }
             } else {
                 // Fallback Browser
+                console.log('🌐 Fallback navegador para notificação');
                 if ("Notification" in window && Notification.permission === "granted") {
                     new Notification(title, { body, icon: 'favicon.svg' });
                 }
