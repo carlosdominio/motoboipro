@@ -390,14 +390,17 @@ async function safePusherTrigger(channel, event, data) {
                  },
                  data: {
                    event: event,
-                   sound: 'notificacao'
+                   sound: 'notificacao',
+                   title: 'GarçomExpress',
+                   body: pushMsg
                  },
                  android: {
                    priority: 'high',
                    notification: {
                      sound: 'notificacao',
                      channelId: 'pedidos',
-                     defaultSound: false
+                     defaultSound: false,
+                     clickAction: 'FCM_PLUGIN_ACTIVITY'
                    }
                  },
                  apns: {
