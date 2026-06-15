@@ -371,7 +371,7 @@ async function safePusherTrigger(channel, event, data) {
           const isDeliveryEvent = 
             (data.garcom_id === 'DELIVERY') || 
             (data.pedido && data.pedido.garcom_id === 'DELIVERY') ||
-            (mesaNum && mesaNum.toString().toUpperCase().includes('DELIVERY'));
+            (mesaNum && String(mesaNum).toUpperCase().includes('DELIVERY'));
           
           if (isMotoboy && !isDeliveryEvent) continue;
           if (!isMotoboy && isDeliveryEvent) continue; 
