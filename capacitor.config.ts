@@ -1,15 +1,23 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.garconnexpress.garcom',
-  appName: 'GarcomExpress',
-  webDir: 'garcom-app-nativo/www',
+  appId: 'com.garconnexpress.motoboy',
+  appName: 'Motoboy Express',
+  webDir: 'motoboy-app-nativo/www',
+  server: {
+    androidScheme: 'https'
+  },
   plugins: {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"]
     },
     StatusBar: {
       overlaysWebView: false
+    },
+    LocalNotifications: {
+      smallIcon: "ic_stat_notification",
+      iconColor: "#488AFF",
+      sound: "notificacao.mp3"
     }
   }
 };

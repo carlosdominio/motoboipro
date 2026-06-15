@@ -1,11 +1,11 @@
-name: Build Android APK (Garçom App)
+name: Build Android APK (Motoboy App)
 
 on:
   workflow_dispatch: # Permite rodar manualmente com um clique
 
 jobs:
   build:
-    name: Compilar APK Android
+    name: Compilar APK Android (Motoboy)
     runs-on: ubuntu-latest
 
     steps:
@@ -24,17 +24,20 @@ jobs:
           java-version: '17'
 
       - name: 📦 Instalar dependências e Sincronizar Capacitor
-        working-directory: ./garcom-app-nativo
+        working-directory: ./motoboy-app-nativo
         run: |
           npm install
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
 
       - name: 🔨 Compilar o APK (Android Studio Cloud)
-        working-directory: ./garcom-app-nativo/android
+        working-directory: ./motoboy-app-nativo/android
         run: ./gradlew assembleDebug
 
       - name: 🚀 Disponibilizar o APK para Download
         uses: actions/upload-artifact@v3
         with:
-          name: GarcomExpress-Nativo-Android
-          path: garcom-app-nativo/android/app/build/outputs/apk/debug/app-debug.apk
+          name: MotoboyExpress-Nativo-Android
+          path: motoboy-app-nativo/android/app/build/outputs/apk/debug/app-debug.apk
