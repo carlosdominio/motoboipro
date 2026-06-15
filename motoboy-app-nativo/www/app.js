@@ -75,7 +75,11 @@ async function initNativePush() {
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Push received: ', notification);
             loadPedidos();
-            mostrarToast(notification.body, 'info', notification.title);
+            // Apenas mostra o toast se for um evento que o Pusher não tratou ou se o app estiver em background
+            // Como o Pusher já trata 'novo-pedido', 'pedido-pronto' etc, evitamos duplicar aqui.
+            if (notification.data && notification.data.event === 'mensagem-admin') {
+                mostrarToast(notification.body, 'info', notification.title);
+            }
         });
 
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {

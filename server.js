@@ -340,27 +340,39 @@ async function safePusherTrigger(channel, event, data) {
         const mesaNum = data.mesa_numero || (data.pedido ? data.pedido.mesa_numero : 'BALCÃO');
         
         if (event === 'novo-pedido') pushMsg = `🚀 NOVO PEDIDO: ${mesaNum}`;
-        else if (event === 'pedido-cancelado') pushMsg = `❌ CANCELADO: Mesa ${mesaNum}`;
-        else if (event === 'chamado-garcom') pushMsg = `🛎️ CHAMADO: Mesa ${mesaNum}`;
-        else if (event === 'pedido-pronto') pushMsg = `🍳 PRONTO: Mesa ${mesaNum}`;
-        else if (event === 'rascunho-recebido') pushMsg = `📝 RASCUNHO: Mesa ${mesaNum}`;
-        else if (event === 'solicitacao-fechamento-cliente') pushMsg = `💰 FECHAMENTO: Mesa ${mesaNum}`;
+        else if (event === 'pedido-cancelado') pushMsg = `❌ CANCELADO: ${mesaNum}`;
+        else if (event === 'chamado-garcom') pushMsg = `🛎️ CHAMADO: ${mesaNum}`;
+        else if (event === 'pedido-pronto') pushMsg = `🍳 PRONTO: ${mesaNum}`;
+        else if (event === 'rascunho-recebido') pushMsg = `📝 RASCUNHO: ${mesaNum}`;
+        else if (event === 'solicitacao-fechamento-cliente') pushMsg = `💰 FECHAMENTO: ${mesaNum}`;
         else if (event === 'status-atualizado') {
-           if (data.status === 'servido' || data.status === 'entregue') pushMsg = `✅ ENTREGUE: Mesa ${mesaNum}`;
+           if (data.status === 'servido' || data.status === 'entregue') pushMsg = `✅ ENTREGUE: ${mesaNum}`;
            else if (data.status === 'saiu_entrega') pushMsg = `🛵 SAIU ENTREGA: ${mesaNum}`;
-           else return true; // Ignora outros status para não "notificar pra tudo"
+           else return true; 
         }
         else pushMsg = `Notificação: ${event}`;
         
         const payload = JSON.stringify({ title: 'GarçomExpress', body: pushMsg, event });
         
-        for (const sub of subs) {
+        // Deduplicação de tokens para evitar envios repetidos ao mesmo aparelho
+        const uniqueSubs = [];
+        const seenTokens = new Set();
+        for (const s of subs) {
+          if (!seenTokens.has(s.endpoint)) {
+            seenTokens.add(s.endpoint);
+            uniqueSubs.push(s);
+          }
+        }
+
+        for (const sub of uniqueSubs) {
           const isMotoboy = sub.garcom_id === 'DELIVERY';
-          const isDeliveryEvent = (data.garcom_id === 'DELIVERY') || (mesaNum && mesaNum.includes('DELIVERY'));
           
-          // Lógica de Filtro:
-          // 1. Se for motoboy, só recebe se o evento for de Delivery.
-          // 2. Se for garçom, só recebe se o evento NÃO for de Delivery (ou se for algo geral).
+          // Filtro robusto para identificar se o evento é de Delivery
+          const isDeliveryEvent = 
+            (data.garcom_id === 'DELIVERY') || 
+            (data.pedido && data.pedido.garcom_id === 'DELIVERY') ||
+            (mesaNum && mesaNum.toString().toUpperCase().includes('DELIVERY'));
+          
           if (isMotoboy && !isDeliveryEvent) continue;
           if (!isMotoboy && isDeliveryEvent) continue; 
 
