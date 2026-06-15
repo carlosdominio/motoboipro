@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "90033469871",
+    "project_id": "garcomexpress-304f0",
+    "storage_bucket": "garcomexpress-304f0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:90033469871:android:8cb2dbb5599c6942cf175a",
+        "android_client_info": {
+          "package_name": "com.garconnexpress.garcom"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTGPpj6nEFW0RmbguRiS7mTfBgIMM3JXA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
