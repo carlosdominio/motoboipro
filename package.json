@@ -36,6 +36,7 @@
     "@capacitor/local-notifications": "^8.2.0",
     "@capacitor/push-notifications": "^8.1.1",
     "nodemon": "^3.0.1",
+    "typescript": "^5.4.0",
     "vercel": "^32.5.0"
   },
   "keywords": [
