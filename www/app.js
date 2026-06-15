@@ -291,9 +291,10 @@ const App = {
                 });
 
                 this.channel.bind('pedido-cancelado', (data) => {
-                    if (String(data.garcom_id) !== 'DELIVERY') return;
+                    const pId = data.pedido_id || data.id || (data.pedido ? (data.pedido.id || data.pedido.pedido_id) : '');
+                    if (String(data.garcom_id) !== 'DELIVERY' && !(data.pedido && String(data.pedido.garcom_id) === 'DELIVERY')) return;
                     App.loadPedidos();
-                    App.notifications.showLocal(`❌ PEDIDO REMOVIDO`, `Pedido #${data.id || data.pedido_id} foi cancelado.`);
+                    App.notifications.showLocal(`❌ PEDIDO REMOVIDO`, `O pedido #${pId} foi cancelado e removido.`);
                 });
 
                 this.channel.bind('pedido-pronto', (data) => {
