@@ -1,10 +1,14 @@
+const API_BASE_URL = 'https://garconnexpress.vercel.app';
 let pusher;
 let channel;
 
-const audioNotificacao = new Audio('/notificacao.mp3');
+const audioNotificacao = new Audio(API_BASE_URL + '/notificacao.mp3');
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Verifica status do caixa primeiro
+    // 1. Verifica autenticação
+    if (!verificarAutenticacao()) return;
+
+    // 2. Verifica status do caixa
     await verificarStatusCaixa();
     setInterval(verificarStatusCaixa, 30000);
 
@@ -33,6 +37,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadPedidos();
 });
 
+function verificarAutenticacao() {
+    const token = localStorage.getItem('motoboy_token');
+    const loginScreen = document.getElementById('login-screen');
+    
+    if (!token) {
+        loginScreen.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        setupLoginForm();
+        return false;
+    }
+    
+    loginScreen.style.display = 'none';
+    document.body.style.overflow = '';
+    return true;
+}
+
+function setupLoginForm() {
+    const form = document.getElementById('login-form');
+    if (!form) return;
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const usuario = document.getElementById('login-user').value;
+        const senha = document.getElementById('login-pass').value;
+        const btn = form.querySelector('button');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AUTENTICANDO...';
+
+        try {
+            const res = await fetch(API_BASE_URL + '/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario, senha })
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                localStorage.setItem('motoboy_token', data.token);
+                localStorage.setItem('motoboy_user', JSON.stringify(data.garcom));
+                
+                Swal.fire({
+                    title: 'Bem-vindo!',
+                    text: `Olá ${data.garcom.nome}, bom trabalho!`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                Swal.fire('Erro', 'Usuário ou senha incorretos.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR';
+            }
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Erro', 'Falha na conexão com o servidor.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR';
+        }
+    };
+}
+
 async function initNativePush() {
     if (window.Capacitor && window.Capacitor.isNativePlatform()) {
         const { PushNotifications } = Capacitor.Plugins;
@@ -44,25 +113,57 @@ async function initNativePush() {
         }
 
         if (perm.receive === 'granted') {
+            // Cria canal de notificação (Obrigatório para Android 8+)
+            await PushNotifications.createChannel({
+                id: 'pedidos',
+                name: 'Pedidos e Alertas',
+                description: 'Notificações de novos pedidos e atualizações de status',
+                sound: 'notificacao.mp3',
+                importance: 5,
+                visibility: 1
+            });
             await PushNotifications.register();
         }
 
-        PushNotifications.addListener('registration', (token) => {
+        PushNotifications.addListener('registration', async (token) => {
             console.log('Push registration success, token: ' + token.value);
-            // Aqui você poderia enviar o token para o seu servidor se quiser enviar via Firebase direto
+            // Envia o token para o servidor para permitir notificações em segundo plano
+            try {
+                const motoboyToken = localStorage.getItem('motoboy_token');
+                await fetch(API_BASE_URL + '/api/subscribe-motoboy', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${motoboyToken}`
+                    },
+                    body: JSON.stringify({ endpoint: token.value })
+                });
+                console.log('✅ Token FCM registrado no servidor!');
+            } catch (e) {
+                console.error('❌ Erro ao registrar token FCM no servidor:', e);
+            }
         });
 
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Push received: ', notification);
             loadPedidos();
-            mostrarToast(notification.body, 'info', notification.title);
+            // Apenas mostra o toast se for um evento que o Pusher não tratou ou se o app estiver em background
+            // Como o Pusher já trata 'novo-pedido', 'pedido-pronto' etc, evitamos duplicar aqui.
+            if (notification.data && notification.data.event === 'mensagem-admin') {
+                mostrarToast(notification.body, 'info', notification.title);
+            }
+        });
+
+        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+            console.log('Push action performed: ', notification);
+            loadPedidos();
         });
     }
 }
 
 async function verificarStatusCaixa() {
     try {
-        const res = await fetch('/api/caixa/status');
+        const res = await fetch(API_BASE_URL + '/api/caixa/status');
         const cx = await res.json();
         const screen = document.getElementById('closed-screen');
         if (!screen) return;
@@ -79,7 +180,7 @@ async function verificarStatusCaixa() {
 
 async function initPusher() {
     try {
-        const res = await fetch('/api/pusher-config');
+        const res = await fetch(API_BASE_URL + '/api/pusher-config');
         const config = await res.json();
         
         pusher = new Pusher(config.key, {
@@ -109,13 +210,12 @@ async function initPusher() {
             if (data.garcom_id === 'DELIVERY') {
                 if (data.status === 'cancelado') {
                     showToast(`Pedido #${data.pedido_id} foi CANCELADO.`, "warning");
-                    exibirNotificacaoNativa(`❌ PEDIDO CANCELADO`, `Pedido #${data.pedido_id} foi removido.`);
+                    exibirNotificacaoNativa(`❌ PEDIDO CANCELADO`, `O pedido #${data.pedido_id} foi cancelado.`);
                 } else if (data.status === 'pronto' || data.status === 'servido') {
                     showToast(`Pedido #${data.pedido_id} está PRONTO!`, "success");
-                    exibirNotificacaoNativa(`🍳 PEDIDO PRONTO`, `Pedido #${data.pedido_id} pronto para entrega!`);
+                    exibirNotificacaoNativa(`🍳 PEDIDO PRONTO`, `O pedido #${data.pedido_id} está pronto para entrega.`);
                 } else if (data.status === 'recebido') {
                     showToast(`Novo pedido #${data.pedido_id} recebido!`, "info");
-                    exibirNotificacaoNativa(`🆕 NOVO PEDIDO`, `Pedido #${data.pedido_id} chegou!`);
                 } else if (data.status === 'aguardando_fechamento' || data.status === 'entregue') {
                     showToast(`Pedido #${data.pedido_id} ENTREGUE!`, "success");
                 }
@@ -166,7 +266,17 @@ async function initPusher() {
 
 async function loadPedidos() {
     try {
-        const res = await fetch('/api/pedidos/ativos-detalhado');
+        const token = localStorage.getItem('motoboy_token');
+        const res = await fetch(API_BASE_URL + '/api/pedidos/ativos-detalhado', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem('motoboy_token');
+            location.reload();
+            return;
+        }
+
         const allPedidos = await res.json();
         
         // Filtra apenas os pedidos de DELIVERY
@@ -325,10 +435,14 @@ async function confirmarEntrega(id, btn) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
 
     try {
+        const token = localStorage.getItem('motoboy_token');
         // Envia status 'aguardando_fechamento' para que no Admin caia na coluna de entregue/fechamento
-        const res = await fetch(`/api/pedidos/${id}/status`, {
+        const res = await fetch(API_BASE_URL + `/api/pedidos/${id}/status`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ status: 'aguardando_fechamento' })
         });
 
