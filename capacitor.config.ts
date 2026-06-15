@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.garconnexpress.motoboy',
+  appId: 'com.garconnexpress.motoboy2',
   appName: 'Motoboy Express',
   webDir: 'www',
   server: {
