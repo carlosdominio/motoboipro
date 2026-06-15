@@ -362,7 +362,7 @@ async function safePusherTrigger(channel, event, data) {
           // 1. Se for motoboy, só recebe se o evento for de Delivery.
           // 2. Se for garçom, só recebe se o evento NÃO for de Delivery (ou se for algo geral).
           if (isMotoboy && !isDeliveryEvent) continue;
-          if (!isMotoboy && isDeliveryEvent && event !== 'novo-pedido') continue; 
+          if (!isMotoboy && isDeliveryEvent) continue; 
 
           if (sub.endpoint.includes('fcm.googleapis.com') || sub.endpoint.startsWith('https://')) {
              // ... [Web Push remains same] ...
