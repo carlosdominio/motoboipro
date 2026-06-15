@@ -12,7 +12,9 @@ const App = {
         user: JSON.parse(localStorage.getItem('motoboy_user') || '{}'),
         pedidos: [],
         caixaAberto: true,
-        lastPushToken: null
+        lastPushToken: null,
+        soundEnabled: localStorage.getItem('motoboy_sound') !== 'false',
+        lastNotifiedId: null // Para evitar duplicações rápidas
     },
 
     async init() {
@@ -31,8 +33,12 @@ const App = {
         // Carregamento inicial
         this.loadPedidos();
 
-        // Solicita áudio ao usuário
-        this.ui.requestAudioUnlock();
+        // Solicita áudio ao usuário se for o primeiro acesso
+        if (!localStorage.getItem('audio_unlocked')) {
+            this.ui.requestAudioUnlock();
+        }
+        
+        this.ui.updateSoundIcon();
     },
 
     checkAuth() {
@@ -73,7 +79,7 @@ const App = {
                     localStorage.setItem('motoboy_user', JSON.stringify(data.garcom));
                     
                     Swal.fire({
-                        title: 'Bem-vindo!',
+                        title: 'Acesso Autorizado',
                         text: `Olá ${data.garcom.nome}, bom trabalho!`,
                         icon: 'success',
                         timer: 2000,
@@ -82,15 +88,20 @@ const App = {
 
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    Swal.fire('Erro', 'Usuário ou senha incorretos.', 'error');
+                    Swal.fire({
+                        title: 'Falha no Login',
+                        text: 'Usuário ou senha incorretos. Verifique e tente novamente.',
+                        icon: 'error',
+                        confirmButtonColor: '#e74c3c'
+                    });
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR';
+                    btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
                 }
             } catch (e) {
                 console.error(e);
                 Swal.fire('Erro', 'Falha na conexão com o servidor.', 'error');
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> ENTRAR';
+                btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
             }
         };
     },
@@ -107,7 +118,6 @@ const App = {
             }
 
             const allPedidos = await res.json();
-            // Filtra apenas os pedidos de DELIVERY
             this.state.pedidos = allPedidos.filter(p => p.garcom_id === 'DELIVERY');
             this.ui.renderPedidos();
         } catch (e) {
@@ -138,60 +148,41 @@ const App = {
         audio: new Audio(`${API_BASE_URL}/notificacao.mp3`),
 
         async init() {
-            if (!window.Capacitor || !window.Capacitor.isNativePlatform()) {
-                console.log('🌐 Ambiente Web: Usando notificações do navegador.');
-                if ("Notification" in window) Notification.requestPermission();
-                return;
-            }
+            if (!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
 
             const { PushNotifications, LocalNotifications } = Capacitor.Plugins;
 
-            // 1. Permissões
             let perm = await PushNotifications.checkPermissions();
             if (perm.receive !== 'granted') {
                 perm = await PushNotifications.requestPermissions();
             }
 
             if (perm.receive === 'granted') {
-                // 2. Criar canal Android
                 await PushNotifications.createChannel({
                     id: NOTIFICATION_CHANNEL_ID,
                     name: 'Pedidos e Alertas',
-                    description: 'Notificações de novos pedidos e atualizações de status',
-                    sound: 'notificacao.mp3', // deve estar em res/raw
+                    description: 'Notificações de novos pedidos',
+                    sound: 'notificacao.mp3',
                     importance: 5,
                     visibility: 1,
                     vibration: true
                 });
-
-                // 3. Registrar para Push
                 await PushNotifications.register();
             }
 
-            // Listeners Push
             PushNotifications.addListener('registration', (token) => {
-                console.log('✅ FCM Token:', token.value);
                 App.state.lastPushToken = token.value;
                 this.syncToken(token.value);
             });
 
             PushNotifications.addListener('pushNotificationReceived', (notification) => {
-                console.log('📩 Push recebido:', notification);
                 App.loadPedidos();
-                // Se o app estiver aberto, o Capacitor não mostra a notificação no tray por padrão.
-                // Usamos LocalNotifications para garantir o alerta visual e sonoro.
-                this.showLocal(notification.title, notification.body, notification.data);
-            });
-
-            PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-                console.log('🖱️ Ação em push:', action);
-                App.loadPedidos();
-            });
-
-            // Listeners Local
-            LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
-                console.log('🖱️ Ação em local:', action);
-                App.loadPedidos();
+                // Apenas mostra se for uma mensagem nova (deduplicação)
+                const notifId = notification.id || notification.data?.pedido_id;
+                if (App.state.lastNotifiedId !== notifId) {
+                    App.state.lastNotifiedId = notifId;
+                    this.showLocal(notification.title, notification.body, notification.data);
+                }
             });
         },
 
@@ -205,23 +196,16 @@ const App = {
                     },
                     body: JSON.stringify({ endpoint: token })
                 });
-                console.log('✅ Token sincronizado com o servidor');
-            } catch (e) {
-                console.error('❌ Erro ao sincronizar token:', e);
-            }
+            } catch (e) {}
         },
 
         async showLocal(title, body, data = {}) {
-            console.log('📢 Tentando mostrar notificação local:', title);
-            // Toca áudio manualmente se possível
             this.playAlert();
 
             if (window.Capacitor && window.Capacitor.isNativePlatform()) {
                 try {
                     const { LocalNotifications } = Capacitor.Plugins;
-                    // FIX: O ID do Android deve ser um inteiro 32-bit. Date.now() é muito grande.
                     const notificationId = Math.floor(Math.random() * 1000000);
-                    
                     await LocalNotifications.schedule({
                         notifications: [{
                             title: title || 'GarçomExpress',
@@ -230,33 +214,35 @@ const App = {
                             schedule: { at: new Date(Date.now() + 100) },
                             sound: 'notificacao.mp3',
                             smallIcon: 'ic_stat_notification',
-                            actionTypeId: '',
-                            extra: data,
-                            channelId: NOTIFICATION_CHANNEL_ID
+                            channelId: NOTIFICATION_CHANNEL_ID,
+                            extra: data
                         }]
                     });
-                    console.log('✅ Notificação local agendada com ID:', notificationId);
-                } catch (err) {
-                    console.error('❌ Erro ao agendar LocalNotification:', err);
-                }
-            } else {
-                // Fallback Browser
-                console.log('🌐 Fallback navegador para notificação');
-                if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification(title, { body, icon: 'favicon.svg' });
-                }
+                } catch (err) { console.error(err); }
             }
-            
-            // Mostra toast visual no app
             App.ui.showToast(body, 'info', title);
         },
 
         playAlert() {
+            if (!App.state.soundEnabled) return;
             this.audio.play().catch(e => console.log('Áudio bloqueado:', e));
+        },
+
+        toggleSound() {
+            App.state.soundEnabled = !App.state.soundEnabled;
+            localStorage.setItem('motoboy_sound', App.state.soundEnabled);
+            App.ui.updateSoundIcon();
+            
+            if (App.state.soundEnabled) {
+                this.playAlert();
+                App.ui.showToast("Som ativado!", "success");
+            } else {
+                App.ui.showToast("Som silenciado.", "warning");
+            }
         }
     },
 
-    // --- GERENCIADOR DE EVENTOS REAL-TIME ---
+    // --- REAL-TIME ---
     pusher: {
         instance: null,
         channel: null,
@@ -265,251 +251,149 @@ const App = {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/pusher-config`);
                 const config = await res.json();
-                
-                this.instance = new Pusher(config.key, {
-                    cluster: config.cluster,
-                    forceTLS: true
-                });
-
+                this.instance = new Pusher(config.key, { cluster: config.cluster, forceTLS: true });
                 this.channel = this.instance.subscribe('garconnexpress');
                 
-                // Evento de Caixa
-                this.channel.bind('status-caixa-atualizado', (data) => {
-                    App.checkCaixaStatus();
-                    if (data.status === 'fechado') {
-                        App.ui.showToast("O expediente foi encerrado.", "warning");
-                    }
-                });
+                this.channel.bind('status-caixa-atualizado', (data) => App.checkCaixaStatus());
 
-                // Eventos de Pedido
                 this.channel.bind('status-atualizado', (data) => {
                     if (data.garcom_id !== 'DELIVERY') return;
                     App.loadPedidos();
-                    
-                    if (data.status === 'cancelado') {
-                        App.notifications.showLocal(`❌ PEDIDO CANCELADO`, `O pedido #${data.pedido_id} foi cancelado.`);
-                    } else if (data.status === 'pronto' || data.status === 'servido') {
-                        App.notifications.showLocal(`🍳 PEDIDO PRONTO`, `O pedido #${data.pedido_id} está pronto para entrega.`);
+                    if (data.status === 'cancelado' || data.status === 'pronto') {
+                        const title = data.status === 'cancelado' ? '❌ PEDIDO CANCELADO' : '🍳 PEDIDO PRONTO';
+                        const body = data.status === 'cancelado' ? `Pedido #${data.pedido_id} cancelado.` : `Pedido #${data.pedido_id} pronto!`;
+                        if (App.state.lastNotifiedId !== data.pedido_id) {
+                            App.state.lastNotifiedId = data.pedido_id;
+                            App.notifications.showLocal(title, body);
+                        }
                     }
                 });
 
                 this.channel.bind('novo-pedido', (data) => {
-                    const pedido = data.pedido || data;
-                    if (pedido.garcom_id !== 'DELIVERY') return;
+                    const p = data.pedido || data;
+                    if (p.garcom_id !== 'DELIVERY') return;
                     App.loadPedidos();
-                    App.notifications.showLocal(`🆕 NOVO DELIVERY`, `Pedido #${pedido.id || pedido.pedido_id} recebido!`);
+                    if (App.state.lastNotifiedId !== (p.id || p.pedido_id)) {
+                        App.state.lastNotifiedId = p.id || p.pedido_id;
+                        App.notifications.showLocal(`🆕 NOVO DELIVERY`, `Pedido #${p.id || p.pedido_id} recebido!`);
+                    }
                 });
 
                 this.channel.bind('pedido-cancelado', (data) => {
-                    const pId = data.pedido_id || data.id || (data.pedido ? (data.pedido.id || data.pedido.pedido_id) : '');
+                    const pId = data.pedido_id || data.id || (data.pedido ? data.pedido.id : '');
                     if (String(data.garcom_id) !== 'DELIVERY' && !(data.pedido && String(data.pedido.garcom_id) === 'DELIVERY')) return;
                     App.loadPedidos();
-                    App.notifications.showLocal(`❌ PEDIDO REMOVIDO`, `O pedido #${pId} foi cancelado e removido.`);
+                    if (App.state.lastNotifiedId !== pId) {
+                        App.state.lastNotifiedId = pId;
+                        App.notifications.showLocal(`❌ PEDIDO REMOVIDO`, `O pedido #${pId} foi cancelado.`);
+                    }
                 });
-
-                this.channel.bind('pedido-pronto', (data) => {
-                    if (String(data.garcom_id) !== 'DELIVERY') return;
-                    App.loadPedidos();
-                    App.notifications.showLocal(`🍳 COZINHA: PRONTO`, `O pedido de delivery está pronto!`);
-                });
-
-            } catch (e) {
-                console.error('Erro Pusher:', e);
-            }
+            } catch (e) {}
         }
     },
 
-    // --- INTERFACE DO USUÁRIO ---
+    // --- UI ---
     ui: {
         updateSoundIcon() {
             const btn = document.getElementById('btn-toggle-sound');
             if (!btn) return;
-            if (App.state.soundEnabled) {
-                btn.innerHTML = '<i class="fas fa-bell"></i>';
-                btn.classList.remove('muted');
-            } else {
-                btn.innerHTML = '<i class="fas fa-bell-slash"></i>';
-                btn.classList.add('muted');
-            }
+            btn.innerHTML = App.state.soundEnabled ? '<i class="fas fa-bell"></i>' : '<i class="fas fa-bell-slash"></i>';
+            if (App.state.soundEnabled) btn.classList.remove('muted'); else btn.classList.add('muted');
         },
 
         requestAudioUnlock() {
             Swal.fire({
                 title: 'Ativar Alertas?',
-                text: 'Clique para ativar o som de novos pedidos e notificações.',
+                text: 'Clique para ativar o som de notificações.',
                 icon: 'info',
-                confirmButtonText: '<i class="fas fa-volume-up"></i> ATIVAR ÁUDIO',
-                confirmButtonColor: '#e67e22',
-                allowOutsideClick: false
-            }).then((result) => {
-                if (result.isConfirmed) {
+                confirmButtonText: 'ATIVAR ÁUDIO',
+                confirmButtonColor: '#e67e22'
+            }).then((r) => {
+                if (r.isConfirmed) {
+                    localStorage.setItem('audio_unlocked', 'true');
                     App.notifications.playAlert();
-                    this.showToast("Áudio e notificações ativos!", "success");
                 }
             });
         },
 
         renderPedidos() {
-            const contPronto = document.getElementById('container-a-caminho');
-            const contPendente = document.getElementById('container-pendentes');
-            const contEntregues = document.getElementById('container-entregues');
-            
-            const countPronto = document.getElementById('count-pronto');
-            const countPendente = document.getElementById('count-pendente');
-            const countEntregues = document.getElementById('count-entregues');
+            const sections = {
+                'a-caminho': document.getElementById('container-a-caminho'),
+                'pendente': document.getElementById('container-pendentes'),
+                'entregue': document.getElementById('container-entregues')
+            };
+            const counts = {
+                'a-caminho': document.getElementById('count-pronto'),
+                'pendente': document.getElementById('count-pendente'),
+                'entregue': document.getElementById('count-entregues')
+            };
 
-            contPronto.innerHTML = '';
-            contPendente.innerHTML = '';
-            contEntregues.innerHTML = '';
-
-            let nPronto = 0, nPendente = 0, nEntregue = 0;
+            // Limpa tudo para evitar duplicados
+            Object.values(sections).forEach(s => s.innerHTML = '');
+            const n = { 'a-caminho': 0, 'pendente': 0, 'entregue': 0 };
 
             App.state.pedidos.forEach(p => {
-                const status = p.status.toLowerCase();
-                if (status === 'aguardando_fechamento' || status === 'entregue') {
-                    contEntregues.appendChild(this.createCard(p, 'entregue'));
-                    nEntregue++;
-                } else if (status === 'servido' || status === 'pronto' || status === 'saiu_entrega') {
-                    contPronto.appendChild(this.createCard(p, 'a-caminho'));
-                    nPronto++;
-                } else {
-                    contPendente.appendChild(this.createCard(p, 'pendente'));
-                    nPendente++;
-                }
+                const s = p.status.toLowerCase();
+                let cat = 'pendente';
+                if (s === 'entregue' || s === 'aguardando_fechamento') cat = 'entregue';
+                else if (['pronto', 'servido', 'saiu_entrega'].includes(s)) cat = 'a-caminho';
+                
+                sections[cat].appendChild(this.createCard(p, cat));
+                n[cat]++;
             });
 
-            if (nPronto === 0) contPronto.innerHTML = '<div class="empty-state">Nenhum pedido pronto.</div>';
-            if (nPendente === 0) contPendente.innerHTML = '<div class="empty-state">Nenhum pedido em preparo.</div>';
-            if (nEntregue === 0) contEntregues.innerHTML = '<div class="empty-state">Nenhuma entrega realizada hoje.</div>';
-
-            countPronto.innerText = nPronto;
-            countPendente.innerText = nPendente;
-            countEntregues.innerText = nEntregue;
+            Object.keys(sections).forEach(k => {
+                if (n[k] === 0) sections[k].innerHTML = '<div class="empty-state">Nenhum pedido.</div>';
+                counts[k].innerText = n[k];
+            });
         },
 
-        createCard(p, displayStatus) {
+        createCard(p, cat) {
             const card = document.createElement('div');
-            card.className = `pedido-card ${displayStatus}`;
-            
-            let cliente = "Consumidor";
-            let endereco = "Entrega no balcão/Local";
-            if (p.observacao) {
-                const lines = p.observacao.split('\n');
-                const lNome = lines.find(l => l.includes('👤 Cliente:'));
-                const lEnd = lines.find(l => l.includes('🏠 End:'));
-                if (lNome) cliente = lNome.replace('👤 Cliente:', '').trim();
-                if (lEnd) endereco = lEnd.replace('🏠 End:', '').trim();
-            }
-
+            card.className = `pedido-card ${cat}`;
             const time = new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const isReady = displayStatus === 'a-caminho';
-            const isDone = displayStatus === 'entregue';
-
+            const isDone = cat === 'entregue';
+            
             card.innerHTML = `
                 <div class="pedido-header">
-                    <div>
-                        <span class="pedido-id">#${p.id}</span>
-                        <span class="status-badge ${displayStatus}">${displayStatus.replace('-', ' ')}</span>
-                    </div>
-                    <div style="text-align: right;">
-                        <div class="pedido-total">R$ ${parseFloat(p.total).toFixed(2).replace('.', ',')}</div>
-                        <span class="pedido-time">${time}</span>
-                    </div>
+                    <span class="pedido-id">#${p.id}</span>
+                    <span class="pedido-total">R$ ${parseFloat(p.total).toFixed(2).replace('.', ',')}</span>
                 </div>
                 <div class="pedido-body">
-                    <span class="cliente-info">${cliente}</span>
-                    <span class="endereco-info"><i class="fas fa-map-marker-alt"></i> ${endereco}</span>
-                    <div class="pedido-itens">
-                        ${p.itens.map(i => `<div class="item-row"><span>${i.quantidade}x ${i.nome}</span></div>`).join('')}
-                    </div>
+                    <div class="endereco-info"><i class="fas fa-map-marker-alt"></i> Pedido Delivery</div>
+                    <div class="pedido-itens">${p.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ')}</div>
                 </div>
-                ${!isDone ? `
-                    <button class="btn-entregar" ${!isReady ? 'disabled' : ''} onclick="App.ui.confirmarEntrega(${p.id}, this)">
-                        ${isReady ? '<i class="fas fa-check"></i> CONFIRMAR ENTREGA' : '<i class="fas fa-clock"></i> EM PREPARO'}
-                    </button>
-                ` : `
-                    <button class="btn-entregar" style="background:#95a5a6; box-shadow:none;" disabled>
-                        <i class="fas fa-check-double"></i> ENTREGUE
-                    </button>
-                `}
+                ${!isDone ? `<button class="btn-entregar" onclick="App.ui.confirmarEntrega(${p.id}, this)">CONFIRMAR ENTREGA</button>` : ''}
             `;
             return card;
         },
 
         async confirmarEntrega(id, btn) {
-            const { isConfirmed } = await Swal.fire({
-                title: 'Confirmar Entrega?',
-                text: `Pedido #${id} foi entregue?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#27ae60',
-                confirmButtonText: 'Sim, entregue!'
-            });
-
+            const { isConfirmed } = await Swal.fire({ title: 'Entregue?', text: `Pedido #${id}`, icon: 'question', showCancelButton: true });
             if (!isConfirmed) return;
-
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>...';
-
             try {
                 const res = await fetch(`${API_BASE_URL}/api/pedidos/${id}/status`, {
                     method: 'PUT',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${App.state.token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.state.token}` },
                     body: JSON.stringify({ status: 'aguardando_fechamento' })
                 });
-
-                if (res.ok) {
-                    this.showToast(`Pedido #${id} entregue!`);
-                    App.loadPedidos();
-                } else {
-                    this.showToast("Erro ao confirmar.", "error");
-                    btn.disabled = false;
-                    btn.innerHTML = 'CONFIRMAR ENTREGA';
-                }
-            } catch (e) {
-                this.showToast("Erro de conexão.", "error");
-                btn.disabled = false;
-            }
+                if (res.ok) App.loadPedidos(); else btn.disabled = false;
+            } catch (e) { btn.disabled = false; }
         },
 
         showToast(msg, tipo = 'success', titulo = '') {
-            let container = document.getElementById('toast-container');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'toast-container';
-                document.body.appendChild(container);
-            }
-
+            let c = document.getElementById('toast-container');
+            if (!c) { c = document.createElement('div'); c.id = 'toast-container'; document.body.appendChild(c); }
             const t = document.createElement('div');
             t.className = `toast-notificacao ${tipo}`;
-            
-            const icones = { success: '✅', error: '❌', warning: '⚠️', info: '🔔' };
-            t.innerHTML = `
-                <div class="toast-icon">${icones[tipo] || '🔔'}</div>
-                <div class="toast-content">
-                    ${titulo ? `<strong class="toast-title">${titulo}</strong>` : ''}
-                    <span class="toast-msg">${msg}</span>
-                </div>
-                <button class="toast-close">&times;</button>
-            `;
-
-            container.appendChild(t);
+            t.innerHTML = `<div class="toast-content"><strong>${titulo}</strong><br>${msg}</div>`;
+            c.appendChild(t);
             setTimeout(() => t.classList.add('show'), 10);
-            const autoClose = setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 5000);
-
-            t.querySelector('.toast-close').onclick = () => {
-                clearTimeout(autoClose);
-                t.classList.remove('show');
-                setTimeout(() => t.remove(), 400);
-            };
+            setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 4000);
         }
     }
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
-window.App = App; // Para acesso via onclick
-ner('DOMContentLoaded', () => App.init());
-window.App = App; // Para acesso via onclick
+window.App = App;

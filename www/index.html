@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Motoboy Express Pro</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="style.css?v=2.0.0">
+    <link rel="stylesheet" href="style.css?v=2.0.1">
     <script src="capacitor.js"></script>
     <meta name="theme-color" content="#e67e22">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -14,7 +14,13 @@
 </head>
 <body>
     <header>
-        <h1><i class="fas fa-shipping-fast"></i> MOTOBOY PRO</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; margin: 0 auto;">
+            <div style="width: 40px;"></div> <!-- Spacer para centralizar o título -->
+            <h1 style="margin: 0;"><i class="fas fa-shipping-fast"></i> MOTOBOY PRO</h1>
+            <button id="btn-toggle-sound" onclick="App.notifications.toggleSound()" class="btn-icon">
+                <i class="fas fa-bell"></i>
+            </button>
+        </div>
     </header>
 
     <!-- Tela de Login -->
@@ -79,33 +85,6 @@
 
     <!-- Scripts -->
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-    <script src="app.js?v=2.0.0"></script>
-</body>
-</html>
-on>
-        </div>
-
-        <div class="section-title">
-            <span><i class="fas fa-box-open"></i> PRONTO PARA SAIR</span>
-            <span class="badge" id="count-pronto">0</span>
-        </div>
-        <div id="container-a-caminho" class="pedidos-container"></div>
-
-        <div class="section-title">
-            <span><i class="fas fa-clock"></i> EM PREPARO</span>
-            <span class="badge" id="count-pendente">0</span>
-        </div>
-        <div id="container-pendentes" class="pedidos-container"></div>
-
-        <div class="section-title">
-            <span><i class="fas fa-check-circle"></i> ENTREGUES HOJE</span>
-            <span class="badge" id="count-entregues">0</span>
-        </div>
-        <div id="container-entregues" class="pedidos-container"></div>
-    </main>
-
-    <!-- Scripts -->
-    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-    <script src="app.js?v=2.0.0"></script>
+    <script src="app.js?v=2.0.1"></script>
 </body>
 </html>
