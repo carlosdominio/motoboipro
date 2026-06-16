@@ -287,9 +287,14 @@ const App = {
                     if (data.garcom_id !== 'DELIVERY') return;
                     App.loadPedidos();
                     const pId = String(data.pedido_id || '');
-                    if (['cancelado', 'pronto'].includes(data.status) && pId) {
-                        const title = data.status === 'cancelado' ? '❌ PEDIDO CANCELADO' : '🍳 PEDIDO PRONTO';
-                        App.notifications.showLocal(title, `Pedido #${pId} ${data.status}!`, `${data.status}_${pId}`);
+                    if (['cancelado', 'pronto', 'servido', 'saiu_entrega'].includes(data.status) && pId) {
+                        let title = 'Motoboy Pro';
+                        let body = `Pedido #${pId} atualizado!`;
+                        if (data.status === 'cancelado') { title = '❌ PEDIDO CANCELADO'; body = `Pedido #${pId} foi cancelado.`; }
+                        if (data.status === 'pronto') { title = '🍳 PEDIDO PRONTO'; body = `Pedido #${pId} pronto na cozinha.`; }
+                        if (data.status === 'servido' || data.status === 'saiu_entrega') { title = '🛵 A CAMINHO'; body = `Pedido #${pId} saiu para entrega!`; }
+                        
+                        App.notifications.showLocal(title, body, `${data.status}_${pId}`);
                     }
                 });
 

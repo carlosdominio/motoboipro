@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Motoboy Express Pro</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="style.css?v=2.0.1">
+    <link rel="stylesheet" href="style.css?v=2.0.4">
     <script src="capacitor.js"></script>
     <meta name="theme-color" content="#e67e22">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -14,9 +14,9 @@
 </head>
 <body>
     <header>
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; margin: 0 auto;">
-            <div style="width: 40px;"></div> <!-- Spacer para centralizar o título -->
-            <h1 style="margin: 0;"><i class="fas fa-shipping-fast"></i> MOTOBOY PRO</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 500px; margin: 0 auto; height: 100%;">
+            <div style="width: 42px;"></div>
+            <h1 style="margin: 0; font-size: 1.2rem;"><i class="fas fa-shipping-fast"></i> MOTOBOY PRO</h1>
             <button id="btn-toggle-sound" onclick="App.notifications.toggleSound()" class="btn-icon">
                 <i class="fas fa-bell"></i>
             </button>
@@ -27,7 +27,7 @@
     <div id="login-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #2c3e50; z-index: 99999; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
         <div style="width: 100%; max-width: 400px; background: white; padding: 40px 30px; border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); text-align: center;">
             <div style="font-size: 4rem; margin-bottom: 20px;">🛵</div>
-            <h1 style="color: #2c3e50; margin-bottom: 10px; font-weight: 900;">Acesso Motoboy</h1>
+            <h1 style="color: #2c3e50; margin-bottom: 10px; font-weight: 900; font-size: 1.8rem;">Acesso Motoboy</h1>
             <p style="color: #7f8c8d; margin-bottom: 30px; font-weight: 500;">Entre para gerenciar suas entregas</p>
             
             <form id="login-form">
@@ -39,24 +39,19 @@
                     <label style="display: block; margin-bottom: 8px; color: #34495e; font-weight: 700; font-size: 0.9rem;">SENHA</label>
                     <input type="password" id="login-pass" required style="width: 100%; padding: 18px; border: 2px solid #f1f3f5; background: #f8f9fa; border-radius: 15px; font-size: 1rem; outline: none; font-weight: 600;" placeholder="••••••••">
                 </div>
-                <button type="submit" style="width: 100%; background: #e67e22; color: white; border: none; padding: 20px; border-radius: 15px; font-size: 1.1rem; font-weight: 900; cursor: pointer; box-shadow: 0 8px 20px rgba(230,126,34,0.3);">
+                <button type="submit" id="btn-login-submit" style="width: 100%; background: #e67e22; color: white; border: none; padding: 20px; border-radius: 15px; font-size: 1.1rem; font-weight: 900; cursor: pointer; box-shadow: 0 8px 20px rgba(230,126,34,0.3);">
                     ENTRAR NO APP <i class="fas fa-arrow-right" style="margin-left: 10px;"></i>
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Tela de Estabelecimento Fechado -->
-    <div id="closed-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #f1f2f6; z-index: 99999; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center;">
-        <div style="width:100%; max-width:480px; background:white; padding:50px 30px; border-radius:35px; box-shadow: 0 30px 70px rgba(0,0,0,0.1); display:flex; flex-direction:column; align-items:center;">
-            <div style="width: 130px; height: 130px; background: #fff8e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 25px; font-size: 4.5rem;">🛌</div>
+    <!-- Tela de Caixa Fechado -->
+    <div id="closed-screen" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #f1f2f6; z-index: 99990; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center;">
+        <div style="width:100%; max-width:480px; background:white; padding:50px 30px; border-radius:35px; box-shadow: 0 30px 70px rgba(0,0,0,0.1);">
+            <div style="width: 100px; height: 100px; background: #fff8e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px; font-size: 4rem;">🛌</div>
             <h1 style="font-weight: 900; font-size: 2rem; color: #2f3542; margin-bottom: 10px;">Caixa Fechado</h1>
-            <p style="color: #f39c12; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px;">Expediente Encerrado</p>
-            <div style="background: #f8f9fa; padding: 25px; border-radius: 20px; margin-bottom: 30px;">
-                <p style="color: #747d8c; line-height: 1.6; font-size: 1rem;">
-                    O estabelecimento não está aceitando novos pedidos no momento.
-                </p>
-            </div>
+            <p style="color: #f39c12; font-weight: 800; text-transform: uppercase; margin-bottom: 25px;">Expediente Encerrado</p>
             <button onclick="location.reload()" style="width: 100%; background: #2f3542; color: white; border: none; padding: 18px; border-radius: 20px; font-size: 1.1rem; font-weight: 800; cursor: pointer;">
                 <i class="fas fa-sync-alt"></i> ATUALIZAR STATUS
             </button>
@@ -85,6 +80,6 @@
 
     <!-- Scripts -->
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-    <script src="app.js?v=2.0.1"></script>
+    <script src="app.js?v=2.0.4"></script>
 </body>
 </html>
