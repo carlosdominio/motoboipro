@@ -91,20 +91,19 @@ const App = {
 
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    // Modal de erro de login explícito
+                    console.log('❌ Falha no login: Dados inválidos');
                     Swal.fire({
                         title: 'Acesso Negado',
-                        text: 'Usuário ou senha incorretos. Verifique seus dados.',
+                        text: 'Usuário ou senha incorretos. Tente novamente.',
                         icon: 'error',
-                        confirmButtonColor: '#e74c3c',
-                        confirmButtonText: 'TENTAR NOVAMENTE'
+                        confirmButtonColor: '#e74c3c'
                     });
                     btn.disabled = false;
                     btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
                 }
             } catch (e) {
-                console.error(e);
-                Swal.fire('Erro de Conexão', 'Não foi possível conectar ao servidor.', 'warning');
+                console.error('❌ Erro na requisição de login:', e);
+                Swal.fire('Erro de Conexão', 'Verifique sua internet.', 'warning');
                 btn.disabled = false;
                 btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
             }
