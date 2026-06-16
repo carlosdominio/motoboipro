@@ -377,17 +377,52 @@ const App = {
         createCard(p, cat) {
             const card = document.createElement('div');
             card.className = `pedido-card ${cat}`;
+            const time = new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const isDone = cat === 'entregue';
+            const isReady = cat === 'a-caminho';
+
+            let cliente = "Consumidor";
+            let endereco = "Entrega no balcão/Local";
+            if (p.observacao) {
+                const lines = p.observacao.split('\n');
+                const lNome = lines.find(l => l.includes('👤 Cliente:'));
+                const lEnd = lines.find(l => l.includes('🏠 End:'));
+                if (lNome) cliente = lNome.replace('👤 Cliente:', '').trim();
+                if (lEnd) endereco = lEnd.replace('🏠 End:', '').trim();
+            }
+
+            let displayStatus = cat.replace('-', ' ').toUpperCase();
+            if (cat === 'a-caminho') displayStatus = 'PRONTO / A CAMINHO';
+            else if (cat === 'pendente') displayStatus = 'PREPARANDO';
+
+            let buttonHTML = '';
+            if (isDone) {
+                buttonHTML = `<button class="btn-entregar" style="background:#bdc3c7; box-shadow:none; cursor:not-allowed;" disabled><i class="fas fa-check-double"></i> ENTREGUE</button>`;
+            } else if (isReady) {
+                buttonHTML = `<button class="btn-entregar" onclick="App.ui.confirmarEntrega(${p.id}, this)"><i class="fas fa-motorcycle"></i> CONFIRMAR ENTREGA</button>`;
+            } else {
+                buttonHTML = `<button class="btn-entregar" style="background:#f39c12; box-shadow: 0 4px 0 #d68910; cursor:not-allowed;" disabled><i class="fas fa-clock"></i> AGUARDANDO COZINHA</button>`;
+            }
+
             card.innerHTML = `
                 <div class="pedido-header">
-                    <span class="pedido-id">#${p.id}</span>
-                    <span class="pedido-total">R$ ${parseFloat(p.total).toFixed(2).replace('.', ',')}</span>
+                    <div>
+                        <span class="pedido-id">#${p.id}</span>
+                        <span class="status-badge ${cat}">${displayStatus}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="pedido-total">R$ ${parseFloat(p.total).toFixed(2).replace('.', ',')}</div>
+                        <span class="pedido-time">${time}</span>
+                    </div>
                 </div>
                 <div class="pedido-body">
-                    <div class="endereco-info"><i class="fas fa-map-marker-alt"></i> Pedido Delivery</div>
-                    <div class="pedido-itens">${p.itens ? p.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ') : ''}</div>
+                    <strong class="cliente-info">${cliente}</strong>
+                    <div class="endereco-info"><i class="fas fa-map-marker-alt"></i> ${endereco}</div>
+                    <div class="pedido-itens">
+                        ${p.itens ? p.itens.map(i => `<div class="item-row">${i.quantidade}x ${i.nome}</div>`).join('') : ''}
+                    </div>
                 </div>
-                ${!isDone ? `<button class="btn-entregar" onclick="App.ui.confirmarEntrega(${p.id}, this)">CONFIRMAR ENTREGA</button>` : ''}
+                ${buttonHTML}
             `;
             return card;
         },

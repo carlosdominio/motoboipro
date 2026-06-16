@@ -125,12 +125,50 @@ main {
     font-weight: 800;
 }
 
-.pedido-id { color: var(--primary); }
-.pedido-total { color: var(--text); }
+.pedido-id { color: var(--primary); font-size: 1.1rem; }
+.pedido-total { color: var(--text); font-size: 1.1rem; }
+
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 900;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+.status-badge.pendente { background: #fef9e7; color: #f39c12; border: 1px solid #f39c12; }
+.status-badge.a-caminho { background: #eafaf1; color: #27ae60; border: 1px solid #27ae60; }
+.status-badge.entregue { background: #ebf5fb; color: #2980b9; border: 1px solid #2980b9; }
+
+.pedido-time {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin-top: 2px;
+}
 
 .pedido-body { margin-bottom: 15px; }
-.endereco-info { font-size: 0.9rem; color: #7f8c8d; margin-bottom: 5px; }
-.pedido-itens { font-size: 0.85rem; color: #34495e; font-weight: 500; }
+
+.cliente-info {
+    display: block;
+    font-size: 1.05rem;
+    color: var(--secondary);
+    margin-bottom: 4px;
+}
+
+.endereco-info { font-size: 0.9rem; color: #7f8c8d; margin-bottom: 8px; line-height: 1.4; }
+.endereco-info i { color: var(--danger); margin-right: 4px; }
+
+.pedido-itens { 
+    font-size: 0.85rem; 
+    color: #34495e; 
+    font-weight: 600;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.item-row { margin-bottom: 3px; }
 
 .btn-entregar {
     width: 100%;
