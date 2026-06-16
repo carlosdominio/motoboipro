@@ -14,7 +14,8 @@ const App = {
         caixaAberto: true,
         lastPushToken: null,
         soundEnabled: localStorage.getItem('motoboy_sound') !== 'false',
-        lastNotifiedId: null // Para evitar duplicações rápidas
+        // Conjunto de IDs já notificados para evitar duplicidade (Pusher + FCM)
+        notifiedIds: new Set()
     },
 
     async init() {
@@ -56,6 +57,8 @@ const App = {
 
     setupLoginForm() {
         const form = document.getElementById('login-form');
+        if (!form) return;
+        
         form.onsubmit = async (e) => {
             e.preventDefault();
             const usuario = document.getElementById('login-user').value;
@@ -88,18 +91,20 @@ const App = {
 
                     setTimeout(() => location.reload(), 2000);
                 } else {
+                    // Modal de erro de login explícito
                     Swal.fire({
-                        title: 'Falha no Login',
-                        text: 'Usuário ou senha incorretos. Verifique e tente novamente.',
+                        title: 'Acesso Negado',
+                        text: 'Usuário ou senha incorretos. Verifique seus dados.',
                         icon: 'error',
-                        confirmButtonColor: '#e74c3c'
+                        confirmButtonColor: '#e74c3c',
+                        confirmButtonText: 'TENTAR NOVAMENTE'
                     });
                     btn.disabled = false;
                     btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
                 }
             } catch (e) {
                 console.error(e);
-                Swal.fire('Erro', 'Falha na conexão com o servidor.', 'error');
+                Swal.fire('Erro de Conexão', 'Não foi possível conectar ao servidor.', 'warning');
                 btn.disabled = false;
                 btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
             }
@@ -132,8 +137,10 @@ const App = {
             const screen = document.getElementById('closed-screen');
             
             this.state.caixaAberto = !!status;
-            screen.style.display = this.state.caixaAberto ? 'none' : 'flex';
-            document.body.style.overflow = this.state.caixaAberto ? '' : 'hidden';
+            if (screen) {
+                screen.style.display = this.state.caixaAberto ? 'none' : 'flex';
+                document.body.style.overflow = this.state.caixaAberto ? '' : 'hidden';
+            }
         } catch (e) { console.error("Erro status caixa:", e); }
     },
 
@@ -177,10 +184,11 @@ const App = {
 
             PushNotifications.addListener('pushNotificationReceived', (notification) => {
                 App.loadPedidos();
-                // Apenas mostra se for uma mensagem nova (deduplicação)
-                const notifId = notification.id || notification.data?.pedido_id;
-                if (App.state.lastNotifiedId !== notifId) {
-                    App.state.lastNotifiedId = notifId;
+                // Deduplicação por ID e Timestamp (evita eco de milissegundos)
+                const pId = String(notification.id || notification.data?.pedido_id || '');
+                if (pId && !App.state.notifiedIds.has(pId)) {
+                    App.state.notifiedIds.add(pId);
+                    setTimeout(() => App.state.notifiedIds.delete(pId), 10000); // Limpa após 10s
                     this.showLocal(notification.title, notification.body, notification.data);
                 }
             });
@@ -259,13 +267,14 @@ const App = {
                 this.channel.bind('status-atualizado', (data) => {
                     if (data.garcom_id !== 'DELIVERY') return;
                     App.loadPedidos();
-                    if (data.status === 'cancelado' || data.status === 'pronto') {
+                    const pId = String(data.pedido_id || '');
+                    if (['cancelado', 'pronto'].includes(data.status) && pId && !App.state.notifiedIds.has(pId)) {
+                        App.state.notifiedIds.add(pId);
+                        setTimeout(() => App.state.notifiedIds.delete(pId), 10000);
+                        
                         const title = data.status === 'cancelado' ? '❌ PEDIDO CANCELADO' : '🍳 PEDIDO PRONTO';
-                        const body = data.status === 'cancelado' ? `Pedido #${data.pedido_id} cancelado.` : `Pedido #${data.pedido_id} pronto!`;
-                        if (App.state.lastNotifiedId !== data.pedido_id) {
-                            App.state.lastNotifiedId = data.pedido_id;
-                            App.notifications.showLocal(title, body);
-                        }
+                        const body = `Pedido #${pId} ${data.status === 'cancelado' ? 'cancelado' : 'pronto'}!`;
+                        App.notifications.showLocal(title, body);
                     }
                 });
 
@@ -273,18 +282,21 @@ const App = {
                     const p = data.pedido || data;
                     if (p.garcom_id !== 'DELIVERY') return;
                     App.loadPedidos();
-                    if (App.state.lastNotifiedId !== (p.id || p.pedido_id)) {
-                        App.state.lastNotifiedId = p.id || p.pedido_id;
-                        App.notifications.showLocal(`🆕 NOVO DELIVERY`, `Pedido #${p.id || p.pedido_id} recebido!`);
+                    const pId = String(p.id || p.pedido_id || '');
+                    if (pId && !App.state.notifiedIds.has(pId)) {
+                        App.state.notifiedIds.add(pId);
+                        setTimeout(() => App.state.notifiedIds.delete(pId), 10000);
+                        App.notifications.showLocal(`🆕 NOVO DELIVERY`, `Pedido #${pId} recebido!`);
                     }
                 });
 
                 this.channel.bind('pedido-cancelado', (data) => {
-                    const pId = data.pedido_id || data.id || (data.pedido ? data.pedido.id : '');
+                    const pId = String(data.pedido_id || data.id || (data.pedido ? data.pedido.id : '') || '');
                     if (String(data.garcom_id) !== 'DELIVERY' && !(data.pedido && String(data.pedido.garcom_id) === 'DELIVERY')) return;
                     App.loadPedidos();
-                    if (App.state.lastNotifiedId !== pId) {
-                        App.state.lastNotifiedId = pId;
+                    if (pId && !App.state.notifiedIds.has(pId)) {
+                        App.state.notifiedIds.add(pId);
+                        setTimeout(() => App.state.notifiedIds.delete(pId), 10000);
                         App.notifications.showLocal(`❌ PEDIDO REMOVIDO`, `O pedido #${pId} foi cancelado.`);
                     }
                 });
@@ -328,8 +340,10 @@ const App = {
                 'entregue': document.getElementById('count-entregues')
             };
 
+            if (!sections['a-caminho']) return;
+
             // Limpa tudo para evitar duplicados
-            Object.values(sections).forEach(s => s.innerHTML = '');
+            Object.values(sections).forEach(s => { if(s) s.innerHTML = ''; });
             const n = { 'a-caminho': 0, 'pendente': 0, 'entregue': 0 };
 
             App.state.pedidos.forEach(p => {
@@ -338,13 +352,15 @@ const App = {
                 if (s === 'entregue' || s === 'aguardando_fechamento') cat = 'entregue';
                 else if (['pronto', 'servido', 'saiu_entrega'].includes(s)) cat = 'a-caminho';
                 
-                sections[cat].appendChild(this.createCard(p, cat));
-                n[cat]++;
+                if (sections[cat]) {
+                    sections[cat].appendChild(this.createCard(p, cat));
+                    n[cat]++;
+                }
             });
 
             Object.keys(sections).forEach(k => {
-                if (n[k] === 0) sections[k].innerHTML = '<div class="empty-state">Nenhum pedido.</div>';
-                counts[k].innerText = n[k];
+                if (sections[k] && n[k] === 0) sections[k].innerHTML = '<div class="empty-state">Nenhum pedido.</div>';
+                if (counts[k]) counts[k].innerText = n[k];
             });
         },
 
