@@ -64,7 +64,7 @@ const App = {
 
             if (btn) {
                 btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AUTENTICANDO...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENTRANDO...';
             }
 
             try {
