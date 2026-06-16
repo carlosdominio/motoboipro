@@ -1,6 +1,6 @@
 /**
  * Motoboy Express - Aplicativo Nativo (Remake Pro)
- * Focado em estabilidade de notificações e experiência de entrega.
+ * Versão 2.0.3 - Estabilidade Máxima
  */
 
 const API_BASE_URL = 'https://garconnexpress.vercel.app';
@@ -12,45 +12,42 @@ const App = {
         user: JSON.parse(localStorage.getItem('motoboy_user') || '{}'),
         pedidos: [],
         caixaAberto: true,
-        lastPushToken: null,
         soundEnabled: localStorage.getItem('motoboy_sound') !== 'false',
-        // Conjunto de IDs já notificados para evitar duplicidade (Pusher + FCM)
-        notifiedIds: new Set()
+        notifiedEvents: new Set() // Para evitar duplicidade estrita (evento + id)
     },
 
     async init() {
-        console.log('🛵 Inicializando Motoboy App...');
+        console.log('🛵 Inicializando Motoboy App v2.0.3...');
         
         if (!this.checkAuth()) return;
 
-        // Inicialização de componentes
-        await this.notifications.init();
-        await this.pusher.init();
+        try {
+            await this.notifications.init();
+            await this.pusher.init();
+        } catch (e) {
+            console.error('Erro na inicialização de módulos:', e);
+        }
         
-        // Loop de verificação de caixa
         this.checkCaixaStatus();
         setInterval(() => this.checkCaixaStatus(), 30000);
 
-        // Carregamento inicial
         this.loadPedidos();
 
-        // Solicita áudio ao usuário se for o primeiro acesso
+        this.ui.updateSoundIcon();
         if (!localStorage.getItem('audio_unlocked')) {
             this.ui.requestAudioUnlock();
         }
-        
-        this.ui.updateSoundIcon();
     },
 
     checkAuth() {
         const screen = document.getElementById('login-screen');
         if (!this.state.token) {
-            screen.style.display = 'flex';
+            if (screen) screen.style.display = 'flex';
             document.body.style.overflow = 'hidden';
             this.setupLoginForm();
             return false;
         }
-        screen.style.display = 'none';
+        if (screen) screen.style.display = 'none';
         document.body.style.overflow = '';
         return true;
     },
@@ -63,10 +60,12 @@ const App = {
             e.preventDefault();
             const usuario = document.getElementById('login-user').value;
             const senha = document.getElementById('login-pass').value;
-            const btn = form.querySelector('button');
+            const btn = document.getElementById('btn-login-submit');
 
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AUTENTICANDO...';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AUTENTICANDO...';
+            }
 
             try {
                 const res = await fetch(`${API_BASE_URL}/api/login`, {
@@ -91,26 +90,43 @@ const App = {
 
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    console.log('❌ Falha no login: Dados inválidos');
+                    console.log('❌ Login falhou: Resposta do servidor indicou falha.');
                     Swal.fire({
                         title: 'Acesso Negado',
-                        text: 'Usuário ou senha incorretos. Tente novamente.',
+                        text: 'Usuário ou senha incorretos. Verifique seus dados e tente novamente.',
                         icon: 'error',
-                        confirmButtonColor: '#e74c3c'
+                        confirmButtonColor: '#e74c3c',
+                        confirmButtonText: 'TENTAR NOVAMENTE',
+                        customClass: {
+                            container: 'my-swal-container'
+                        }
                     });
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
+                    }
+                }
+            } catch (err) {
+                console.error('❌ Erro na requisição de login (catch block):', err);
+                Swal.fire({
+                    title: 'Erro de Conexão',
+                    text: 'Não foi possível conectar ao servidor. Verifique sua internet.',
+                    icon: 'warning',
+                    confirmButtonText: 'OK',
+                    customClass: {
+                        container: 'my-swal-container'
+                    }
+                });
+                if (btn) {
                     btn.disabled = false;
                     btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
                 }
-            } catch (e) {
-                console.error('❌ Erro na requisição de login:', e);
-                Swal.fire('Erro de Conexão', 'Verifique sua internet.', 'warning');
-                btn.disabled = false;
-                btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
             }
         };
     },
 
     async loadPedidos() {
+        if (!this.state.token) return;
         try {
             const res = await fetch(`${API_BASE_URL}/api/pedidos/ativos-detalhado`, {
                 headers: { 'Authorization': `Bearer ${this.state.token}` }
@@ -122,7 +138,7 @@ const App = {
             }
 
             const allPedidos = await res.json();
-            this.state.pedidos = allPedidos.filter(p => p.garcom_id === 'DELIVERY');
+            this.state.pedidos = Array.isArray(allPedidos) ? allPedidos.filter(p => p.garcom_id === 'DELIVERY') : [];
             this.ui.renderPedidos();
         } catch (e) {
             console.error('Erro ao carregar pedidos:', e);
@@ -133,9 +149,8 @@ const App = {
         try {
             const res = await fetch(`${API_BASE_URL}/api/caixa/status`);
             const status = await res.json();
-            const screen = document.getElementById('closed-screen');
-            
             this.state.caixaAberto = !!status;
+            const screen = document.getElementById('closed-screen');
             if (screen) {
                 screen.style.display = this.state.caixaAberto ? 'none' : 'flex';
                 document.body.style.overflow = this.state.caixaAberto ? '' : 'hidden';
@@ -156,7 +171,7 @@ const App = {
         async init() {
             if (!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
 
-            const { PushNotifications, LocalNotifications } = Capacitor.Plugins;
+            const { PushNotifications } = Capacitor.Plugins;
 
             let perm = await PushNotifications.checkPermissions();
             if (perm.receive !== 'granted') {
@@ -167,7 +182,6 @@ const App = {
                 await PushNotifications.createChannel({
                     id: NOTIFICATION_CHANNEL_ID,
                     name: 'Pedidos e Alertas',
-                    description: 'Notificações de novos pedidos',
                     sound: 'notificacao.mp3',
                     importance: 5,
                     visibility: 1,
@@ -183,12 +197,17 @@ const App = {
 
             PushNotifications.addListener('pushNotificationReceived', (notification) => {
                 App.loadPedidos();
-                // Deduplicação por ID e Timestamp (evita eco de milissegundos)
-                const pId = String(notification.id || notification.data?.pedido_id || '');
-                if (pId && !App.state.notifiedIds.has(pId)) {
-                    App.state.notifiedIds.add(pId);
-                    setTimeout(() => App.state.notifiedIds.delete(pId), 10000); // Limpa após 10s
-                    this.showLocal(notification.title, notification.body, notification.data);
+                // O app já mostra o banner nativo. Apenas tocamos o som extra e disparamos um Toast se estiver aberto.
+                // Mas bloqueamos duplicatas.
+                const pId = String(notification.id || notification.data?.pedido_id || notification.data?.id || '');
+                const eventKey = `push_${pId}`;
+                
+                if (pId && !App.state.notifiedEvents.has(eventKey)) {
+                    App.state.notifiedEvents.add(eventKey);
+                    setTimeout(() => App.state.notifiedEvents.delete(eventKey), 15000);
+                    
+                    this.playAlert();
+                    App.ui.showToast(notification.body || 'Novo alerta!', 'info', notification.title);
                 }
             });
         },
@@ -197,35 +216,37 @@ const App = {
             try {
                 await fetch(`${API_BASE_URL}/api/subscribe-motoboy`, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${App.state.token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.state.token}` },
                     body: JSON.stringify({ endpoint: token })
                 });
             } catch (e) {}
         },
 
-        async showLocal(title, body, data = {}) {
+        async showLocal(title, body, eventKey = '') {
+            // Se já notificamos este evento (via Push ou Pusher recentemente), ignoramos.
+            if (eventKey && App.state.notifiedEvents.has(eventKey)) return;
+            if (eventKey) {
+                App.state.notifiedEvents.add(eventKey);
+                setTimeout(() => App.state.notifiedEvents.delete(eventKey), 15000);
+            }
+
             this.playAlert();
 
             if (window.Capacitor && window.Capacitor.isNativePlatform()) {
                 try {
                     const { LocalNotifications } = Capacitor.Plugins;
-                    const notificationId = Math.floor(Math.random() * 1000000);
                     await LocalNotifications.schedule({
                         notifications: [{
                             title: title || 'GarçomExpress',
                             body: body || '',
-                            id: notificationId,
+                            id: Math.floor(Math.random() * 1000000),
                             schedule: { at: new Date(Date.now() + 100) },
                             sound: 'notificacao.mp3',
                             smallIcon: 'ic_stat_notification',
-                            channelId: NOTIFICATION_CHANNEL_ID,
-                            extra: data
+                            channelId: NOTIFICATION_CHANNEL_ID
                         }]
                     });
-                } catch (err) { console.error(err); }
+                } catch (err) { console.error('Erro LocalNotif:', err); }
             }
             App.ui.showToast(body, 'info', title);
         },
@@ -239,7 +260,6 @@ const App = {
             App.state.soundEnabled = !App.state.soundEnabled;
             localStorage.setItem('motoboy_sound', App.state.soundEnabled);
             App.ui.updateSoundIcon();
-            
             if (App.state.soundEnabled) {
                 this.playAlert();
                 App.ui.showToast("Som ativado!", "success");
@@ -249,7 +269,7 @@ const App = {
         }
     },
 
-    // --- REAL-TIME ---
+    // --- REAL-TIME (PUSHER) ---
     pusher: {
         instance: null,
         channel: null,
@@ -261,19 +281,15 @@ const App = {
                 this.instance = new Pusher(config.key, { cluster: config.cluster, forceTLS: true });
                 this.channel = this.instance.subscribe('garconnexpress');
                 
-                this.channel.bind('status-caixa-atualizado', (data) => App.checkCaixaStatus());
+                this.channel.bind('status-caixa-atualizado', () => App.checkCaixaStatus());
 
                 this.channel.bind('status-atualizado', (data) => {
                     if (data.garcom_id !== 'DELIVERY') return;
                     App.loadPedidos();
                     const pId = String(data.pedido_id || '');
-                    if (['cancelado', 'pronto'].includes(data.status) && pId && !App.state.notifiedIds.has(pId)) {
-                        App.state.notifiedIds.add(pId);
-                        setTimeout(() => App.state.notifiedIds.delete(pId), 10000);
-                        
+                    if (['cancelado', 'pronto'].includes(data.status) && pId) {
                         const title = data.status === 'cancelado' ? '❌ PEDIDO CANCELADO' : '🍳 PEDIDO PRONTO';
-                        const body = `Pedido #${pId} ${data.status === 'cancelado' ? 'cancelado' : 'pronto'}!`;
-                        App.notifications.showLocal(title, body);
+                        App.notifications.showLocal(title, `Pedido #${pId} ${data.status}!`, `${data.status}_${pId}`);
                     }
                 });
 
@@ -282,10 +298,8 @@ const App = {
                     if (p.garcom_id !== 'DELIVERY') return;
                     App.loadPedidos();
                     const pId = String(p.id || p.pedido_id || '');
-                    if (pId && !App.state.notifiedIds.has(pId)) {
-                        App.state.notifiedIds.add(pId);
-                        setTimeout(() => App.state.notifiedIds.delete(pId), 10000);
-                        App.notifications.showLocal(`🆕 NOVO DELIVERY`, `Pedido #${pId} recebido!`);
+                    if (pId) {
+                        App.notifications.showLocal(`🆕 NOVO DELIVERY`, `Pedido #${pId} recebido!`, `novo_${pId}`);
                     }
                 });
 
@@ -293,13 +307,11 @@ const App = {
                     const pId = String(data.pedido_id || data.id || (data.pedido ? data.pedido.id : '') || '');
                     if (String(data.garcom_id) !== 'DELIVERY' && !(data.pedido && String(data.pedido.garcom_id) === 'DELIVERY')) return;
                     App.loadPedidos();
-                    if (pId && !App.state.notifiedIds.has(pId)) {
-                        App.state.notifiedIds.add(pId);
-                        setTimeout(() => App.state.notifiedIds.delete(pId), 10000);
-                        App.notifications.showLocal(`❌ PEDIDO REMOVIDO`, `O pedido #${pId} foi cancelado.`);
+                    if (pId) {
+                        App.notifications.showLocal(`❌ PEDIDO REMOVIDO`, `O pedido #${pId} foi cancelado.`, `cancelado_${pId}`);
                     }
                 });
-            } catch (e) {}
+            } catch (e) { console.error('Erro Pusher:', e); }
         }
     },
 
@@ -309,13 +321,13 @@ const App = {
             const btn = document.getElementById('btn-toggle-sound');
             if (!btn) return;
             btn.innerHTML = App.state.soundEnabled ? '<i class="fas fa-bell"></i>' : '<i class="fas fa-bell-slash"></i>';
-            if (App.state.soundEnabled) btn.classList.remove('muted'); else btn.classList.add('muted');
+            btn.className = App.state.soundEnabled ? 'btn-icon' : 'btn-icon muted';
         },
 
         requestAudioUnlock() {
             Swal.fire({
                 title: 'Ativar Alertas?',
-                text: 'Clique para ativar o som de notificações.',
+                text: 'Clique para permitir o som de novos pedidos.',
                 icon: 'info',
                 confirmButtonText: 'ATIVAR ÁUDIO',
                 confirmButtonColor: '#e67e22'
@@ -341,12 +353,11 @@ const App = {
 
             if (!sections['a-caminho']) return;
 
-            // Limpa tudo para evitar duplicados
             Object.values(sections).forEach(s => { if(s) s.innerHTML = ''; });
             const n = { 'a-caminho': 0, 'pendente': 0, 'entregue': 0 };
 
             App.state.pedidos.forEach(p => {
-                const s = p.status.toLowerCase();
+                const s = String(p.status).toLowerCase();
                 let cat = 'pendente';
                 if (s === 'entregue' || s === 'aguardando_fechamento') cat = 'entregue';
                 else if (['pronto', 'servido', 'saiu_entrega'].includes(s)) cat = 'a-caminho';
@@ -366,9 +377,7 @@ const App = {
         createCard(p, cat) {
             const card = document.createElement('div');
             card.className = `pedido-card ${cat}`;
-            const time = new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const isDone = cat === 'entregue';
-            
             card.innerHTML = `
                 <div class="pedido-header">
                     <span class="pedido-id">#${p.id}</span>
@@ -376,7 +385,7 @@ const App = {
                 </div>
                 <div class="pedido-body">
                     <div class="endereco-info"><i class="fas fa-map-marker-alt"></i> Pedido Delivery</div>
-                    <div class="pedido-itens">${p.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ')}</div>
+                    <div class="pedido-itens">${p.itens ? p.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ') : ''}</div>
                 </div>
                 ${!isDone ? `<button class="btn-entregar" onclick="App.ui.confirmarEntrega(${p.id}, this)">CONFIRMAR ENTREGA</button>` : ''}
             `;
@@ -384,7 +393,7 @@ const App = {
         },
 
         async confirmarEntrega(id, btn) {
-            const { isConfirmed } = await Swal.fire({ title: 'Entregue?', text: `Pedido #${id}`, icon: 'question', showCancelButton: true });
+            const { isConfirmed } = await Swal.fire({ title: 'Entregue?', text: `Confirmar entrega do Pedido #${id}?`, icon: 'question', showCancelButton: true, confirmButtonText: 'Sim, entregar!' });
             if (!isConfirmed) return;
             btn.disabled = true;
             try {
@@ -402,7 +411,7 @@ const App = {
             if (!c) { c = document.createElement('div'); c.id = 'toast-container'; document.body.appendChild(c); }
             const t = document.createElement('div');
             t.className = `toast-notificacao ${tipo}`;
-            t.innerHTML = `<div class="toast-content"><strong>${titulo}</strong><br>${msg}</div>`;
+            t.innerHTML = `<div class="toast-content"><strong>${titulo || ''}</strong><br>${msg}</div>`;
             c.appendChild(t);
             setTimeout(() => t.classList.add('show'), 10);
             setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 4000);
