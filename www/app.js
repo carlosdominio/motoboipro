@@ -1,43 +1,155 @@
+const API_BASE_URL = 'https://garconnexpress.vercel.app';
+
 let pusher;
 let channel;
-
 const audioNotificacao = new Audio('/notificacao.mp3');
 
+// --- INTERCEPTADOR FETCH PARA APP NATIVO ---
+const isNativeApp = (window.Capacitor && window.Capacitor.isNativePlatform()) ||
+                   window.location.protocol === 'capacitor:';
+
+const originalFetch = window.fetch;
+window.fetch = async (...args) => {
+    let url = args[0];
+    const token = localStorage.getItem('garcom_token');
+
+    if (isNativeApp && typeof url === 'string' && url.startsWith('/api/')) {
+        url = API_BASE_URL + url;
+        args[0] = url;
+    }
+
+    if (token) {
+        if (!args[1]) args[1] = {};
+        if (!args[1].headers) args[1].headers = {};
+        args[1].headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    return originalFetch(...args);
+};
+// --------------------------------------------
+
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Verifica status do caixa primeiro
+    const token = localStorage.getItem('garcom_token');
+    const loginScreen = document.getElementById('login-screen');
+    const loginForm = document.getElementById('login-form');
+
+    if (!token) {
+        if (loginScreen) loginScreen.style.display = 'flex';
+    } else {
+        if (loginScreen) loginScreen.style.display = 'none';
+        await iniciarApp();
+    }
+
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await realizarLogin();
+        });
+    }
+});
+
+async function realizarLogin() {
+    const user = document.getElementById('login-user').value;
+    const pass = document.getElementById('login-pass').value;
+    const btn = document.getElementById('btn-login-submit');
+
+    if (!user || !pass) {
+        return Swal.fire({
+            title: 'Aviso',
+            text: 'Preencha usuário e senha',
+            icon: 'warning',
+            confirmButtonColor: '#e67e22'
+        });
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AUTENTICANDO...';
+
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ usuario: user, senha: pass })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('garcom_token', data.token);
+            localStorage.setItem('garcom_logado', JSON.stringify(data.garcom));
+            
+            const loginScreen = document.getElementById('login-screen');
+            if (loginScreen) loginScreen.style.display = 'none';
+            
+            await iniciarApp();
+            Swal.fire({
+                title: 'Sucesso',
+                text: 'Bem-vindo ao Motoboy Express!',
+                icon: 'success',
+                confirmButtonColor: '#27ae60'
+            });
+        } else {
+            Swal.fire({
+                title: 'Erro de Login',
+                text: 'Usuário ou senha inválidos. Verifique os dados e tente novamente.',
+                icon: 'error',
+                confirmButtonColor: '#e74c3c'
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        Swal.fire({
+            title: 'Erro de Conexão',
+            text: 'Não foi possível conectar ao servidor. Verifique sua internet.',
+            icon: 'error',
+            confirmButtonColor: '#e74c3c'
+        });
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'ENTRAR <i class="fas fa-arrow-right" style="margin-left: 10px;"></i>';
+    }
+}
+
+function logout() {
+    localStorage.removeItem('garcom_token');
+    localStorage.removeItem('garcom_logado');
+    location.reload();
+}
+
+async function iniciarApp() {
     await verificarStatusCaixa();
     setInterval(verificarStatusCaixa, 30000);
 
-    // Força interação inicial para desbloquear áudio no navegador/celular
-    Swal.fire({
-        title: 'Ativar Alertas?',
-        text: 'Clique para ativar o som de novos pedidos e notificações.',
-        icon: 'info',
-        confirmButtonText: '<i class="fas fa-volume-up"></i> ATIVAR ÁUDIO',
-        confirmButtonColor: '#e67e22',
-        allowOutsideClick: false
-    }).then((result) => {
-        if (result.isConfirmed) {
-            audioNotificacao.play().then(() => {
-                audioNotificacao.pause();
-                audioNotificacao.currentTime = 0;
-                showToast("Áudio e notificações ativos!", "success");
-            }).catch(e => {
-                console.error('Erro ao desbloquear áudio:', e);
-            });
-        }
-    });
+    if (!sessionStorage.getItem('audio_unlocked')) {
+        Swal.fire({
+            title: 'Ativar Alertas?',
+            text: 'Clique para ativar o som de novos pedidos e notificações.',
+            icon: 'info',
+            confirmButtonText: '<i class="fas fa-volume-up"></i> ATIVAR ÁUDIO',
+            confirmButtonColor: '#e67e22',
+            allowOutsideClick: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                sessionStorage.setItem('audio_unlocked', 'true');
+                audioNotificacao.play().then(() => {
+                    audioNotificacao.pause();
+                    audioNotificacao.currentTime = 0;
+                    showToast("Áudio e notificações ativos!", "success");
+                }).catch(e => {
+                    console.error('Erro ao desbloquear áudio:', e);
+                });
+            }
+        });
+    }
 
     await initPusher();
     await initNativePush();
     loadPedidos();
-});
+}
 
 async function initNativePush() {
     if (window.Capacitor && window.Capacitor.isNativePlatform()) {
         const { PushNotifications } = Capacitor.Plugins;
 
-        // Solicita permissão
         let perm = await PushNotifications.checkPermissions();
         if (perm.receive !== 'granted') {
             perm = await PushNotifications.requestPermissions();
@@ -49,13 +161,11 @@ async function initNativePush() {
 
         PushNotifications.addListener('registration', (token) => {
             console.log('Push registration success, token: ' + token.value);
-            // Aqui você poderia enviar o token para o seu servidor se quiser enviar via Firebase direto
         });
 
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Push received: ', notification);
             loadPedidos();
-            mostrarToast(notification.body, 'info', notification.title);
         });
     }
 }
@@ -89,7 +199,6 @@ async function initPusher() {
 
         channel = pusher.subscribe('garconnexpress');
         
-        // Sincronia do caixa em tempo real
         channel.bind('status-caixa-atualizado', (data) => {
             console.log('📢 Evento de caixa recebido no motoboy:', data);
             verificarStatusCaixa();
@@ -100,12 +209,10 @@ async function initPusher() {
             }
         });
 
-        // Escuta atualizações de status (cozinha/admin)
         channel.bind('status-atualizado', (data) => {
             console.log('🔔 Status atualizado via Pusher:', data);
             loadPedidos();
             
-            // FILTRO: Só mostra balão para o motoboy se for DELIVERY
             if (data.garcom_id === 'DELIVERY') {
                 if (data.status === 'cancelado') {
                     showToast(`Pedido #${data.pedido_id} foi CANCELADO.`, "warning");
@@ -119,35 +226,29 @@ async function initPusher() {
             }
         });
 
-        // Escuta novos pedidos (Geralmente disparado na criação)
         channel.bind('novo-pedido', (data) => {
             console.log('🆕 Novo pedido via Pusher:', data);
             loadPedidos();
 
-            // FILTRO: Só mostra balão se for DELIVERY
             const pedido = data.pedido || data;
             if (pedido.garcom_id === 'DELIVERY') {
                 showToast(`Novo pedido #${pedido.id || pedido.pedido_id} recebido!`, "info");
             }
         });
 
-        // Escuta cancelamentos (Disparado na exclusão)
         channel.bind('pedido-cancelado', (data) => {
             console.log('❌ Pedido cancelado via Pusher:', data);
             loadPedidos();
 
-            // FILTRO: Só mostra balão se for DELIVERY
             if (String(data.garcom_id) === 'DELIVERY' || (data.mesa_numero && String(data.mesa_numero).includes('DELIVERY'))) {
                 showToast(`Pedido #${data.id || data.pedido_id} foi REMOVIDO.`, "warning");
             }
         });
 
-        // Escuta quando itens ficam prontos (Cozinha)
         channel.bind('pedido-pronto', (data) => {
             console.log('🍳 Pedido pronto via Pusher:', data);
             loadPedidos();
 
-            // FILTRO: Só mostra balão se for DELIVERY
             if (String(data.garcom_id) === 'DELIVERY' || (data.mesa_numero && String(data.mesa_numero).includes('DELIVERY'))) {
                 showToast("Pedido pronto para entrega!", "success");
             }
@@ -159,13 +260,13 @@ async function initPusher() {
 }
 
 async function loadPedidos() {
+    const token = localStorage.getItem('garcom_token');
+    if (!token) return;
+
     try {
         const res = await fetch('/api/pedidos/ativos-detalhado');
         const allPedidos = await res.json();
-        
-        // Filtra apenas os pedidos de DELIVERY
         const deliveryPedidos = allPedidos.filter(p => p.garcom_id === 'DELIVERY');
-        
         renderPedidos(deliveryPedidos);
     } catch (e) {
         console.error('Erro ao carregar pedidos:', e);
@@ -176,48 +277,44 @@ function renderPedidos(pedidos) {
     const contPronto = document.getElementById('container-a-caminho');
     const contPendente = document.getElementById('container-pendentes');
     const contEntregues = document.getElementById('container-entregues');
-    
     const countPronto = document.getElementById('count-pronto');
     const countPendente = document.getElementById('count-pendente');
     const countEntregues = document.getElementById('count-entregues');
 
-    // Limpa containers
-    contPronto.innerHTML = '';
-    contPendente.innerHTML = '';
-    contEntregues.innerHTML = '';
+    if (contPronto) contPronto.innerHTML = '';
+    if (contPendente) contPendente.innerHTML = '';
+    if (contEntregues) contEntregues.innerHTML = '';
 
     let nPronto = 0;
     let nPendente = 0;
     let nEntregue = 0;
 
     pedidos.forEach(p => {
-        // Classifica o pedido baseado no status e força o label da coluna
         if (p.status === 'aguardando_fechamento' || p.status === 'entregue') {
             const card = createPedidoCard(p, 'entregue');
-            contEntregues.appendChild(card);
+            if (contEntregues) contEntregues.appendChild(card);
             nEntregue++;
         } else {
             const isReady = p.status === 'servido' || p.status === 'pronto' || p.status === 'saiu_entrega';
             if (isReady) {
                 const card = createPedidoCard(p, 'a-caminho');
-                contPronto.appendChild(card);
+                if (contPronto) contPronto.appendChild(card);
                 nPronto++;
             } else {
                 const card = createPedidoCard(p, 'pendente');
-                contPendente.appendChild(card);
+                if (contPendente) contPendente.appendChild(card);
                 nPendente++;
             }
         }
     });
 
-    // Empty states
-    if (nPronto === 0) contPronto.innerHTML = '<div class="empty-state">Nenhum pedido pronto para entrega.</div>';
-    if (nPendente === 0) contPendente.innerHTML = '<div class="empty-state">Nenhum pedido em preparo.</div>';
-    if (nEntregue === 0) contEntregues.innerHTML = '<div class="empty-state">Nenhuma entrega realizada ainda.</div>';
+    if (nPronto === 0 && contPronto) contPronto.innerHTML = '<div class="empty-state">Nenhum pedido pronto para entrega.</div>';
+    if (nPendente === 0 && contPendente) contPendente.innerHTML = '<div class="empty-state">Nenhum pedido em preparo.</div>';
+    if (nEntregue === 0 && contEntregues) contEntregues.innerHTML = '<div class="empty-state">Nenhuma entrega realizada ainda.</div>';
 
-    countPronto.innerText = nPronto;
-    countPendente.innerText = nPendente;
-    countEntregues.innerText = nEntregue;
+    if (countPronto) countPronto.innerText = nPronto;
+    if (countPendente) countPendente.innerText = nPendente;
+    if (countEntregues) countEntregues.innerText = nEntregue;
 }
 
 function translateStatus(s) {
@@ -234,15 +331,11 @@ function translateStatus(s) {
 
 function createPedidoCard(p, displayStatus) {
     const card = document.createElement('div');
-    
-    // Classes CSS baseadas no displayStatus
     let statusClass = displayStatus;
     let statusText = displayStatus.toUpperCase().replace('-', ' ');
-    
     card.className = `pedido-card ${statusClass}`;
     if (displayStatus === 'entregue') card.style.opacity = '0.7';
     
-    // Extrai Nome e Endereço da observação (formato padrão do delivery)
     let cliente = "Cliente não identificado";
     let endereco = "Endereço não informado";
     
@@ -250,7 +343,6 @@ function createPedidoCard(p, displayStatus) {
         const lines = p.observacao.split('\n');
         const lineNome = lines.find(l => l.includes('👤 Cliente:'));
         const lineEnd = lines.find(l => l.includes('🏠 End:'));
-        
         if (lineNome) cliente = lineNome.replace('👤 Cliente:', '').trim();
         if (lineEnd) endereco = lineEnd.replace('🏠 End:', '').trim();
     }
@@ -286,8 +378,6 @@ function createPedidoCard(p, displayStatus) {
             <div class="pedido-itens">
                 ${p.itens.map(i => {
                     let itemStatusLabel = translateStatus(i.status);
-                    // Se o item está entregue (preparado) mas o pedido ainda está "A CAMINHO", 
-                    // para o motoboy o item está "A CAMINHO"
                     if (displayStatus === 'a-caminho' && i.status.toLowerCase() === 'entregue') {
                         itemStatusLabel = 'A CAMINHO';
                     }
@@ -297,7 +387,6 @@ function createPedidoCard(p, displayStatus) {
         </div>
         ${btnHtml}
     `;
-
     return card;
 }
 
@@ -314,12 +403,10 @@ async function confirmarEntrega(id, btn) {
     });
 
     if (!isConfirmed) return;
-
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
 
     try {
-        // Envia status 'aguardando_fechamento' para que no Admin caia na coluna de entregue/fechamento
         const res = await fetch(`/api/pedidos/${id}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -359,13 +446,6 @@ function exibirNotificacaoNativa(tit, msg, tagId = 'geral') {
     }
 }
 
-/**
- * Exibe uma notificação elegante no canto da tela (Toast)
- * @param {string} msg - Mensagem da notificação
- * @param {string} tipo - 'success', 'error', 'warning', 'info'
- * @param {string} titulo - Título opcional
- * @param {number} duracao - Tempo em ms (padrão 5s)
- */
 function mostrarToast(msg, tipo = 'success', titulo = '', duracao = 5000) {
     let container = document.getElementById('toast-container');
     if (!container) {
@@ -375,20 +455,12 @@ function mostrarToast(msg, tipo = 'success', titulo = '', duracao = 5000) {
     }
 
     const t = document.createElement('div');
-    // Normalização de tipos
     let classeTipo = tipo;
     if (tipo === 'sucesso') classeTipo = 'success';
     if (tipo === 'erro') classeTipo = 'error';
-    
     t.className = `toast-notificacao ${classeTipo}`;
     
-    const icones = {
-        success: '✅',
-        error: '❌',
-        warning: '⚠️',
-        info: 'ℹ️'
-    };
-
+    const icones = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
     const html = `
         <div class="toast-icon">${icones[classeTipo] || '🔔'}</div>
         <div class="toast-content">
@@ -401,23 +473,17 @@ function mostrarToast(msg, tipo = 'success', titulo = '', duracao = 5000) {
     t.innerHTML = html;
     container.appendChild(t);
 
-    // NOVO: Espelha para notificação nativa do Windows automaticamente
     if (typeof exibirNotificacaoNativa === 'function') {
         exibirNotificacaoNativa(titulo || (classeTipo.toUpperCase() + ": " + (icones[classeTipo] || "")), msg, 'toast-' + Date.now());
     }
 
-    // Trigger animação
     setTimeout(() => t.classList.add('show'), 10);
-
-    // Auto-close
     const autoClose = setTimeout(() => fecharToast(t), duracao);
 
-    // Toca o som (Motoboy sempre toca para chamar atenção)
     if (typeof audioNotificacao !== 'undefined') {
         audioNotificacao.play().catch(e => console.log('Áudio bloqueado:', e));
     }
 
-    // Botão fechar
     t.querySelector('.toast-close').onclick = () => {
         clearTimeout(autoClose);
         fecharToast(t);
@@ -429,7 +495,6 @@ function fecharToast(el) {
     setTimeout(() => { if (el.parentNode) el.remove(); }, 400);
 }
 
-// Alias para compatibilidade com código antigo do motoboy
 function showToast(msg, type = 'info') {
     mostrarToast(msg, type);
 }
