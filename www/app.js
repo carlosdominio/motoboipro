@@ -198,6 +198,12 @@ async function initNativePush() {
 
         if (perm.receive === 'granted') {
             await PushNotifications.register();
+            
+            // CONFIGURAÇÃO CRÍTICA: Diz ao sistema para NÃO mostrar a notificação nativa (balão/som do OS)
+            // se o aplicativo estiver ABERTO. Assim, usamos apenas o Toast e o som do próprio App.
+            await PushNotifications.setPresentationOptions({
+                presentationOptions: [] 
+            });
         }
 
         PushNotifications.addListener('registration', (token) => {
@@ -207,6 +213,8 @@ async function initNativePush() {
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Push received: ', notification);
             loadPedidos();
+            // App aberto: Dispara nosso Toast interno (com som)
+            showToast(notification.body || 'Novo pedido recebido!', 'info');
         });
         
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
