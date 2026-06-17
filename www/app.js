@@ -95,7 +95,7 @@ async function realizarLogin() {
         } else {
             Swal.fire({
                 title: 'Acesso Negado',
-                text: 'Usuário ou senha incorretos. Verifique e tente novamente.',
+                text: 'Usuário ou senha incorretos.',
                 icon: 'error',
                 confirmButtonColor: '#e74c3c'
             });
@@ -175,22 +175,7 @@ async function initNativePush() {
     if (window.Capacitor && window.Capacitor.isNativePlatform()) {
         const { PushNotifications } = Capacitor.Plugins;
 
-        // RESTAURAÇÃO DAS CATEGORIAS/CANAL FCM NATIVO
-        try {
-            await PushNotifications.createChannel({
-                id: 'pedidos',
-                name: 'Pedidos de Delivery',
-                description: 'Notificações de novos pedidos e atualizações',
-                sound: 'notificacao', // res/raw/notificacao.mp3
-                importance: 5,
-                visibility: 1,
-                vibration: true
-            });
-            console.log('✅ Canal FCM "pedidos" restaurado.');
-        } catch (e) {
-            console.error('Erro ao criar canal FCM:', e);
-        }
-
+        // RESTAURAÇÃO DO SISTEMA DE NOTIFICAÇÃO DA VERSÃO 6461391
         let perm = await PushNotifications.checkPermissions();
         if (perm.receive !== 'granted') {
             perm = await PushNotifications.requestPermissions();
@@ -198,12 +183,6 @@ async function initNativePush() {
 
         if (perm.receive === 'granted') {
             await PushNotifications.register();
-            
-            // CONFIGURAÇÃO: Permite que o Android mostre a notificação nativa (FCM)
-            // mesmo com o aplicativo aberto.
-            await PushNotifications.setPresentationOptions({
-                presentationOptions: ['badge', 'sound', 'alert'] 
-            });
         }
 
         PushNotifications.addListener('registration', (token) => {
@@ -213,8 +192,8 @@ async function initNativePush() {
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Push received: ', notification);
             loadPedidos();
-            // REMOVIDO showToast aqui. 
-            // Como ativamos 'alert' e 'sound' acima, o Android já vai mostrar o balão nativo.
+            // Volta a usar o mostrarToast original que você confirmou que funcionava
+            mostrarToast(notification.body || 'Novo pedido recebido!', 'info', notification.title || 'Motoboy Express');
         });
         
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
