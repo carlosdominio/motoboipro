@@ -3,6 +3,7 @@ const API_BASE_URL = 'https://garconnexpress.vercel.app';
 let pusher;
 let channel;
 const audioNotificacao = new Audio('/notificacao.mp3');
+let soundEnabled = localStorage.getItem('sound_enabled') !== 'false';
 
 // --- INTERCEPTADOR FETCH PARA APP NATIVO ---
 const isNativeApp = (window.Capacitor && window.Capacitor.isNativePlatform()) ||
@@ -29,6 +30,8 @@ window.fetch = async (...args) => {
 // --------------------------------------------
 
 document.addEventListener('DOMContentLoaded', async () => {
+    updateSoundUI();
+    
     const token = localStorage.getItem('garcom_token');
     const loginScreen = document.getElementById('login-screen');
     const loginForm = document.getElementById('login-form');
@@ -80,7 +83,6 @@ async function realizarLogin() {
             const loginScreen = document.getElementById('login-screen');
             if (loginScreen) loginScreen.style.display = 'none';
             
-            // Sucesso Imediato
             Swal.fire({
                 title: 'Acesso Autorizado',
                 text: 'Bem-vindo ao Motoboy Express!',
@@ -91,7 +93,6 @@ async function realizarLogin() {
 
             await iniciarApp();
         } else {
-            // Erro Imediato
             Swal.fire({
                 title: 'Acesso Negado',
                 text: 'Usuário ou senha incorretos. Verifique e tente novamente.',
@@ -119,6 +120,26 @@ function logout() {
     location.reload();
 }
 
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem('sound_enabled', soundEnabled);
+    updateSoundUI();
+    showToast(soundEnabled ? "Sons ativados!" : "Sons desativados.", soundEnabled ? "success" : "warning");
+}
+
+function updateSoundUI() {
+    const btn = document.getElementById('btn-toggle-sound');
+    if (btn) {
+        if (soundEnabled) {
+            btn.innerHTML = '<i class="fas fa-bell"></i>';
+            btn.classList.remove('muted');
+        } else {
+            btn.innerHTML = '<i class="fas fa-bell-slash"></i>';
+            btn.classList.add('muted');
+        }
+    }
+}
+
 async function iniciarApp() {
     await verificarStatusCaixa();
     setInterval(verificarStatusCaixa, 30000);
@@ -137,7 +158,7 @@ async function iniciarApp() {
                 audioNotificacao.play().then(() => {
                     audioNotificacao.pause();
                     audioNotificacao.currentTime = 0;
-                    showToast("Áudio e notificações ativos!", "success");
+                    showToast("Áudio pronto!", "success");
                 }).catch(e => {
                     console.error('Erro ao desbloquear áudio:', e);
                 });
@@ -153,6 +174,22 @@ async function iniciarApp() {
 async function initNativePush() {
     if (window.Capacitor && window.Capacitor.isNativePlatform()) {
         const { PushNotifications } = Capacitor.Plugins;
+
+        // RESTAURAÇÃO DAS CATEGORIAS/CANAL FCM NATIVO
+        try {
+            await PushNotifications.createChannel({
+                id: 'pedidos',
+                name: 'Pedidos de Delivery',
+                description: 'Notificações de novos pedidos e atualizações',
+                sound: 'notificacao', // res/raw/notificacao.mp3
+                importance: 5,
+                visibility: 1,
+                vibration: true
+            });
+            console.log('✅ Canal FCM "pedidos" restaurado.');
+        } catch (e) {
+            console.error('Erro ao criar canal FCM:', e);
+        }
 
         let perm = await PushNotifications.checkPermissions();
         if (perm.receive !== 'granted') {
@@ -170,7 +207,10 @@ async function initNativePush() {
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Push received: ', notification);
             loadPedidos();
-            // Evita som duplo aqui, pois o Android já avisa via OS
+        });
+        
+        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+            loadPedidos();
         });
     }
 }
@@ -453,7 +493,7 @@ function mostrarToast(msg, tipo = 'success', titulo = '', duracao = 5000) {
         setTimeout(() => t.remove(), 500);
     }, duracao);
 
-    if (typeof audioNotificacao !== 'undefined') {
+    if (soundEnabled && typeof audioNotificacao !== 'undefined') {
         audioNotificacao.play().catch(e => {});
     }
 }
