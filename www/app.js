@@ -199,10 +199,10 @@ async function initNativePush() {
         if (perm.receive === 'granted') {
             await PushNotifications.register();
             
-            // CONFIGURAÇÃO CRÍTICA: Diz ao sistema para NÃO mostrar a notificação nativa (balão/som do OS)
-            // se o aplicativo estiver ABERTO. Assim, usamos apenas o Toast e o som do próprio App.
+            // CONFIGURAÇÃO: Permite que o Android mostre a notificação nativa (FCM)
+            // mesmo com o aplicativo aberto.
             await PushNotifications.setPresentationOptions({
-                presentationOptions: [] 
+                presentationOptions: ['badge', 'sound', 'alert'] 
             });
         }
 
@@ -213,8 +213,8 @@ async function initNativePush() {
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Push received: ', notification);
             loadPedidos();
-            // App aberto: Dispara nosso Toast interno (com som)
-            showToast(notification.body || 'Novo pedido recebido!', 'info');
+            // REMOVIDO showToast aqui. 
+            // Como ativamos 'alert' e 'sound' acima, o Android já vai mostrar o balão nativo.
         });
         
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
