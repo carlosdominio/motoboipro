@@ -80,17 +80,21 @@ async function realizarLogin() {
             const loginScreen = document.getElementById('login-screen');
             if (loginScreen) loginScreen.style.display = 'none';
             
-            await iniciarApp();
+            // Sucesso Imediato
             Swal.fire({
-                title: 'Sucesso',
+                title: 'Acesso Autorizado',
                 text: 'Bem-vindo ao Motoboy Express!',
                 icon: 'success',
-                confirmButtonColor: '#27ae60'
+                timer: 1500,
+                showConfirmButton: false
             });
+
+            await iniciarApp();
         } else {
+            // Erro Imediato
             Swal.fire({
-                title: 'Erro de Login',
-                text: 'Usuário ou senha inválidos. Verifique os dados e tente novamente.',
+                title: 'Acesso Negado',
+                text: 'Usuário ou senha incorretos. Verifique e tente novamente.',
                 icon: 'error',
                 confirmButtonColor: '#e74c3c'
             });
@@ -98,14 +102,14 @@ async function realizarLogin() {
     } catch (e) {
         console.error(e);
         Swal.fire({
-            title: 'Erro de Conexão',
-            text: 'Não foi possível conectar ao servidor. Verifique sua internet.',
+            title: 'Falha na Conexão',
+            text: 'Não foi possível conectar ao servidor.',
             icon: 'error',
             confirmButtonColor: '#e74c3c'
         });
     } finally {
         btn.disabled = false;
-        btn.innerHTML = 'ENTRAR <i class="fas fa-arrow-right" style="margin-left: 10px;"></i>';
+        btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right" style="margin-left: 10px;"></i>';
     }
 }
 
@@ -122,9 +126,9 @@ async function iniciarApp() {
     if (!sessionStorage.getItem('audio_unlocked')) {
         Swal.fire({
             title: 'Ativar Alertas?',
-            text: 'Clique para ativar o som de novos pedidos e notificações.',
+            text: 'Clique para ativar o som de novos pedidos.',
             icon: 'info',
-            confirmButtonText: '<i class="fas fa-volume-up"></i> ATIVAR ÁUDIO',
+            confirmButtonText: 'ATIVAR ÁUDIO',
             confirmButtonColor: '#e67e22',
             allowOutsideClick: false
         }).then((result) => {
@@ -166,6 +170,7 @@ async function initNativePush() {
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Push received: ', notification);
             loadPedidos();
+            // Evita som duplo aqui, pois o Android já avisa via OS
         });
     }
 }
@@ -200,19 +205,16 @@ async function initPusher() {
         channel = pusher.subscribe('garconnexpress');
         
         channel.bind('status-caixa-atualizado', (data) => {
-            console.log('📢 Evento de caixa recebido no motoboy:', data);
             verificarStatusCaixa();
             if (data.status === 'fechado') {
-                showToast("O expediente foi encerrado. O caixa está FECHADO.", "warning");
+                showToast("Expediente encerrado. Caixa FECHADO.", "warning");
             } else if (data.status === 'aberto') {
-                showToast("O caixa foi aberto! Bom trabalho.");
+                showToast("Caixa aberto! Bom trabalho.");
             }
         });
 
         channel.bind('status-atualizado', (data) => {
-            console.log('🔔 Status atualizado via Pusher:', data);
             loadPedidos();
-            
             if (data.garcom_id === 'DELIVERY') {
                 if (data.status === 'cancelado') {
                     showToast(`Pedido #${data.pedido_id} foi CANCELADO.`, "warning");
@@ -227,9 +229,7 @@ async function initPusher() {
         });
 
         channel.bind('novo-pedido', (data) => {
-            console.log('🆕 Novo pedido via Pusher:', data);
             loadPedidos();
-
             const pedido = data.pedido || data;
             if (pedido.garcom_id === 'DELIVERY') {
                 showToast(`Novo pedido #${pedido.id || pedido.pedido_id} recebido!`, "info");
@@ -237,18 +237,14 @@ async function initPusher() {
         });
 
         channel.bind('pedido-cancelado', (data) => {
-            console.log('❌ Pedido cancelado via Pusher:', data);
             loadPedidos();
-
             if (String(data.garcom_id) === 'DELIVERY' || (data.mesa_numero && String(data.mesa_numero).includes('DELIVERY'))) {
                 showToast(`Pedido #${data.id || data.pedido_id} foi REMOVIDO.`, "warning");
             }
         });
 
         channel.bind('pedido-pronto', (data) => {
-            console.log('🍳 Pedido pronto via Pusher:', data);
             loadPedidos();
-
             if (String(data.garcom_id) === 'DELIVERY' || (data.mesa_numero && String(data.mesa_numero).includes('DELIVERY'))) {
                 showToast("Pedido pronto para entrega!", "success");
             }
@@ -308,9 +304,9 @@ function renderPedidos(pedidos) {
         }
     });
 
-    if (nPronto === 0 && contPronto) contPronto.innerHTML = '<div class="empty-state">Nenhum pedido pronto para entrega.</div>';
+    if (nPronto === 0 && contPronto) contPronto.innerHTML = '<div class="empty-state">Nenhum pedido pronto.</div>';
     if (nPendente === 0 && contPendente) contPendente.innerHTML = '<div class="empty-state">Nenhum pedido em preparo.</div>';
-    if (nEntregue === 0 && contEntregues) contEntregues.innerHTML = '<div class="empty-state">Nenhuma entrega realizada ainda.</div>';
+    if (nEntregue === 0 && contEntregues) contEntregues.innerHTML = '<div class="empty-state">Nenhuma entrega realizada.</div>';
 
     if (countPronto) countPronto.innerText = nPronto;
     if (countPendente) countPendente.innerText = nPendente;
@@ -334,10 +330,9 @@ function createPedidoCard(p, displayStatus) {
     let statusClass = displayStatus;
     let statusText = displayStatus.toUpperCase().replace('-', ' ');
     card.className = `pedido-card ${statusClass}`;
-    if (displayStatus === 'entregue') card.style.opacity = '0.7';
     
-    let cliente = "Cliente não identificado";
-    let endereco = "Endereço não informado";
+    let cliente = "Consumidor";
+    let endereco = "Entrega no local";
     
     if (p.observacao) {
         const lines = p.observacao.split('\n');
@@ -351,13 +346,13 @@ function createPedidoCard(p, displayStatus) {
 
     let btnHtml = '';
     if (displayStatus === 'entregue') {
-        btnHtml = `<button class="btn-entregar" style="background-color: #95a5a6; box-shadow: 0 4px 0 #7f8c8d;" disabled>
-                      <i class="fas fa-check-double"></i> ENTREGA CONCLUÍDA
+        btnHtml = `<button class="btn-entregar" style="background:#bdc3c7; box-shadow:none;" disabled>
+                      <i class="fas fa-check-double"></i> CONCLUÍDO
                    </button>`;
     } else {
         const isReady = displayStatus === 'a-caminho';
         btnHtml = `<button class="btn-entregar" ${!isReady ? 'disabled' : ''} onclick="confirmarEntrega(${p.id}, this)">
-                      ${isReady ? '<i class="fas fa-check"></i> CONFIRMAR ENTREGA' : '<i class="fas fa-clock"></i> AGUARDANDO COZINHA'}
+                      ${isReady ? '<i class="fas fa-motorcycle"></i> CONFIRMAR ENTREGA' : '<i class="fas fa-clock"></i> EM PREPARO'}
                    </button>`;
     }
 
@@ -374,14 +369,14 @@ function createPedidoCard(p, displayStatus) {
         </div>
         <div class="pedido-body">
             <span class="cliente-info">${cliente}</span>
-            <span class="endereco-info">${endereco}</span>
+            <div class="endereco-info"><i class="fas fa-map-marker-alt"></i> ${endereco}</div>
             <div class="pedido-itens">
                 ${p.itens.map(i => {
                     let itemStatusLabel = translateStatus(i.status);
                     if (displayStatus === 'a-caminho' && i.status.toLowerCase() === 'entregue') {
                         itemStatusLabel = 'A CAMINHO';
                     }
-                    return `<div class="item-row"><span>${i.quantidade}x ${i.nome}</span><span>${itemStatusLabel}</span></div>`;
+                    return `<div class="item-row"><span>${i.quantidade}x ${i.nome}</span></div>`;
                 }).join('')}
             </div>
         </div>
@@ -393,18 +388,18 @@ function createPedidoCard(p, displayStatus) {
 async function confirmarEntrega(id, btn) {
     const { isConfirmed } = await Swal.fire({
         title: 'Confirmar Entrega?',
-        text: `Você confirma que o pedido #${id} foi entregue ao cliente?`,
+        text: `O pedido #${id} foi entregue?`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#27ae60',
         cancelButtonColor: '#95a5a6',
-        confirmButtonText: 'Sim, entregue!',
+        confirmButtonText: 'Sim, entreguei!',
         cancelButtonText: 'Cancelar'
     });
 
     if (!isConfirmed) return;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>...';
 
     try {
         const res = await fetch(`/api/pedidos/${id}/status`, {
@@ -414,35 +409,15 @@ async function confirmarEntrega(id, btn) {
         });
 
         if (res.ok) {
-            showToast(`Pedido #${id} entregue com sucesso!`);
+            showToast(`Pedido #${id} entregue!`);
             loadPedidos();
         } else {
-            showToast("Erro ao confirmar entrega.");
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-check"></i> CONFIRMAR ENTREGA';
+            btn.innerHTML = '<i class="fas fa-motorcycle"></i> CONFIRMAR ENTREGA';
         }
     } catch (e) {
-        console.error(e);
-        showToast("Falha na conexão.");
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> CONFIRMAR ENTREGA';
-    }
-}
-
-function solicitarPermissaoNotificacao() {
-    if ("Notification" in window) Notification.requestPermission();
-}
-
-function exibirNotificacaoNativa(tit, msg, tagId = 'geral') {
-    if ("Notification" in window && Notification.permission === "granted") {
-        const n = new Notification(tit, {
-            body: msg,
-            tag: tagId,
-            renotify: true
-        });
-        n.onclick = () => {
-            window.focus();
-        };
+        btn.innerHTML = '<i class="fas fa-motorcycle"></i> CONFIRMAR ENTREGA';
     }
 }
 
@@ -460,39 +435,27 @@ function mostrarToast(msg, tipo = 'success', titulo = '', duracao = 5000) {
     if (tipo === 'erro') classeTipo = 'error';
     t.className = `toast-notificacao ${classeTipo}`;
     
-    const icones = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    const icones = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-bell' };
     const html = `
-        <div class="toast-icon">${icones[classeTipo] || '🔔'}</div>
+        <div class="toast-icon"><i class="fas ${icones[classeTipo] || 'fa-bell'}"></i></div>
         <div class="toast-content">
-            ${titulo ? `<strong class="toast-title">${titulo}</strong>` : ''}
-            <span class="toast-msg">${msg}</span>
+            <strong>${titulo || 'Aviso'}</strong>
+            <span>${msg}</span>
         </div>
-        <button class="toast-close">&times;</button>
     `;
 
     t.innerHTML = html;
     container.appendChild(t);
 
-    if (typeof exibirNotificacaoNativa === 'function') {
-        exibirNotificacaoNativa(titulo || (classeTipo.toUpperCase() + ": " + (icones[classeTipo] || "")), msg, 'toast-' + Date.now());
-    }
-
     setTimeout(() => t.classList.add('show'), 10);
-    const autoClose = setTimeout(() => fecharToast(t), duracao);
+    const autoClose = setTimeout(() => {
+        t.classList.remove('show');
+        setTimeout(() => t.remove(), 500);
+    }, duracao);
 
     if (typeof audioNotificacao !== 'undefined') {
-        audioNotificacao.play().catch(e => console.log('Áudio bloqueado:', e));
+        audioNotificacao.play().catch(e => {});
     }
-
-    t.querySelector('.toast-close').onclick = () => {
-        clearTimeout(autoClose);
-        fecharToast(t);
-    };
-}
-
-function fecharToast(el) {
-    el.classList.remove('show');
-    setTimeout(() => { if (el.parentNode) el.remove(); }, 400);
 }
 
 function showToast(msg, type = 'info') {
