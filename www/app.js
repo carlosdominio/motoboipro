@@ -175,7 +175,21 @@ async function initNativePush() {
     if (window.Capacitor && window.Capacitor.isNativePlatform()) {
         const { PushNotifications } = Capacitor.Plugins;
 
-        // RESTAURAÇÃO DO SISTEMA DE NOTIFICAÇÃO DA VERSÃO 6461391
+        // CRIAÇÃO OBRIGATÓRIA DO CANAL PARA ANDROID 8+
+        try {
+            await PushNotifications.createChannel({
+                id: 'pedidos',
+                name: 'Pedidos',
+                description: 'Notificações de novos pedidos',
+                sound: 'notificacao',
+                importance: 5,
+                visibility: 1,
+                vibration: true
+            });
+        } catch (e) {
+            console.error('Erro ao criar canal FCM:', e);
+        }
+
         let perm = await PushNotifications.checkPermissions();
         if (perm.receive !== 'granted') {
             perm = await PushNotifications.requestPermissions();
@@ -183,6 +197,11 @@ async function initNativePush() {
 
         if (perm.receive === 'granted') {
             await PushNotifications.register();
+            
+            // OBRIGATÓRIO: Força o Android a MOSTRAR o balão nativo e TOCAR o som mesmo com o App aberto
+            await PushNotifications.setPresentationOptions({
+                presentationOptions: ['badge', 'sound', 'alert'] 
+            });
         }
 
         PushNotifications.addListener('registration', (token) => {
@@ -192,8 +211,7 @@ async function initNativePush() {
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('Push received: ', notification);
             loadPedidos();
-            // Volta a usar o mostrarToast original que você confirmou que funcionava
-            mostrarToast(notification.body || 'Novo pedido recebido!', 'info', notification.title || 'Motoboy Express');
+            // REMOVIDO: O balão nativo (FCM) vai aparecer porque ativamos 'alert' nas presentationOptions
         });
         
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
