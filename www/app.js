@@ -206,6 +206,12 @@ async function initNativePush() {
 
         PushNotifications.addListener('registration', (token) => {
             console.log('Push registration success, token: ' + token.value);
+            // Avisa que registrou com sucesso (opcional, mas bom pra debug)
+        });
+
+        PushNotifications.addListener('registrationError', (error) => {
+            console.error('Push registration error: ', JSON.stringify(error));
+            Swal.fire('Erro no Push FCM', 'Falha ao registrar no Firebase: ' + JSON.stringify(error), 'error');
         });
 
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
