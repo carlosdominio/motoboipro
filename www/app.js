@@ -1,463 +1,435 @@
-/**
- * Motoboy Express - Aplicativo Nativo (Remake Pro)
- * Versão 2.0.3 - Estabilidade Máxima
- */
+let pusher;
+let channel;
 
-const API_BASE_URL = 'https://garconnexpress.vercel.app';
-const NOTIFICATION_CHANNEL_ID = 'pedidos';
+const audioNotificacao = new Audio('/notificacao.mp3');
 
-const App = {
-    state: {
-        token: localStorage.getItem('motoboy_token'),
-        user: JSON.parse(localStorage.getItem('motoboy_user') || '{}'),
-        pedidos: [],
-        caixaAberto: true,
-        soundEnabled: localStorage.getItem('motoboy_sound') !== 'false',
-        notifiedEvents: new Set() // Para evitar duplicidade estrita (evento + id)
-    },
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Verifica status do caixa primeiro
+    await verificarStatusCaixa();
+    setInterval(verificarStatusCaixa, 30000);
 
-    async init() {
-        console.log('🛵 Inicializando Motoboy App v2.0.3...');
-        
-        if (!this.checkAuth()) return;
-
-        try {
-            await this.notifications.init();
-            await this.pusher.init();
-        } catch (e) {
-            console.error('Erro na inicialização de módulos:', e);
-        }
-        
-        this.checkCaixaStatus();
-        setInterval(() => this.checkCaixaStatus(), 30000);
-
-        this.loadPedidos();
-
-        this.ui.updateSoundIcon();
-        if (!localStorage.getItem('audio_unlocked')) {
-            this.ui.requestAudioUnlock();
-        }
-    },
-
-    checkAuth() {
-        const screen = document.getElementById('login-screen');
-        if (!this.state.token) {
-            if (screen) screen.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-            this.setupLoginForm();
-            return false;
-        }
-        if (screen) screen.style.display = 'none';
-        document.body.style.overflow = '';
-        return true;
-    },
-
-    setupLoginForm() {
-        const form = document.getElementById('login-form');
-        if (!form) return;
-        
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-            const usuario = document.getElementById('login-user').value;
-            const senha = document.getElementById('login-pass').value;
-            const btn = document.getElementById('btn-login-submit');
-
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ENTRANDO...';
-            }
-
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ usuario, senha })
-                });
-
-                const data = await res.json();
-
-                if (data.success) {
-                    localStorage.setItem('motoboy_token', data.token);
-                    localStorage.setItem('motoboy_user', JSON.stringify(data.garcom));
-                    
-                    Swal.fire({
-                        title: 'Acesso Autorizado',
-                        text: `Olá ${data.garcom.nome}, bom trabalho!`,
-                        icon: 'success',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-
-                    setTimeout(() => location.reload(), 2000);
-                } else {
-                    console.log('❌ Login falhou: Resposta do servidor indicou falha.');
-                    Swal.fire({
-                        title: 'Acesso Negado',
-                        text: 'Usuário ou senha incorretos. Verifique seus dados e tente novamente.',
-                        icon: 'error',
-                        confirmButtonColor: '#e74c3c',
-                        confirmButtonText: 'TENTAR NOVAMENTE',
-                        customClass: {
-                            container: 'my-swal-container'
-                        }
-                    });
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
-                    }
-                }
-            } catch (err) {
-                console.error('❌ Erro na requisição de login (catch block):', err);
-                Swal.fire({
-                    title: 'Erro de Conexão',
-                    text: 'Não foi possível conectar ao servidor. Verifique sua internet.',
-                    icon: 'warning',
-                    confirmButtonText: 'OK',
-                    customClass: {
-                        container: 'my-swal-container'
-                    }
-                });
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = 'ENTRAR NO APP <i class="fas fa-arrow-right"></i>';
-                }
-            }
-        };
-    },
-
-    async loadPedidos() {
-        if (!this.state.token) return;
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/pedidos/ativos-detalhado`, {
-                headers: { 'Authorization': `Bearer ${this.state.token}` }
+    // Força interação inicial para desbloquear áudio no navegador/celular
+    Swal.fire({
+        title: 'Ativar Alertas?',
+        text: 'Clique para ativar o som de novos pedidos e notificações.',
+        icon: 'info',
+        confirmButtonText: '<i class="fas fa-volume-up"></i> ATIVAR ÁUDIO',
+        confirmButtonColor: '#e67e22',
+        allowOutsideClick: false
+    }).then((result) => {
+        if (result.isConfirmed) {
+            audioNotificacao.play().then(() => {
+                audioNotificacao.pause();
+                audioNotificacao.currentTime = 0;
+                showToast("Áudio e notificações ativos!", "success");
+            }).catch(e => {
+                console.error('Erro ao desbloquear áudio:', e);
             });
-            
-            if (res.status === 401 || res.status === 403) {
-                this.logout();
-                return;
-            }
-
-            const allPedidos = await res.json();
-            this.state.pedidos = Array.isArray(allPedidos) ? allPedidos.filter(p => p.garcom_id === 'DELIVERY') : [];
-            this.ui.renderPedidos();
-        } catch (e) {
-            console.error('Erro ao carregar pedidos:', e);
         }
-    },
+    });
 
-    async checkCaixaStatus() {
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/caixa/status`);
-            const status = await res.json();
-            this.state.caixaAberto = !!status;
-            const screen = document.getElementById('closed-screen');
-            if (screen) {
-                screen.style.display = this.state.caixaAberto ? 'none' : 'flex';
-                document.body.style.overflow = this.state.caixaAberto ? '' : 'hidden';
-            }
-        } catch (e) { console.error("Erro status caixa:", e); }
-    },
+    await initPusher();
+    await initNativePush();
+    loadPedidos();
+});
 
-    logout() {
-        localStorage.removeItem('motoboy_token');
-        localStorage.removeItem('motoboy_user');
-        location.reload();
-    },
+async function initNativePush() {
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        const { PushNotifications } = Capacitor.Plugins;
 
-    // --- GERENCIADOR DE NOTIFICAÇÕES ---
-    notifications: {
-        audio: new Audio(`${API_BASE_URL}/notificacao.mp3`),
-
-        async init() {
-            if (!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
-
-            const { PushNotifications } = Capacitor.Plugins;
-
-            let perm = await PushNotifications.checkPermissions();
-            if (perm.receive !== 'granted') {
-                perm = await PushNotifications.requestPermissions();
-            }
-
-            if (perm.receive === 'granted') {
-                await PushNotifications.createChannel({
-                    id: NOTIFICATION_CHANNEL_ID,
-                    name: 'Pedidos e Alertas',
-                    sound: 'notificacao.mp3',
-                    importance: 5,
-                    visibility: 1,
-                    vibration: true
-                });
-                await PushNotifications.register();
-            }
-
-            PushNotifications.addListener('registration', (token) => {
-                App.state.lastPushToken = token.value;
-                this.syncToken(token.value);
-            });
-
-            PushNotifications.addListener('pushNotificationReceived', (notification) => {
-                App.loadPedidos();
-                // O app já mostra o banner nativo. Apenas tocamos o som extra e disparamos um Toast se estiver aberto.
-                // Mas bloqueamos duplicatas.
-                const pId = String(notification.id || notification.data?.pedido_id || notification.data?.id || '');
-                const eventKey = `push_${pId}`;
-                
-                if (pId && !App.state.notifiedEvents.has(eventKey)) {
-                    App.state.notifiedEvents.add(eventKey);
-                    setTimeout(() => App.state.notifiedEvents.delete(eventKey), 15000);
-                    
-                    this.playAlert();
-                    App.ui.showToast(notification.body || 'Novo alerta!', 'info', notification.title);
-                }
-            });
-        },
-
-        async syncToken(token) {
-            try {
-                await fetch(`${API_BASE_URL}/api/subscribe-motoboy`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.state.token}` },
-                    body: JSON.stringify({ endpoint: token })
-                });
-            } catch (e) {}
-        },
-
-        async showLocal(title, body, eventKey = '') {
-            // Se já notificamos este evento (via Push ou Pusher recentemente), ignoramos.
-            if (eventKey && App.state.notifiedEvents.has(eventKey)) return;
-            if (eventKey) {
-                App.state.notifiedEvents.add(eventKey);
-                setTimeout(() => App.state.notifiedEvents.delete(eventKey), 15000);
-            }
-
-            this.playAlert();
-
-            if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                try {
-                    const { LocalNotifications } = Capacitor.Plugins;
-                    await LocalNotifications.schedule({
-                        notifications: [{
-                            title: title || 'GarçomExpress',
-                            body: body || '',
-                            id: Math.floor(Math.random() * 1000000),
-                            schedule: { at: new Date(Date.now() + 100) },
-                            sound: 'notificacao.mp3',
-                            smallIcon: 'ic_stat_notification',
-                            channelId: NOTIFICATION_CHANNEL_ID
-                        }]
-                    });
-                } catch (err) { console.error('Erro LocalNotif:', err); }
-            }
-            App.ui.showToast(body, 'info', title);
-        },
-
-        playAlert() {
-            if (!App.state.soundEnabled) return;
-            this.audio.play().catch(e => console.log('Áudio bloqueado:', e));
-        },
-
-        toggleSound() {
-            App.state.soundEnabled = !App.state.soundEnabled;
-            localStorage.setItem('motoboy_sound', App.state.soundEnabled);
-            App.ui.updateSoundIcon();
-            if (App.state.soundEnabled) {
-                this.playAlert();
-                App.ui.showToast("Som ativado!", "success");
-            } else {
-                App.ui.showToast("Som silenciado.", "warning");
-            }
+        // Solicita permissão
+        let perm = await PushNotifications.checkPermissions();
+        if (perm.receive !== 'granted') {
+            perm = await PushNotifications.requestPermissions();
         }
-    },
 
-    // --- REAL-TIME (PUSHER) ---
-    pusher: {
-        instance: null,
-        channel: null,
-
-        async init() {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/pusher-config`);
-                const config = await res.json();
-                this.instance = new Pusher(config.key, { cluster: config.cluster, forceTLS: true });
-                this.channel = this.instance.subscribe('garconnexpress');
-                
-                this.channel.bind('status-caixa-atualizado', () => App.checkCaixaStatus());
-
-                this.channel.bind('status-atualizado', (data) => {
-                    if (data.garcom_id !== 'DELIVERY') return;
-                    App.loadPedidos();
-                    const pId = String(data.pedido_id || '');
-                    if (['cancelado', 'pronto', 'servido', 'saiu_entrega'].includes(data.status) && pId) {
-                        let title = 'Motoboy Pro';
-                        let body = `Pedido #${pId} atualizado!`;
-                        if (data.status === 'cancelado') { title = '❌ PEDIDO CANCELADO'; body = `Pedido #${pId} foi cancelado.`; }
-                        if (data.status === 'pronto') { title = '🍳 PEDIDO PRONTO'; body = `Pedido #${pId} pronto na cozinha.`; }
-                        if (data.status === 'servido' || data.status === 'saiu_entrega') { title = '🛵 A CAMINHO'; body = `Pedido #${pId} saiu para entrega!`; }
-                        
-                        App.notifications.showLocal(title, body, `${data.status}_${pId}`);
-                    }
-                });
-
-                this.channel.bind('novo-pedido', (data) => {
-                    const p = data.pedido || data;
-                    if (p.garcom_id !== 'DELIVERY') return;
-                    App.loadPedidos();
-                    const pId = String(p.id || p.pedido_id || '');
-                    if (pId) {
-                        App.notifications.showLocal(`🆕 NOVO DELIVERY`, `Pedido #${pId} recebido!`, `novo_${pId}`);
-                    }
-                });
-
-                this.channel.bind('pedido-cancelado', (data) => {
-                    const pId = String(data.pedido_id || data.id || (data.pedido ? data.pedido.id : '') || '');
-                    if (String(data.garcom_id) !== 'DELIVERY' && !(data.pedido && String(data.pedido.garcom_id) === 'DELIVERY')) return;
-                    App.loadPedidos();
-                    if (pId) {
-                        App.notifications.showLocal(`❌ PEDIDO REMOVIDO`, `O pedido #${pId} foi cancelado.`, `cancelado_${pId}`);
-                    }
-                });
-            } catch (e) { console.error('Erro Pusher:', e); }
+        if (perm.receive === 'granted') {
+            await PushNotifications.register();
         }
-    },
 
-    // --- UI ---
-    ui: {
-        updateSoundIcon() {
-            const btn = document.getElementById('btn-toggle-sound');
-            if (!btn) return;
-            btn.innerHTML = App.state.soundEnabled ? '<i class="fas fa-bell"></i>' : '<i class="fas fa-bell-slash"></i>';
-            btn.className = App.state.soundEnabled ? 'btn-icon' : 'btn-icon muted';
-        },
+        PushNotifications.addListener('registration', (token) => {
+            console.log('Push registration success, token: ' + token.value);
+            // Aqui você poderia enviar o token para o seu servidor se quiser enviar via Firebase direto
+        });
 
-        requestAudioUnlock() {
-            Swal.fire({
-                title: 'Ativar Alertas?',
-                text: 'Clique para permitir o som de novos pedidos.',
-                icon: 'info',
-                confirmButtonText: 'ATIVAR ÁUDIO',
-                confirmButtonColor: '#e67e22'
-            }).then((r) => {
-                if (r.isConfirmed) {
-                    localStorage.setItem('audio_unlocked', 'true');
-                    App.notifications.playAlert();
-                }
-            });
-        },
-
-        renderPedidos() {
-            const sections = {
-                'a-caminho': document.getElementById('container-a-caminho'),
-                'pendente': document.getElementById('container-pendentes'),
-                'entregue': document.getElementById('container-entregues')
-            };
-            const counts = {
-                'a-caminho': document.getElementById('count-pronto'),
-                'pendente': document.getElementById('count-pendente'),
-                'entregue': document.getElementById('count-entregues')
-            };
-
-            if (!sections['a-caminho']) return;
-
-            Object.values(sections).forEach(s => { if(s) s.innerHTML = ''; });
-            const n = { 'a-caminho': 0, 'pendente': 0, 'entregue': 0 };
-
-            App.state.pedidos.forEach(p => {
-                const s = String(p.status).toLowerCase();
-                let cat = 'pendente';
-                if (s === 'entregue' || s === 'aguardando_fechamento') cat = 'entregue';
-                else if (['pronto', 'servido', 'saiu_entrega'].includes(s)) cat = 'a-caminho';
-                
-                if (sections[cat]) {
-                    sections[cat].appendChild(this.createCard(p, cat));
-                    n[cat]++;
-                }
-            });
-
-            Object.keys(sections).forEach(k => {
-                if (sections[k] && n[k] === 0) sections[k].innerHTML = '<div class="empty-state">Nenhum pedido.</div>';
-                if (counts[k]) counts[k].innerText = n[k];
-            });
-        },
-
-        createCard(p, cat) {
-            const card = document.createElement('div');
-            card.className = `pedido-card ${cat}`;
-            const time = new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const isDone = cat === 'entregue';
-            const isReady = cat === 'a-caminho';
-
-            let cliente = "Consumidor";
-            let endereco = "Entrega no balcão/Local";
-            if (p.observacao) {
-                const lines = p.observacao.split('\n');
-                const lNome = lines.find(l => l.includes('👤 Cliente:'));
-                const lEnd = lines.find(l => l.includes('🏠 End:'));
-                if (lNome) cliente = lNome.replace('👤 Cliente:', '').trim();
-                if (lEnd) endereco = lEnd.replace('🏠 End:', '').trim();
-            }
-
-            let displayStatus = cat.replace('-', ' ').toUpperCase();
-            if (cat === 'a-caminho') displayStatus = 'PRONTO / A CAMINHO';
-            else if (cat === 'pendente') displayStatus = 'PREPARANDO';
-
-            let buttonHTML = '';
-            if (isDone) {
-                buttonHTML = `<button class="btn-entregar" style="background:#bdc3c7; box-shadow:none; cursor:not-allowed;" disabled><i class="fas fa-check-double"></i> ENTREGUE</button>`;
-            } else if (isReady) {
-                buttonHTML = `<button class="btn-entregar" onclick="App.ui.confirmarEntrega(${p.id}, this)"><i class="fas fa-motorcycle"></i> CONFIRMAR ENTREGA</button>`;
-            } else {
-                buttonHTML = `<button class="btn-entregar" style="background:#f39c12; box-shadow: 0 4px 0 #d68910; cursor:not-allowed;" disabled><i class="fas fa-clock"></i> AGUARDANDO COZINHA</button>`;
-            }
-
-            card.innerHTML = `
-                <div class="pedido-header">
-                    <div>
-                        <span class="pedido-id">#${p.id}</span>
-                        <span class="status-badge ${cat}">${displayStatus}</span>
-                    </div>
-                    <div style="text-align: right;">
-                        <div class="pedido-total">R$ ${parseFloat(p.total).toFixed(2).replace('.', ',')}</div>
-                        <span class="pedido-time">${time}</span>
-                    </div>
-                </div>
-                <div class="pedido-body">
-                    <strong class="cliente-info">${cliente}</strong>
-                    <div class="endereco-info"><i class="fas fa-map-marker-alt"></i> ${endereco}</div>
-                    <div class="pedido-itens">
-                        ${p.itens ? p.itens.map(i => `<div class="item-row">${i.quantidade}x ${i.nome}</div>`).join('') : ''}
-                    </div>
-                </div>
-                ${buttonHTML}
-            `;
-            return card;
-        },
-
-        async confirmarEntrega(id, btn) {
-            const { isConfirmed } = await Swal.fire({ title: 'Entregue?', text: `Confirmar entrega do Pedido #${id}?`, icon: 'question', showCancelButton: true, confirmButtonText: 'Sim, entregar!' });
-            if (!isConfirmed) return;
-            btn.disabled = true;
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/pedidos/${id}/status`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.state.token}` },
-                    body: JSON.stringify({ status: 'aguardando_fechamento' })
-                });
-                if (res.ok) App.loadPedidos(); else btn.disabled = false;
-            } catch (e) { btn.disabled = false; }
-        },
-
-        showToast(msg, tipo = 'success', titulo = '') {
-            let c = document.getElementById('toast-container');
-            if (!c) { c = document.createElement('div'); c.id = 'toast-container'; document.body.appendChild(c); }
-            const t = document.createElement('div');
-            t.className = `toast-notificacao ${tipo}`;
-            t.innerHTML = `<div class="toast-content"><strong>${titulo || ''}</strong><br>${msg}</div>`;
-            c.appendChild(t);
-            setTimeout(() => t.classList.add('show'), 10);
-            setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 4000);
-        }
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            console.log('Push received: ', notification);
+            loadPedidos();
+            mostrarToast(notification.body, 'info', notification.title);
+        });
     }
-};
+}
 
-document.addEventListener('DOMContentLoaded', () => App.init());
-window.App = App;
+async function verificarStatusCaixa() {
+    try {
+        const res = await fetch('/api/caixa/status');
+        const cx = await res.json();
+        const screen = document.getElementById('closed-screen');
+        if (!screen) return;
+
+        if (!cx) {
+            screen.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        } else {
+            screen.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    } catch (e) { console.error("Erro status caixa motoboy:", e); }
+}
+
+async function initPusher() {
+    try {
+        const res = await fetch('/api/pusher-config');
+        const config = await res.json();
+        
+        pusher = new Pusher(config.key, {
+            cluster: config.cluster,
+            forceTLS: true
+        });
+
+        channel = pusher.subscribe('garconnexpress');
+        
+        // Sincronia do caixa em tempo real
+        channel.bind('status-caixa-atualizado', (data) => {
+            console.log('📢 Evento de caixa recebido no motoboy:', data);
+            verificarStatusCaixa();
+            if (data.status === 'fechado') {
+                showToast("O expediente foi encerrado. O caixa está FECHADO.", "warning");
+            } else if (data.status === 'aberto') {
+                showToast("O caixa foi aberto! Bom trabalho.");
+            }
+        });
+
+        // Escuta atualizações de status (cozinha/admin)
+        channel.bind('status-atualizado', (data) => {
+            console.log('🔔 Status atualizado via Pusher:', data);
+            loadPedidos();
+            
+            // FILTRO: Só mostra balão para o motoboy se for DELIVERY
+            if (data.garcom_id === 'DELIVERY') {
+                if (data.status === 'cancelado') {
+                    showToast(`Pedido #${data.pedido_id} foi CANCELADO.`, "warning");
+                } else if (data.status === 'pronto' || data.status === 'servido') {
+                    showToast(`Pedido #${data.pedido_id} está PRONTO!`, "success");
+                } else if (data.status === 'recebido') {
+                    showToast(`Novo pedido #${data.pedido_id} recebido!`, "info");
+                } else if (data.status === 'aguardando_fechamento' || data.status === 'entregue') {
+                    showToast(`Pedido #${data.pedido_id} ENTREGUE!`, "success");
+                }
+            }
+        });
+
+        // Escuta novos pedidos (Geralmente disparado na criação)
+        channel.bind('novo-pedido', (data) => {
+            console.log('🆕 Novo pedido via Pusher:', data);
+            loadPedidos();
+
+            // FILTRO: Só mostra balão se for DELIVERY
+            const pedido = data.pedido || data;
+            if (pedido.garcom_id === 'DELIVERY') {
+                showToast(`Novo pedido #${pedido.id || pedido.pedido_id} recebido!`, "info");
+            }
+        });
+
+        // Escuta cancelamentos (Disparado na exclusão)
+        channel.bind('pedido-cancelado', (data) => {
+            console.log('❌ Pedido cancelado via Pusher:', data);
+            loadPedidos();
+
+            // FILTRO: Só mostra balão se for DELIVERY
+            if (String(data.garcom_id) === 'DELIVERY' || (data.mesa_numero && String(data.mesa_numero).includes('DELIVERY'))) {
+                showToast(`Pedido #${data.id || data.pedido_id} foi REMOVIDO.`, "warning");
+            }
+        });
+
+        // Escuta quando itens ficam prontos (Cozinha)
+        channel.bind('pedido-pronto', (data) => {
+            console.log('🍳 Pedido pronto via Pusher:', data);
+            loadPedidos();
+
+            // FILTRO: Só mostra balão se for DELIVERY
+            if (String(data.garcom_id) === 'DELIVERY' || (data.mesa_numero && String(data.mesa_numero).includes('DELIVERY'))) {
+                showToast("Pedido pronto para entrega!", "success");
+            }
+        });
+
+    } catch (e) {
+        console.error('Erro ao configurar Pusher:', e);
+    }
+}
+
+async function loadPedidos() {
+    try {
+        const res = await fetch('/api/pedidos/ativos-detalhado');
+        const allPedidos = await res.json();
+        
+        // Filtra apenas os pedidos de DELIVERY
+        const deliveryPedidos = allPedidos.filter(p => p.garcom_id === 'DELIVERY');
+        
+        renderPedidos(deliveryPedidos);
+    } catch (e) {
+        console.error('Erro ao carregar pedidos:', e);
+    }
+}
+
+function renderPedidos(pedidos) {
+    const contPronto = document.getElementById('container-a-caminho');
+    const contPendente = document.getElementById('container-pendentes');
+    const contEntregues = document.getElementById('container-entregues');
+    
+    const countPronto = document.getElementById('count-pronto');
+    const countPendente = document.getElementById('count-pendente');
+    const countEntregues = document.getElementById('count-entregues');
+
+    // Limpa containers
+    contPronto.innerHTML = '';
+    contPendente.innerHTML = '';
+    contEntregues.innerHTML = '';
+
+    let nPronto = 0;
+    let nPendente = 0;
+    let nEntregue = 0;
+
+    pedidos.forEach(p => {
+        // Classifica o pedido baseado no status e força o label da coluna
+        if (p.status === 'aguardando_fechamento' || p.status === 'entregue') {
+            const card = createPedidoCard(p, 'entregue');
+            contEntregues.appendChild(card);
+            nEntregue++;
+        } else {
+            const isReady = p.status === 'servido' || p.status === 'pronto' || p.status === 'saiu_entrega';
+            if (isReady) {
+                const card = createPedidoCard(p, 'a-caminho');
+                contPronto.appendChild(card);
+                nPronto++;
+            } else {
+                const card = createPedidoCard(p, 'pendente');
+                contPendente.appendChild(card);
+                nPendente++;
+            }
+        }
+    });
+
+    // Empty states
+    if (nPronto === 0) contPronto.innerHTML = '<div class="empty-state">Nenhum pedido pronto para entrega.</div>';
+    if (nPendente === 0) contPendente.innerHTML = '<div class="empty-state">Nenhum pedido em preparo.</div>';
+    if (nEntregue === 0) contEntregues.innerHTML = '<div class="empty-state">Nenhuma entrega realizada ainda.</div>';
+
+    countPronto.innerText = nPronto;
+    countPendente.innerText = nPendente;
+    countEntregues.innerText = nEntregue;
+}
+
+function translateStatus(s) {
+    const map = {
+        'pendente': 'PREPARANDO',
+        'pronto': 'PRONTO',
+        'entregue': 'ENTREGUE',
+        'cancelado': 'CANCELADO',
+        'servido': 'PRONTO',
+        'saiu_entrega': 'A CAMINHO'
+    };
+    return map[s.toLowerCase()] || s.toUpperCase();
+}
+
+function createPedidoCard(p, displayStatus) {
+    const card = document.createElement('div');
+    
+    // Classes CSS baseadas no displayStatus
+    let statusClass = displayStatus;
+    let statusText = displayStatus.toUpperCase().replace('-', ' ');
+    
+    card.className = `pedido-card ${statusClass}`;
+    if (displayStatus === 'entregue') card.style.opacity = '0.7';
+    
+    // Extrai Nome e Endereço da observação (formato padrão do delivery)
+    let cliente = "Cliente não identificado";
+    let endereco = "Endereço não informado";
+    
+    if (p.observacao) {
+        const lines = p.observacao.split('\n');
+        const lineNome = lines.find(l => l.includes('👤 Cliente:'));
+        const lineEnd = lines.find(l => l.includes('🏠 End:'));
+        
+        if (lineNome) cliente = lineNome.replace('👤 Cliente:', '').trim();
+        if (lineEnd) endereco = lineEnd.replace('🏠 End:', '').trim();
+    }
+
+    const time = new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    let btnHtml = '';
+    if (displayStatus === 'entregue') {
+        btnHtml = `<button class="btn-entregar" style="background-color: #95a5a6; box-shadow: 0 4px 0 #7f8c8d;" disabled>
+                      <i class="fas fa-check-double"></i> ENTREGA CONCLUÍDA
+                   </button>`;
+    } else {
+        const isReady = displayStatus === 'a-caminho';
+        btnHtml = `<button class="btn-entregar" ${!isReady ? 'disabled' : ''} onclick="confirmarEntrega(${p.id}, this)">
+                      ${isReady ? '<i class="fas fa-check"></i> CONFIRMAR ENTREGA' : '<i class="fas fa-clock"></i> AGUARDANDO COZINHA'}
+                   </button>`;
+    }
+
+    card.innerHTML = `
+        <div class="pedido-header">
+            <div>
+                <span class="pedido-id">#${p.id}</span>
+                <span class="status-badge ${statusClass}">${statusText}</span>
+            </div>
+            <div style="text-align: right;">
+                <div class="pedido-total">R$ ${parseFloat(p.total).toFixed(2).replace('.', ',')}</div>
+                <span class="pedido-time">${time}</span>
+            </div>
+        </div>
+        <div class="pedido-body">
+            <span class="cliente-info">${cliente}</span>
+            <span class="endereco-info">${endereco}</span>
+            <div class="pedido-itens">
+                ${p.itens.map(i => {
+                    let itemStatusLabel = translateStatus(i.status);
+                    // Se o item está entregue (preparado) mas o pedido ainda está "A CAMINHO", 
+                    // para o motoboy o item está "A CAMINHO"
+                    if (displayStatus === 'a-caminho' && i.status.toLowerCase() === 'entregue') {
+                        itemStatusLabel = 'A CAMINHO';
+                    }
+                    return `<div class="item-row"><span>${i.quantidade}x ${i.nome}</span><span>${itemStatusLabel}</span></div>`;
+                }).join('')}
+            </div>
+        </div>
+        ${btnHtml}
+    `;
+
+    return card;
+}
+
+async function confirmarEntrega(id, btn) {
+    const { isConfirmed } = await Swal.fire({
+        title: 'Confirmar Entrega?',
+        text: `Você confirma que o pedido #${id} foi entregue ao cliente?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#27ae60',
+        cancelButtonColor: '#95a5a6',
+        confirmButtonText: 'Sim, entregue!',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!isConfirmed) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESSANDO...';
+
+    try {
+        // Envia status 'aguardando_fechamento' para que no Admin caia na coluna de entregue/fechamento
+        const res = await fetch(`/api/pedidos/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'aguardando_fechamento' })
+        });
+
+        if (res.ok) {
+            showToast(`Pedido #${id} entregue com sucesso!`);
+            loadPedidos();
+        } else {
+            showToast("Erro ao confirmar entrega.");
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> CONFIRMAR ENTREGA';
+        }
+    } catch (e) {
+        console.error(e);
+        showToast("Falha na conexão.");
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> CONFIRMAR ENTREGA';
+    }
+}
+
+function solicitarPermissaoNotificacao() {
+    if ("Notification" in window) Notification.requestPermission();
+}
+
+function exibirNotificacaoNativa(tit, msg, tagId = 'geral') {
+    if ("Notification" in window && Notification.permission === "granted") {
+        const n = new Notification(tit, {
+            body: msg,
+            tag: tagId,
+            renotify: true
+        });
+        n.onclick = () => {
+            window.focus();
+        };
+    }
+}
+
+/**
+ * Exibe uma notificação elegante no canto da tela (Toast)
+ * @param {string} msg - Mensagem da notificação
+ * @param {string} tipo - 'success', 'error', 'warning', 'info'
+ * @param {string} titulo - Título opcional
+ * @param {number} duracao - Tempo em ms (padrão 5s)
+ */
+function mostrarToast(msg, tipo = 'success', titulo = '', duracao = 5000) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const t = document.createElement('div');
+    // Normalização de tipos
+    let classeTipo = tipo;
+    if (tipo === 'sucesso') classeTipo = 'success';
+    if (tipo === 'erro') classeTipo = 'error';
+    
+    t.className = `toast-notificacao ${classeTipo}`;
+    
+    const icones = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+
+    const html = `
+        <div class="toast-icon">${icones[classeTipo] || '🔔'}</div>
+        <div class="toast-content">
+            ${titulo ? `<strong class="toast-title">${titulo}</strong>` : ''}
+            <span class="toast-msg">${msg}</span>
+        </div>
+        <button class="toast-close">&times;</button>
+    `;
+
+    t.innerHTML = html;
+    container.appendChild(t);
+
+    // NOVO: Espelha para notificação nativa do Windows automaticamente
+    if (typeof exibirNotificacaoNativa === 'function') {
+        exibirNotificacaoNativa(titulo || (classeTipo.toUpperCase() + ": " + (icones[classeTipo] || "")), msg, 'toast-' + Date.now());
+    }
+
+    // Trigger animação
+    setTimeout(() => t.classList.add('show'), 10);
+
+    // Auto-close
+    const autoClose = setTimeout(() => fecharToast(t), duracao);
+
+    // Toca o som (Motoboy sempre toca para chamar atenção)
+    if (typeof audioNotificacao !== 'undefined') {
+        audioNotificacao.play().catch(e => console.log('Áudio bloqueado:', e));
+    }
+
+    // Botão fechar
+    t.querySelector('.toast-close').onclick = () => {
+        clearTimeout(autoClose);
+        fecharToast(t);
+    };
+}
+
+function fecharToast(el) {
+    el.classList.remove('show');
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 400);
+}
+
+// Alias para compatibilidade com código antigo do motoboy
+function showToast(msg, type = 'info') {
+    mostrarToast(msg, type);
+}
